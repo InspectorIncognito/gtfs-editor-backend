@@ -1,0 +1,79 @@
+version: '3.7'
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: webserver
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    environment:
+      - SU_DJANGO_USERNAME=transapp
+      - SU_DJANGO_PASS=transapp
+    env_file:
+      - ./docker_env
+    depends_on:
+      - db
+      - cache
+    networks:
+      - nginx_network
+      - database_network
+      - cache_network
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: worker
+    env_file:
+      - ./docker_env
+    depends_on:
+      - cache
+      - db
+    networks:
+      - database_network
+      - cache_network
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx/NginxDockerfile
+    ports:
+      - 8000:80
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    depends_on:
+      - web
+    networks:
+      - nginx_network
+
+  cache:
+    image: redis:latest
+    networks:
+      - cache_network
+
+  db:
+    image: postgres:9.6-alpine
+    volumes:
+      - postgres_gtfseditor_data:/var/lib/postgresql/data/
+    env_file:
+      - ./docker_db_env
+    networks:
+      - cache_network
+      - database_network
+
+networks:
+  nginx_network:
+    driver: bridge
+  database_network:
+    driver: bridge
+  cache_network:
+    driver: bridge
+
+volumes:
+  postgres_gtfseditor_data:
+  static_volume:
+  media_volume:

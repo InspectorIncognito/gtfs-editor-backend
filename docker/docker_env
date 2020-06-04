@@ -1,0 +1,16 @@
+# for project container
+SECRET_KEY=lr8rv+=r%lpk4$-=i71viu+etjdfng8^&_2)o#c0@i+uugy*b^
+
+DEBUG=True
+
+ALLOWED_HOSTS=127.0.0.1,localhost
+
+DB_NAME=gtfseditor
+DB_USER=gtfseditor
+DB_PASS=gtfseditor
+DB_HOST=db
+DB_PORT=5432
+
+LOG_PATH=./file.log
+
+REDIS_LOCATION=redis://cache:6379

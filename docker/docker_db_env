@@ -1,0 +1,4 @@
+# for postgres container
+POSTGRES_DB=gtfseditor
+POSTGRES_USER=gtfseditor
+POSTGRES_PASSWORD=gtfseditor
