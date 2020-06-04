@@ -79,10 +79,10 @@ for DockerHub we need build two images, project and nginx server, for each of tw
 docker build -f docker\Dockerfile -t gtfseditor:latest .
 
 # create tag
-docker tag gtfseditor:latest sidermit/gtfseditor:latest
+docker tag gtfseditor:latest 992591977826.dkr.ecr.sa-east-1.amazonaws.com/gtfseditor:latest
 
 # push to aws repository
-docker push sidermit/gtfseditor:latest
+docker push 992591977826.dkr.ecr.sa-east-1.amazonaws.com/gtfseditor:latest
 ```
 
 ```
@@ -90,10 +90,10 @@ docker push sidermit/gtfseditor:latest
 docker build -f docker\nginx\NginxDockerfile -t nginx-gtfseditor:latest .
 
 # create tag
-docker tag nginx-gtfseditor:latest sidermit/nginx-gtfseditor:latest
+docker tag nginx-gtfseditor:latest 992591977826.dkr.ecr.sa-east-1.amazonaws.com/nginx-gtfseditor:latest
 
 # push to aws repository
-docker push sidermit/nginx-gtfseditor:latest
+docker push 992591977826.dkr.ecr.sa-east-1.amazonaws.com/nginx-gtfseditor:latest
 ```
 
 ## Build and run docker-compose
