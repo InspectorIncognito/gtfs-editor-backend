@@ -70,9 +70,9 @@ python manage.py test
 docker build -f docker\Dockerfile -t gtfseditor .
 ```
 
-### DockerHub
+### AWS
 
-for DockerHub we need build two images, project and nginx server, for each of two we have to do the following process:
+for ECR service we need build two images, project and nginx server, for each of two we have to do the following process:
 
 ```
 # build gtfseditor project
