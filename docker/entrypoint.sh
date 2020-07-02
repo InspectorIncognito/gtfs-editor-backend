@@ -39,6 +39,6 @@ case "$1" in
   ;;
   worker)
     echo "starting worker"
-    python manage.py rqworker default optimizer --worker-class rqworkers.optimizerWorker.OptimizerWorker
+    python manage.py rqworker default gtfseditor --worker-class rqworkers.gtfseditorWorker.GTFSEditorWorker
   ;;
 esac
