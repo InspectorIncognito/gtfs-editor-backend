@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 import sys
+from typing import List
 
 from decouple import config, Csv
 
@@ -46,7 +47,7 @@ THIRD_PARTY_APPS = [
     'django_rq',
 ]
 
-LOCAL_APPS = []
+LOCAL_APPS = ['gtfseditor']
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
