@@ -107,7 +107,7 @@ class Shape(models.Model):
 
 
 class ShapePoint(models.Model):
-    shape = models.ForeignKey(Shape, on_delete=models.CASCADE, primary_key=False)
+    shape = models.ForeignKey(Shape, on_delete=models.CASCADE, primary_key=False, related_name='points')
     shape_pt_sequence = models.IntegerField(primary_key=False)
     shape_pt_lat = models.FloatField()
     shape_pt_lon = models.FloatField()
