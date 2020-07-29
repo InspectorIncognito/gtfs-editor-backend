@@ -6,7 +6,7 @@ class Project(models.Model):
     name = models.CharField(max_length=50)
 
     def __str__(self):
-        return self.name
+        return str(self.name)
 
 
 # TODO: update publishing model when publishing methods are decided on
@@ -16,7 +16,7 @@ class PublishingURL(models.Model):
     url = models.URLField()
 
     def __str__(self):
-        return self.name
+        return str(self.name)
 
 
 class Publication(models.Model):
@@ -37,7 +37,7 @@ class Calendar(models.Model):
     sunday = models.BooleanField()
 
     def __str__(self):
-        return self.service_id
+        return str(self.service_id)
 
 
 class Level(models.Model):
@@ -47,7 +47,7 @@ class Level(models.Model):
     level_name = models.CharField(max_length=50)
 
     def __str__(self):
-        return self.level_id
+        return str(self.level_id)
 
 
 class CalendarDate(models.Model):
@@ -56,7 +56,7 @@ class CalendarDate(models.Model):
     exception_type = models.IntegerField()
 
     def __str__(self):
-        return self.date
+        return str(self.date)
 
 
 class FeedInfo(models.Model):
@@ -83,7 +83,7 @@ class Stop(models.Model):
     stop_url = models.URLField()
 
     def __str__(self):
-        return self.stop_id
+        return str(self.stop_id)
 
 
 class Pathway(models.Model):
@@ -95,7 +95,7 @@ class Pathway(models.Model):
     is_bidirectional = models.BooleanField()
 
     def __str__(self):
-        return self.pathway_id
+        return str(self.pathway_id)
 
 
 class Shape(models.Model):
@@ -103,7 +103,7 @@ class Shape(models.Model):
     shape_id = models.CharField(max_length=50, primary_key=False)
 
     def __str__(self):
-        return self.shape_id
+        return str(self.shape_id)
 
 
 class ShapePoint(models.Model):
@@ -132,7 +132,7 @@ class Agency(models.Model):
     agency_timezone = models.CharField(max_length=20)
 
     def __str__(self):
-        return self.agency_id
+        return str(self.agency_id)
 
 
 class Route(models.Model):
@@ -147,7 +147,7 @@ class Route(models.Model):
     route_text_color = models.CharField(max_length=10)
 
     def __str__(self):
-        return self.route_id
+        return str(self.route_id)
 
 
 class FareAttribute(models.Model):
@@ -161,7 +161,7 @@ class FareAttribute(models.Model):
     agency = models.ForeignKey(Agency, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.fare_id
+        return str(self.fare_id)
 
 
 class FareRule(models.Model):
@@ -169,7 +169,7 @@ class FareRule(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.fare_attribute.fare_id
+        return str(self.fare_attribute.fare_id)
 
 
 class Trip(models.Model):
@@ -182,7 +182,7 @@ class Trip(models.Model):
     direction_id = models.CharField(max_length=50)
 
     def __str__(self):
-        return self.trip_id
+        return str(self.trip_id)
 
 
 class StopTime(models.Model):
@@ -193,4 +193,4 @@ class StopTime(models.Model):
     departure_time = models.TimeField()
 
     def __str__(self):
-        return self.trip.trip_id + self.stop_sequence
+        return str(self.trip.trip_id) + str(self.stop_sequence)
