@@ -1,5 +1,5 @@
 from django.contrib import admin
-from gtfseditor.models import *
+from rest_api.models import *
 # Missing models:
 # Publishing models (currently preliminary version)
 # Shape points (does it make sense to manage shapes here?)

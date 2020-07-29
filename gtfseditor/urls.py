@@ -16,7 +16,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_nested import routers
-from gtfseditor.rest_api import views
+from rest_api import views
 
 
 router = routers.SimpleRouter()

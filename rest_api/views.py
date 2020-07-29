@@ -2,8 +2,8 @@ from rest_framework import viewsets, generics
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
-from gtfseditor.rest_api.serializers import *
-from gtfseditor.models import *
+from rest_api.serializers import *
+from rest_api.models import *
 from django.contrib.auth.models import User
 
 class ProjectViewSet(viewsets.ModelViewSet):

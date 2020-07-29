@@ -1,6 +1,5 @@
-from django.db.models import F
 
-from gtfseditor.models import *
+from rest_api.models import *
 from rest_framework import serializers
 from django.contrib.auth.models import User
 
