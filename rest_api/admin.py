@@ -1,8 +1,17 @@
+from abc import ABC
+
 from django.contrib import admin
 from rest_api.models import *
+
+
 # Missing models:
 # Publishing models (currently preliminary version)
 # Shape points (does it make sense to manage shapes here?)
+
+
+def reg(adm, model):
+    admin.site.register(model, adm)
+    return adm
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -59,22 +68,18 @@ class ShapeAdmin(admin.ModelAdmin):
     list_display = ("project", "shape_id")
     list_filter = ("project",)
 
-
-class ProjectFilter(admin.SimpleListFilter):
-    title = ('Project',)
-
+class ProjectFilter(admin.SimpleListFilter, ABC):
+    title = 'Project'
     parameter_name = 'project'
 
     def lookups(self, request, model_admin):
-        projects = []
-        qs = Project.objects.filter(project_id__in=model_admin.model.objects.all().values_list('project__project_id', flat=True).distinct())
-        for p in qs:
-            projects.append([p.project_id, p.name])
-        return projects
+        projects = Project.objects.all().values_list('name', flat=True).distinct()
+        return list(map(lambda project: (project, project), projects))
 
+class TransferProjectFilter(ProjectFilter):
     def queryset(self, request, queryset):
         if self.value():
-            return queryset.filter(project__project_id__exact=self.value())
+            return queryset.filter(from_stop__project__name=self.value())
         else:
             return queryset
 
@@ -86,5 +91,7 @@ class ShapePointAdmin(admin.ModelAdmin):
 
 @admin.register(Transfer)
 class TransferAdmin(admin.ModelAdmin):
-    list_display = ("from_stop", "to_stop")
-
+    def project(self, obj):
+        return obj.from_stop.project
+    list_filter = (TransferProjectFilter,)
+    list_display = ("project", "from_stop", "to_stop", "type")

@@ -9,7 +9,7 @@ class Project(models.Model):
         return str(self.name)
 
 
-# TODO: update publishing model when publishing methods are decided on
+# TODO update publishing model when publishing methods are decided on
 class PublishingURL(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, primary_key=False)
     name = models.CharField(max_length=50, primary_key=False)
@@ -119,6 +119,7 @@ class ShapePoint(models.Model):
 class Transfer(models.Model):
     from_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, primary_key=False, related_name="transfer_from")
     to_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, primary_key=False, related_name="transfer_to")
+    type = models.IntegerField()
 
     def __str__(self):
         return "Transfer {0}--{1}".format(str(self.from_stop), str(self.to_stop))
@@ -173,10 +174,10 @@ class FareRule(models.Model):
 
 
 class Trip(models.Model):
-    project = models.ForeignKey(FareAttribute, on_delete=models.CASCADE, primary_key=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, primary_key=False)
     trip_id = models.CharField(max_length=50, primary_key=False)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
-    shape = models.ForeignKey(Shape, on_delete=models.CASCADE)
+    shape = models.ForeignKey(Shape, on_delete=models.CASCADE, null=True)
     service_id = models.CharField(max_length=50)
     trip_headsign = models.CharField(max_length=50)
     direction_id = models.CharField(max_length=50)
@@ -189,8 +190,11 @@ class StopTime(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, primary_key=False)
     stop = models.ForeignKey(Stop, on_delete=models.CASCADE, primary_key=False)
     stop_sequence = models.IntegerField(primary_key=False)
-    arrival_time = models.TimeField()
-    departure_time = models.TimeField()
+    arrival_time = models.TimeField(null=True)
+    departure_time = models.TimeField(null=True)
 
     def __str__(self):
-        return str(self.trip.trip_id) + str(self.stop_sequence)
+        return 'Trip "{}", Stop "{}", Position {}'\
+            .format(str(self.trip.trip_id),
+                    str(self.stop.id),
+                    str(self.stop_sequence))
