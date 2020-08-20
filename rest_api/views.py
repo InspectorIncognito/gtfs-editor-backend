@@ -1,10 +1,15 @@
-from rest_framework import viewsets, generics
+import csv
+from http.client import HTTPResponse
+
+from django.http import HttpResponse
+from rest_framework import viewsets, generics, mixins, status
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 
 from rest_api.serializers import *
 from rest_api.models import *
 from django.contrib.auth.models import User
+
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -14,25 +19,45 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
 
 
-class ShapeViewSet(viewsets.ViewSet):
+class ShapeViewSet(mixins.DestroyModelMixin,
+                   viewsets.GenericViewSet):
     serializer_class = ShapeSerializer
+    lookup_field = 'shape_id'
+    queryset = Shape.objects.all()
 
     def list(self, request, project_pk=None):
-        queryset = Shape.objects.all()
+        queryset = Shape.objects.filter(project=project_pk)
         serializer_context = {
             'request': request
         }
         serializer = ShapeSerializer(queryset, context=serializer_context, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request, pk=None, project_pk=None):
-        queryset = Shape.objects.filter(project=self.kwargs['project_pk'])
-        user = get_object_or_404(queryset, pk=pk)
+    def retrieve(self, request, project_pk=None, shape_id=None):
+        if shape_id == "csv":
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = 'attachment; filename="shapes.csv"'
+            writer = csv.writer(response)
+            queryset = ShapePoint.objects.filter(shape__project_id=project_pk)
+            writer.writerow(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'])
+            for sp in queryset:
+                writer.writerow([sp.shape_id, sp.shape_pt_lat, sp.shape_pt_lon, sp.shape_pt_sequence])
+            return response
+
+        queryset = Shape.objects.filter(project=project_pk, shape_id=shape_id)
         serializer_context = {
             'request': request
         }
-        serializer = DetailedShapeSerializer(user, context=serializer_context)
+        serializer = DetailedShapeSerializer(queryset, context=serializer_context, many=True)
         return Response(serializer.data)
+
+    def put(self, request, partial=False, project_pk=None, shape_id=None):
+        if shape_id == 'csv':
+            file = request.FILES['file']
+            with open(file.name, 'r') as f:
+                f.readline()
+                content = f.readlines()
+            return None
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -42,6 +67,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class CalendarViewSet(viewsets.ModelViewSet):
     serializer_class = CalendarSerializer
+    lookup_field = 'service_id'
 
     def get_queryset(self):
         return Calendar.objects.filter(project=self.kwargs['project_pk'])
@@ -86,7 +112,7 @@ class ShapePointViewSet(viewsets.ModelViewSet):
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
-        return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk'])
+        return ShapePoint.objects.filter(shape__project_id=self.kwargs['project_pk'])
 
 
 class TransferViewSet(viewsets.ModelViewSet):
