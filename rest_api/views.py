@@ -1,15 +1,72 @@
 import csv
+import io
+import sys
 from http.client import HTTPResponse
 
-from django.http import HttpResponse
-from rest_framework import viewsets, generics, mixins, status
+from django.http import HttpResponse, FileResponse
+from rest_framework import viewsets, generics, mixins, status, renderers
+from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
+from rest_framework.parsers import FileUploadParser
 from rest_framework.response import Response
 
+from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.models import *
 from django.contrib.auth.models import User
 
+
+def parse_csv(file):
+    first = True
+    for row in file:
+        if row.strip():  # row is not empty
+            # Remove trailing newlines/spaces, convert to non-binary string and convert to list
+            row = row.strip().decode('utf-8').split(',')
+            if first:
+                first = False
+                header = row
+            else:
+                result = dict()
+                if len(row) != len(header):
+                    raise RuntimeError("Header and row of CSV file do not match in length")
+                for i in range(len(row)):
+                    result[header[i]] = row[i]
+                yield result
+
+
+class CSVUploadMixin:
+    pass
+
+# Classes using this mixin require a Meta class that contains the following attributes
+# csv_header: list containing the names of the CSV rows
+# csv_filename: name of the CSV file, does not require the extension
+# list_attrs: method that grabs the object and makes a list of the row representing it
+# In addition the class requires a filter_by_project method that returns all objects
+# that belong to the project with the primary key entered
+class CSVDownloadMixin:
+
+    @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
+    def download(self, *args, **kwargs):
+        meta = self.Meta()
+        filename = meta.csv_filename
+        header = meta.csv_header
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
+        writer = csv.writer(response)
+        objects = self.filter_by_project(kwargs['project_pk'])
+        writer.writerow(header)
+        for obj in objects:
+            writer.writerow(meta.list_attrs(obj))
+        return response
+
+
+# This class bundles up the CSVUploadMixin and CSVDownloadMixin,
+# adding a few methods that tend to be generic
+class CSVHandlerMixin(CSVUploadMixin,
+                      CSVDownloadMixin):
+    def filter_by_project(self, project_pk):
+        qs = self.get_queryset()
+        return qs.filter(project_id=project_pk)
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -19,13 +76,16 @@ class ProjectViewSet(viewsets.ModelViewSet):
     serializer_class = ProjectSerializer
 
 
-class ShapeViewSet(mixins.DestroyModelMixin,
-                   viewsets.GenericViewSet):
+class CSVDownloadMixIn:
+    pass
+
+
+class ShapeViewSet(viewsets.ModelViewSet):
     serializer_class = ShapeSerializer
-    lookup_field = 'shape_id'
     queryset = Shape.objects.all()
 
-    def list(self, request, project_pk=None):
+    def list(self, request, *args, **kwargs):
+        project_pk = kwargs['project_pk']
         queryset = Shape.objects.filter(project=project_pk)
         serializer_context = {
             'request': request
@@ -33,26 +93,49 @@ class ShapeViewSet(mixins.DestroyModelMixin,
         serializer = ShapeSerializer(queryset, context=serializer_context, many=True)
         return Response(serializer.data)
 
-    def retrieve(self, request, project_pk=None, shape_id=None):
-        if shape_id == "csv":
-            response = HttpResponse(content_type='text/csv')
-            response['Content-Disposition'] = 'attachment; filename="shapes.csv"'
-            writer = csv.writer(response)
-            queryset = ShapePoint.objects.filter(shape__project_id=project_pk)
-            writer.writerow(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'])
-            for sp in queryset:
-                writer.writerow([sp.shape_id, sp.shape_pt_lat, sp.shape_pt_lon, sp.shape_pt_sequence])
-            return response
+    @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
+    def download(self, *args, **kwargs):
+        queryset = self.get_queryset()
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="shapes.csv"'
+        writer = csv.writer(response)
+        shape_set = queryset.filter(project__pk=kwargs['project_pk'])
+        writer.writerow(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'])
+        for shape in shape_set:
+            for sp in shape.points.all():
+                writer.writerow([sp.shape.shape_id, sp.shape_pt_lat, sp.shape_pt_lon, sp.shape_pt_sequence])
+        return response
 
-        queryset = Shape.objects.filter(project=project_pk, shape_id=shape_id)
-        serializer_context = {
-            'request': request
-        }
-        serializer = DetailedShapeSerializer(queryset, context=serializer_context, many=True)
+    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    def upload(self, request, *args, **kwargs):
+        if 'file' not in request.FILES:
+            return Response('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
+        file = request.FILES['file']
+        print(file)
+        shape_qs = Shape.objects.all()
+        for entry in parse_csv(file):
+            if shape_qs.filter(project_id=kwargs['project_pk'], shape_id=entry['shape_id']).count() == 0:
+                Shape.objects.create(project_id=kwargs['project_pk'], shape_id=entry['shape_id'])
+            shape = shape_qs.filter(project_id=kwargs['project_pk'],
+                                    shape_id=entry['shape_id'])[0]
+            del entry['shape_id']
+            sp = ShapePoint.objects.filter(shape=shape, shape_pt_sequence=entry['shape_pt_sequence'])
+            if sp.count() == 0:
+                sp = ShapePoint(shape=shape, **entry)
+            else:
+                sp = sp[0]
+                for k in entry:
+                    setattr(sp, k, entry[k])
+            sp.save()
+        return HttpResponse(content_type='text/plain')
+
+    def retrieve(self, request, project_pk=None, pk=None):
+        instance = self.get_object()
+        serializer = DetailedShapeSerializer(instance)
         return Response(serializer.data)
 
-    def put(self, request, partial=False, project_pk=None, shape_id=None):
-        if shape_id == 'csv':
+    def put(self, request, partial=False, project_pk=None, id=None):
+        if id == 'csv':
             file = request.FILES['file']
             with open(file.name, 'r') as f:
                 f.readline()
@@ -65,16 +148,42 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
 
 
-class CalendarViewSet(viewsets.ModelViewSet):
+class GenericListAttrsMeta:
+    def list_attrs(self, obj):
+        result = list()
+        for field in self.csv_header:
+            result.append(getattr(obj, field))
+        return result
+
+
+class CalendarViewSet(CSVHandlerMixin,
+                      viewsets.ModelViewSet):
     serializer_class = CalendarSerializer
-    lookup_field = 'service_id'
+
+    class Meta (GenericListAttrsMeta):
+        csv_filename = 'calendars'
+        csv_header = ['service_id',
+                      'monday',
+                      'tuesday',
+                      'wednesday',
+                      'thursday',
+                      'friday',
+                      'saturday',
+                      'sunday']
 
     def get_queryset(self):
         return Calendar.objects.filter(project=self.kwargs['project_pk'])
 
 
-class LevelViewSet(viewsets.ModelViewSet):
+class LevelViewSet(CSVHandlerMixin,
+                   viewsets.ModelViewSet):
     serializer_class = LevelSerializer
+
+    class Meta (GenericListAttrsMeta):
+        csv_filename = 'levels'
+        csv_header = ['level_id',
+                      'level_index',
+                      'level_name']
 
     def get_queryset(self):
         return Level.objects.filter(project=self.kwargs['project_pk'])
@@ -112,7 +221,7 @@ class ShapePointViewSet(viewsets.ModelViewSet):
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
-        return ShapePoint.objects.filter(shape__project_id=self.kwargs['project_pk'])
+        return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk'])
 
 
 class TransferViewSet(viewsets.ModelViewSet):

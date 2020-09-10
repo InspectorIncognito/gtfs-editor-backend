@@ -1,3 +1,9 @@
+from datetime import datetime, date
+from unittest import skip
+
+import django
+import psycopg2
+from django.db import IntegrityError, models
 from django.test import TestCase
 import json
 
@@ -6,8 +12,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.test import APIClient
 
-from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, StopTime, Level
-from rest_api.serializers import ProjectSerializer, CalendarSerializer, LevelSerializer, StopSerializer
+from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, StopTime, Level, Shape, ShapePoint
+from rest_api.serializers import ProjectSerializer, CalendarSerializer, LevelSerializer, StopSerializer, \
+    FeedInfoSerializer, AgencySerializer, RouteSerializer, TripSerializer, StopTimeSerializer, DetailedShapeSerializer
 
 
 class BaseTestCase(TestCase):
@@ -33,7 +40,6 @@ class BaseTestCase(TestCase):
             method_obj = client.put
         elif method == self.DELETE_REQUEST:
             method_obj = client.delete
-
         response = method_obj(url, data, **additional_method_params)
         if response.status_code != status_code:
             print('error {0}: {1}'.format(response.status_code, response.content))
@@ -44,9 +50,8 @@ class BaseTestCase(TestCase):
         return response
 
     def create_data(self):
-        # TODO parameters, these should be turned into kwargs soon
         projects_number = 1
-
+        Project.objects.create(name="Empty Project")
         projects = list()
         # create projects
         for proj in range(projects_number):
@@ -77,7 +82,7 @@ class BaseTestCase(TestCase):
             # Create feed info
             FeedInfo.objects.create(project=project,
                                     feed_publisher_name="Test Agency",
-                                    feed_publisher_url="www.testagency.com",
+                                    feed_publisher_url="http://www.testagency.com",
                                     feed_lang="EN",
                                     feed_start_date="2020-01-01",
                                     feed_end_date="2020-12-31",
@@ -86,14 +91,27 @@ class BaseTestCase(TestCase):
 
             agencies = []
             # Create agencies
+            agency = Agency.objects.create(project=project,
+                                           agency_id="test_agency",
+                                           agency_name="Test Agency",
+                                           agency_url="http://www.testagency.com",
+                                           agency_timezone="America/Santiago")
             for i in range(2):
                 agency = Agency.objects.create(project=project,
                                                agency_id="agency_{0}".format(i),
                                                agency_name="Agency {0}".format(i),
-                                               agency_url="www.agency{0}.com".format(i),
+                                               agency_url="http://www.agency{0}.com".format(i),
                                                agency_timezone="America/Santiago")
                 agencies.append(agency)
             # Create stops
+            Stop.objects.create(project=project,
+                                stop_id="stop_delete",
+                                stop_lat=0,
+                                stop_lon=0)
+            Stop.objects.create(project=project,
+                                stop_id="test_stop",
+                                stop_lat=0,
+                                stop_lon=0)
             stops = [  # First route
                 [33.3689, 70.5693],
                 [33.3689, 70.5893],  # Conn 1
@@ -165,7 +183,22 @@ class BaseTestCase(TestCase):
                                                stop_name="ST{0}".format(i),
                                                stop_lat=stop[0],
                                                stop_lon=stop[1])
+            Route.objects.create(agency=agencies[0],
+                                 route_id="test_route",
+                                 route_short_name="Test Route",
+                                 route_long_name="Test Route - The Route",
+                                 route_desc="This route was made for testing",
+                                 route_type=1,
+                                 route_url="http://www.testroute.com",
+                                 route_color="FF00FF",
+                                 route_text_color="00FF00")
 
+            route = Route.objects.create(agency=agencies[0],
+                                         route_id='trip_test_route',
+                                         route_type=3)
+            trip = Trip.objects.create(project=project,
+                                       trip_id='test_trip',
+                                       route=route)
             for i in range(4):
                 route = Route.objects.create(agency=agencies[i // 2],
                                              route_id="route{0}".format(i),
@@ -185,6 +218,18 @@ class BaseTestCase(TestCase):
                                      level_id="Cool Leveled Segment",
                                      level_index=i,
                                      level_name="Level {}".format(i))
+            shapes = [[(0.0, 0.0), (0.5, 0.5), (1.0, 1.0), (1.5, 1.5), (2.0, 2.0)],
+                      [(0.0, 0.0), (-0.5, -0.5), (-1.0, -1.0), (-1.5, -1.5), (-2.0, -2.0)]]
+            for j in range(len(shapes)):
+                shape = Shape.objects.create(project=project,
+                                             shape_id="shape_{}".format(j + 1))
+                points = shapes[j]
+                for k in range(len(points)):
+                    point = points[k]
+                    ShapePoint.objects.create(shape=shape,
+                                              shape_pt_sequence=k + 1,
+                                              shape_pt_lat=point[0],
+                                              shape_pt_lon=point[1])
         return projects
 
 
@@ -222,8 +267,7 @@ class ProjectAPITest(BaseTestCase):
     def test_retrieve_project_list(self):
         with self.assertNumQueries(1):
             json_response = self.projects_list(self.client, dict())
-        self.assertEqual(len(json_response), 1)
-        self.assertDictEqual(json_response[0], ProjectSerializer(self.project).data)
+        self.assertEqual(len(json_response), 2)
 
     def test_create_project(self):
         name = "Test Project"
@@ -232,7 +276,7 @@ class ProjectAPITest(BaseTestCase):
         }
         with self.assertNumQueries(1):
             json_response = self.projects_create(self.client, fields)
-        self.assertEqual(Project.objects.count(), 2)
+        self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_retrieve_project(self):
@@ -242,8 +286,10 @@ class ProjectAPITest(BaseTestCase):
 
     def test_delete_project(self):
         # Number of queries is erratic because of the cascade behavior
-        json_response = self.projects_delete(self.client, self.project.project_id)
-        self.assertEqual(Project.objects.filter(project_id=self.project.project_id).count(), 0)
+        name = "Empty Project"
+        id = Project.objects.filter(name=name)[0].project_id
+        json_response = self.projects_delete(self.client, id)
+        self.assertEqual(Project.objects.filter(project_id=id).count(), 0)
 
     def test_patch(self):
         # One to get one to update
@@ -259,55 +305,180 @@ class ProjectAPITest(BaseTestCase):
         self.assertEqual(db_data['name'], name)
 
 
-# Almost works as a mixin since it needs the child to define the table name
 class BaseTableTest(BaseTestCase):
+    lookup_field = "id"
 
     def setUp(self):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
-    # helper methods
-    def list(self, project_id, client, data, status_code=status.HTTP_200_OK):
+    def get_list_url(self, project_id):
         kwargs = dict(project_pk=project_id)
         url = reverse('{}-list'.format(self.table_name), kwargs=kwargs)
+        return url
+
+    def get_detail_url(self, project_id, id):
+        kwargs = dict(project_pk=project_id, pk=id)
+        url = reverse('{}-detail'.format(self.table_name), kwargs=kwargs)
+        return url
+
+    # helper methods
+    def list(self, project_id, client, data, status_code=status.HTTP_200_OK):
+        url = self.get_list_url(project_id)
         return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
 
     def create(self, project_id, client, data, status_code=status.HTTP_201_CREATED):
-        kwargs = dict(project_pk=project_id)
-        url = reverse('{}-list'.format(self.table_name), kwargs=kwargs)
+        url = self.get_list_url(project_id)
         return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
 
     def retrieve(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
-        kwargs = dict(project_pk=project_id)
-        kwargs[self.lookup_field] = pk
-        url = reverse('{}-detail'.format(self.table_name), kwargs=kwargs)
+        url = self.get_detail_url(project_id, pk)
         return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
 
     def delete(self, project_id, pk, client, data, status_code=status.HTTP_204_NO_CONTENT):
-        kwargs = dict(project_pk=project_id)
-        kwargs[self.lookup_field] = pk
-        url = reverse('{}-detail'.format(self.table_name), kwargs=kwargs)
+        url = self.get_detail_url(project_id, pk)
         return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, format='json',
                                   json_process=False)
 
     def patch(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
-        kwargs = dict(project_pk=project_id)
-        kwargs[self.lookup_field] = pk
-        url = reverse('{}-detail'.format(self.table_name), kwargs=kwargs)
+        url = self.get_detail_url(project_id, pk)
+        return self._make_request(client, self.PATCH_REQUEST, url, data, status_code, format='json')
+
+    def put(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
+        url = self.get_detail_url(project_id, pk)
         return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
 
 
-class CalendarsTableTest(BaseTableTest):
-    table_name = "project-calendars"
-    lookup_field = "service_id"
-
-    def test_retrieve_calendar_list(self):
+class BasicTestSuiteMixin(object):
+    # Tests the GET method to list all objects
+    # Requires class' Meta to contain:
+    # initial_size : amount of objects that will be returned
+    def test_list(self):
         with self.assertNumQueries(1):
             json_response = self.list(self.project.project_id, self.client, dict())
-        self.assertEqual(len(json_response), 2)
+        self.assertEqual(len(json_response), self.Meta.initial_size)
 
-    def test_create_calendar(self):
-        data = {
+    # Tests the GET method for a specific object
+    # Requires class' Meta to contain:
+    # get_id : function that takes a dict and returns an id based on the dict's attributes
+    # retrieve_data : dict that will be used to get the object id to be looked for
+    def test_retrieve(self):
+        data = self.Meta.retrieve_data
+        id = self.Meta().get_id(self.project, data)
+        with self.assertNumQueries(1):
+            json_response = self.retrieve(self.project.project_id, id, self.client, dict())
+        target = self.Meta.model.objects.filter(**data)[0]
+        self.assertEqual(json_response, self.Meta.serializer(target).data)
+
+    # Tests the POST method to create an object
+    # Requires class' Meta to contain:
+    # create_data : data describing the object to be created
+    def test_create(self):
+        data = self.Meta.create_data
+        json_response = self.create(self.project.project_id, self.client, data)
+        self.assertEqual(self.Meta.model.objects.filter().count(), self.Meta.initial_size + 1)
+        data['id'] = json_response['id']
+        self.clean_data(data)
+        obj = self.Meta.model.objects.filter(id=json_response['id'])[0]
+        self.contains(data, obj)
+
+    # Asserts that every key in data is contained by the target object
+    def contains(self, data, obj):
+        for key in data:
+            val = getattr(obj, key)
+            if type(val) == date:
+                day = datetime.strptime(data[key], '%Y-%m-%d').date()
+                self.assertEqual(day, val)
+            elif isinstance(val, models.Model):
+                self.assertEqual(data[key], val.id)
+            else:
+                self.assertEqual(data[key], val)
+
+    # Tests the PUT method to update an object
+    # Requires class' Meta to contain:
+    # put_data : data describing the object to be created
+    def test_put(self):
+        data = self.Meta.put_data
+        id = self.Meta().get_id(self.project, data)
+        json_response = self.put(self.project.project_id, id, self.client, data)
+        updated = self.Meta.model.objects.filter(**data)[0]
+        data['id'] = id
+        self.clean_data(data)
+        obj = self.Meta.model.objects.filter(id=id)[0]
+        self.contains(data, obj)
+
+    # Tests the PATCH method to modify an object
+    # Requires class' Meta to contain:
+    # create_data : data describing the object to be created
+    def test_patch(self):
+        data = self.Meta.patch_data
+        id = self.Meta().get_id(self.project, data)
+        original = self.retrieve(self.project.project_id, id, self.client, dict())
+        json_response = self.patch(self.project.project_id, id, self.client, data)
+        updated = self.Meta.model.objects.filter(**data)[0]
+        for k in json_response:
+            if not k in data:
+                data[k] = json_response[k]
+        self.clean_data(data)
+        self.assertDictEqual(json_response, data)
+
+        obj = self.Meta.model.objects.filter(id=id)[0]
+        self.contains(data, obj)
+
+    # Tests the DELETE method to remove an object
+    # Requires class' Meta to contain:
+    # get_id : function that takes a dict and returns an id based on the dict's attributes
+    # delete_data : dict that will be used to get the object id to be deleted
+    def test_delete(self):
+        data = self.Meta.delete_data
+        id = self.Meta().get_id(self.project, data)
+        with self.assertNumQueries(2):
+            json_response = self.delete(self.project.project_id, id, self.client, dict())
+        self.assertEqual(self.Meta.model.objects.filter(**data).count(), 0)
+
+    def clean_data(self, data):
+        if hasattr(self.Meta, 'ignore_fields'):
+            for field in self.Meta.ignore_fields:
+                del data[field]
+
+    def test_delete_invalid(self):
+        id = self.Meta.invalid_id
+        self.delete(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_put_invalid(self):
+        id = self.Meta.invalid_id
+        self.put(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_patch_invalid(self):
+        id = self.Meta.invalid_id
+        self.patch(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_retrieve_invalid(self):
+        id = self.Meta.invalid_id
+        self.retrieve(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+
+class CalendarsTableTest(BaseTableTest,
+                         BasicTestSuiteMixin):
+    table_name = "project-calendars"
+
+    class Meta:
+        model = Calendar
+        serializer = CalendarSerializer
+        initial_size = 2
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             service_id=data['service_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'service_id': 'mon-fri'
+        }
+
+        # create params
+        create_data = {
             'service_id': 'I created my own',
             'monday': False,
             'tuesday': False,
@@ -317,123 +488,471 @@ class CalendarsTableTest(BaseTableTest):
             'saturday': False,
             'sunday': False
         }
-        with self.assertNumQueries(2):
-            json_response = self.create(self.project.project_id, self.client, data)
-        self.assertEqual(Calendar.objects.filter(project=self.project).count(), 3)
-        self.assertDictEqual(data, json_response)
 
-    def test_retrieve_calendar(self):
-        service_id = 'mon-fri'
-        with self.assertNumQueries(1):
-            json_response = self.retrieve(self.project.project_id, service_id, self.client, dict())
-        target = Calendar.objects.filter(project_id=self.project.project_id,
-                                         service_id=service_id)[0]
-        self.assertEqual(json_response, CalendarSerializer(target).data)
+        # delete params
+        delete_data = {
+            'service_id': 'mon-fri'
+        }
 
-    def test_update_calendar(self):
-        service_id = 'mon-fri'
-        data = {
-            "saturday": True,
+        # put params
+        put_data = {
+            'service_id': 'mon-fri',
+            'monday': False,
+            'tuesday': False,
+            'wednesday': False,
+            'thursday': False,
+            'friday': False,
+            'saturday': True,
             "sunday": True
         }
-        with self.assertNumQueries(2):
-            json_response = self.patch(self.project.project_id, service_id, self.client, data)
-        updated = Calendar.objects.filter(project_id=self.project.project_id,
-                                          service_id=service_id)[0]
-        self.assertTrue(updated.saturday)
-        self.assertTrue(updated.sunday)
 
-    def test_delete_calendar(self):
-        service_id = 'mon-fri'
-        with self.assertNumQueries(2):
-            json_response = self.delete(self.project.project_id, service_id, self.client, dict())
-        self.assertEqual(Calendar.objects.filter(project_id=self.project.project_id, service_id=service_id).count(), 0)
+        # patch params
+        patch_data = {
+            'service_id': 'mon-fri',
+            'saturday': True,
+            "sunday": True
+        }
 
 
-class StopTableTest(BaseTableTest):
+class StopTableTest(BaseTableTest, BasicTestSuiteMixin):
     table_name = "project-stops"
-    lookup_field = "stop_id"
 
-    def test_retrieve_stop_list(self):
-        with self.assertNumQueries(1):
-            json_response = self.list(self.project.project_id, self.client, dict())
-        self.assertEqual(len(json_response), 40)
+    class Meta:
+        model = Stop
+        serializer = StopSerializer
+        initial_size = 42
+        invalid_id = 123456789
 
-    def test_create_stop(self):
-        data = {
-            'stop_id': 'stop-1',
-            'stop_code': 'PD-1',
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             stop_id=data['stop_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'stop_id': 'stop_1'
+        }
+
+        # create params
+        create_data = {
+            'stop_id': 'stop-created',
+            'stop_code': 'PD-created',
+            'stop_name': 'Stop That Has Been Created',
+            'stop_lat': 100,
+            'stop_lon': -200,
+            'stop_url': 'http://www.fake-stop.cl'
+        }
+
+        # delete params
+        delete_data = {
+            'stop_id': 'stop_delete'
+        }
+
+        # put params
+        put_data = {
+            'stop_id': 'stop_1',
+            'stop_code': 'PD-bananas',
             'stop_name': 'Stop -1',
             'stop_lat': -1,
             'stop_lon': -2,
-            'stop_url': 'www.stop-1.cl'
+            'stop_url': 'http://www.stop-1.cl'
         }
-        with self.assertNumQueries(2):
-            json_response = self.create(self.project.project_id, self.client, data)
-        self.assertEqual(Stop.objects.filter(project=self.project).count(), 41)
-        self.assertDictEqual(data, json_response)
 
-    def test_retrieve_stop(self):
-        stop_id = 'stop_1'
-        with self.assertNumQueries(1):
-            json_response = self.retrieve(self.project.project_id, stop_id, self.client, dict())
-        target = Stop.objects.filter(project_id=self.project.project_id,
-                                     stop_id=stop_id)[0]
-        self.assertEqual(json_response, StopSerializer(target).data)
+        # patch params
+        patch_data = {
+            'stop_id': 'stop_1',
+            'stop_url': 'http://www.stop-1-patched.cl'
+        }
 
-    def test_update_stop(self):
-        stop_id = 'stop_1'
+    # def test_cascade_stops(self):
+    #     data = {
+    #         'stop_id': 'stop_1'
+    #     }
+    #     id = self.Meta().get_id(self.project, data)
+    #     self.delete(self.project.project_id,
+    #                 id,
+    #                 self.client,
+    #                 dict())
+
+
+class FeedInfoTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-feedinfo"
+
+    class Meta:
+        model = FeedInfo
+        serializer = FeedInfoSerializer
+        initial_size = 1
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             feed_publisher_name=data['feed_publisher_name'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'feed_publisher_name': 'Test Agency'
+        }
+
+        # delete params
+        delete_data = {
+            'feed_publisher_name': 'Test Agency'
+        }
+
+        # patch params
+        patch_data = {
+            'feed_publisher_name': 'Test Agency',
+            'feed_lang': 'ES',
+            'feed_version': '1.2.3'
+        }
+
+    # This should fail because each project can only have one feed info
+    def test_create(self):
         data = {
-            "stop_name": "brand-new stop"
+            'feed_publisher_name': 'Test Agency 2',
+            'feed_publisher_url': 'www.testagency.com',
+            'feed_lang': 'ES',
+            'feed_start_date': "2020-01-01",
+            'feed_end_date': "2020-12-31",
+            'feed_version': '1.2.3',
+            'feed_id': 'Test Feed 1'
+        }
+        with self.assertNumQueries(0):
+            json_response = self.create(self.project.project_id, self.client, data, status.HTTP_400_BAD_REQUEST)
+
+    # This should fail because PUT is not supported for one-to-one
+    def test_put(self):
+        data = {
+            'feed_publisher_name': 'Test Agency',
+            'feed_publisher_url': 'www.testagency.com',
+            'feed_lang': 'ES',
+            'feed_start_date': "2020-01-01",
+            'feed_end_date': "2020-12-31",
+            'feed_version': '1.2.3',
+            'feed_id': 'Test Feed 1'
         }
         with self.assertNumQueries(2):
-            json_response = self.patch(self.project.project_id, stop_id, self.client, data)
-        updated = Stop.objects.filter(project_id=self.project.project_id,
-                                      stop_id=stop_id)[0]
-        self.assertEqual(updated.stop_name, 'brand-new stop')
-
-    def test_delete_stop(self):
-        stop_id = 'stop_1'
-        with self.assertNumQueries(2):
-            json_response = self.delete(self.project.project_id, stop_id, self.client, dict())
-        self.assertEqual(Stop.objects.filter(project_id=self.project.project_id, stop_id=stop_id).count(), 0)
+            id = self.Meta().get_id(self.project, data)
+            json_response = self.put(self.project.project_id, id, self.client, data, status.HTTP_400_BAD_REQUEST)
 
 
-class LevelTableTest(BaseTableTest):
-    table_name = "project-levels"
-    lookup_field = "level_id"
+class AgencyTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-agencies"
 
-    def test_retrieve_level_list(self):
-        with self.assertNumQueries(1):
+    class Meta:
+        model = Agency
+        serializer = AgencySerializer
+        initial_size = 3
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             agency_id=data['agency_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'agency_id': 'test_agency'
+        }
+
+        # create params
+        create_data = {
+            'agency_id': "test_agency_2",
+            'agency_name': "Test Agency 2",
+            'agency_url': "http://www.testagency2.com",
+            'agency_timezone': "America/Santiago"
+        }
+
+        # delete params
+        delete_data = {
+            'agency_id': 'test_agency'
+        }
+
+        # put params
+        put_data = {
+            'agency_id': "test_agency",
+            'agency_name': "Test Agency 2",
+            'agency_url': "http://www.testagency2.com",
+            'agency_timezone': "America/Santiago"
+        }
+
+        # patch params
+        patch_data = {
+            'agency_id': "test_agency",
+            'agency_url': "http://www.testagency3.com"
+        }
+
+
+class RouteTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-routes"
+
+    class Meta:
+        model = Route
+        serializer = RouteSerializer
+        initial_size = 6
+        invalid_id = 123456789
+        ignore_fields = ['agency__agency_id']
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(agency__project=project,
+                                             agency__agency_id=data['agency__agency_id'],
+                                             route_id=data['route_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'agency__agency_id': 'agency_0',
+            'route_id': 'test_route'
+        }
+
+        # create params
+        create_data = {
+            'agency__agency_id': 'test_agency',
+            'route_id': "test_route_2",
+            'route_short_name': "Test Route 2",
+            'route_long_name': "Test Route 2 - The Routening",
+            'route_desc': "This route was made for testing create endpoint",
+            'route_type': 1,
+            'route_url': "http://www.testroute2.com",
+            'route_color': "FF00FF",
+            'route_text_color': "00FF00",
+        }
+
+        # delete params
+        delete_data = {
+            'agency__agency_id': 'agency_0',
+            'route_id': 'test_route'
+        }
+
+        # put params
+        put_data = {
+            'agency__agency_id': 'agency_0',
+            'route_id': "test_route",
+            'route_short_name': "Test Route 2",
+            'route_long_name': "Test Route 2 - The Routening",
+            'route_desc': "This route was made for testing create endpoint",
+            'route_type': 1,
+            'route_url': "http://www.testroute2.com",
+            'route_color': "FF00FF",
+            'route_text_color': "00FF00",
+        }
+
+        # patch params
+        patch_data = {
+            'agency__agency_id': 'agency_0',
+            'route_id': "test_route",
+            'route_desc': "I have updated just a small part of the route"
+        }
+
+    def test_put(self):
+        data = self.Meta.put_data
+        data['agency'] = Agency.objects.filter(project=self.project, agency_id=data['agency__agency_id'])[0].id
+        super().test_put()
+
+    def test_create(self):
+        data = self.Meta.create_data
+        data['agency'] = Agency.objects.filter(project=self.project, agency_id=data['agency__agency_id'])[0].id
+        super().test_create()
+
+
+class TripTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-trips"
+
+    class Meta:
+        model = Trip
+        serializer = TripSerializer
+        initial_size = 5
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             trip_id=data['trip_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'trip_id': 'test_trip'
+        }
+
+        # create params
+        create_data = {
+            'trip_id': "test_trip_create",
+            'service_id': 'transantiago',
+            'trip_headsign': 'TRAN',
+            'shape': None,
+            'direction_id': 'SUR A ESTE'
+        }
+
+        # delete params
+        delete_data = {
+            'trip_id': 'test_trip'
+        }
+
+        # put params
+        put_data = {
+            'trip_id': "test_trip",
+            'service_id': 'transantiago',
+            'trip_headsign': 'TRAN',
+            'shape': None,
+            'direction_id': 'From East to West'
+        }
+
+        # patch params
+        patch_data = {
+            'trip_id': 'test_trip',
+            'direction_id': 'NORTE A SUR'
+        }
+
+    def test_create(self):
+        data = self.Meta.create_data
+        data['route'] = Route.objects.filter(agency__project_id=self.project, route_id='trip_test_route')[0].id
+        super().test_create()
+
+    def test_put(self):
+        data = self.Meta.put_data
+        data['route'] = Route.objects.filter(agency__project_id=self.project, route_id='trip_test_route')[0].id
+        super().test_put()
+
+
+class StopTimesTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-stoptimes"
+
+    def enrich_data(self, data):
+        test_trip = Trip.objects.filter(project=self.project,
+                                        trip_id='trip0')[0].id
+        test_stop = Stop.objects.filter(project=self.project,
+                                        stop_id="stop_0")[0].id
+
+        data['stop'] = test_stop
+        data['trip'] = test_trip
+
+    class Meta:
+        model = StopTime
+        serializer = StopTimeSerializer
+        initial_size = 44
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(stop__project_id=project,
+                                             trip=data['trip'],
+                                             stop=data['stop'],
+                                             stop_sequence=data['stop_sequence'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'stop_sequence': 1
+        }
+
+        # create params
+        create_data = {
+            'stop_sequence': 2
+        }
+
+        # delete params
+        delete_data = {
+            'stop_sequence': 1
+        }
+
+        # put params
+        put_data = {
+            'stop_sequence': 1
+        }
+
+        # patch params
+        patch_data = {
+            'stop_sequence': 1
+        }
+
+    def test_delete(self):
+        self.enrich_data(self.Meta.delete_data)
+        super().test_delete()
+
+    def test_retrieve(self):
+        self.enrich_data(self.Meta.retrieve_data)
+        super().test_retrieve()
+
+    def test_patch(self):
+        self.enrich_data(self.Meta.patch_data)
+        super().test_patch()
+
+    def test_put(self):
+        self.enrich_data(self.Meta.put_data)
+        super().test_put()
+
+    def test_create(self):
+        self.enrich_data(self.Meta.create_data)
+        super().test_create()
+
+class ShapeTableTest(BaseTableTest):
+    table_name = 'project-shapes'
+
+    def get_id(self, shape_id):
+        return Shape.objects.filter(project=self.project,
+                                    shape_id=shape_id)[0].id
+
+    def test_list(self):
+        with self.assertNumQueries(3):
             json_response = self.list(self.project.project_id, self.client, dict())
-        self.assertEqual(len(json_response), 1)
+        self.assertEqual(len(json_response), 2)
 
-    def test_create_level(self):
-        level_id = 'Cool Leveled Segment'
+    def test_retrieve(self):
+        shape_id = 'shape_1'
         data = {
-            'level_id': level_id,
-            'level_index': .5,
-            'level_name': 'Intermediate shopping level'
+            'shape_id': shape_id
         }
+        id = self.get_id(shape_id)
         with self.assertNumQueries(2):
-            json_response = self.create(self.project.project_id, self.client, data)
-        self.assertEqual(Level.objects.filter(project=self.project).count(), 6)
-        self.assertDictEqual(data, json_response)
+            json_response = self.retrieve(self.project.project_id, id, self.client, dict())
+        target = Shape.objects.filter(project=self.project, **data)[0]
+        self.assertEqual(json_response, DetailedShapeSerializer(target).data)
 
-    def test_retrieve_level(self):
-        level_id = 'Cool Leveled Segment'
-        with self.assertNumQueries(1):
-            json_response = self.retrieve(self.project.project_id, level_id, self.client, dict())
-        target = Level.objects.filter(project_id=self.project.project_id,
-                                      level_id=level_id)[0]
-        self.assertEqual(json_response, LevelSerializer(target).data)
+    def test_delete(self):
+        shape_id = 'shape_1'
+        data = {
+            'shape_id': shape_id
+        }
+        id = self.get_id(shape_id)
+        # 1 extra query to erase the shapepoints (cascade)
+        with self.assertNumQueries(3):
+            json_response = self.delete(self.project.project_id, id, self.client, dict())
+        self.assertEqual(Shape.objects.filter(**data).count(), 0)
 
-    # TODO redesign level
-    def test_update_level(self):
-        pass
+    def test_put(self):
+        shape_id = 'shape_1'
+        data = {
+            'shape_id': shape_id
+        }
+        id = self.get_id(shape_id)
+        json_response = self.put(self.project.project_id, id, self.client, data)
+        print(json_response)
 
-    def test_delete_level(self):
-        level_id = 'Cool Leveled Segment'
-        with self.assertNumQueries(2):
-            json_response = self.delete(self.project.project_id, level_id, self.client, dict())
-        self.assertEqual(Calendar.objects.filter(project_id=self.project.project_id, level_id=level_id).count(), 0)
+    def test_patch(self):
+        shape_id = 'shape_1'
+        data = {
+            'shape_id': shape_id
+        }
+        id = self.get_id(shape_id)
+        json_response = self.patch(self.project.project_id, id, self.client, data)
+        print(json_response)
+
+    def test_create(self):
+        shape_id = 'shape_create'
+        data = {
+            'shape_id': shape_id
+        }
+        json_response = self.create(self.project.project_id, self.client, data)
+        print(json_response)
+
+    def test_delete_invalid(self):
+        id = 123456789
+        self.delete(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_put_invalid(self):
+        id = 123456789
+        self.put(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_patch_invalid(self):
+        id = 123456789
+        self.patch(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_retrieve_invalid(self):
+        id = 123456789
+        self.retrieve(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+
+

@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email', 'is_staff']
+        fields = ['id', 'username', 'email', 'is_staff']
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -14,127 +14,139 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['project_id', 'name']
 
-
-class CalendarSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Calendar
-        fields = ["service_id", "monday", "tuesday",
-                  "wednesday", "thursday", "friday", "saturday", "sunday"]
-
-
+class NestedModelSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         project_id = self.context['view'].kwargs['project_pk']
         try:
             project = Project.objects.get(project_id=project_id)
         except Project.DoesNotExist:
-            raise serializers.ValidationError('Calendar does not exist')
-        calendar_obj = Calendar.objects.create(project=project, **validated_data)
-        return calendar_obj
+            raise serializers.ValidationError('Project does not exist')
+        validated_data['project'] = project
+        return super().create(validated_data)
 
-    def update(self, validated_data):
-        project = validated_data.pop('project_id')
-        calendar_obj = Calendar.objects.update(project=project, **validated_data)
-        return calendar_obj
+class CalendarSerializer(NestedModelSerializer):
 
-class LevelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Calendar
+        fields = ['id', "service_id", "monday", "tuesday",
+                  "wednesday", "thursday", "friday", "saturday", "sunday"]
+        read_only = ['id']
+
+
+class LevelSerializer(NestedModelSerializer):
     class Meta:
         model = Level
-        fields = ['project', 'level_id', 'level_index', 'level_name']
+        fields = ['id', 'level_id', 'level_index', 'level_name']
+        read_only = ['id']
 
 
-class CalendarDateSerializer(serializers.ModelSerializer):
+class CalendarDateSerializer(NestedModelSerializer):
     class Meta:
         model = CalendarDate
-        fields = ['project', 'date', 'exception_type']
+        fields = ['id', 'date', 'exception_type']
+        read_only = ['id']
 
 
-class FeedInfoSerializer(serializers.ModelSerializer):
+class FeedInfoSerializer(NestedModelSerializer):
     class Meta:
         model = FeedInfo
-        fields = ['project', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang',
+        fields = ['id', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang',
                   'feed_start_date', 'feed_end_date', 'feed_version', 'feed_id']
+        read_only = ['id']
 
 
-class StopSerializer(serializers.ModelSerializer):
+class StopSerializer(NestedModelSerializer):
+
     class Meta:
         model = Stop
-        fields = ['project', 'stop_id', 'stop_code', 'stop_name', 'stop_lat', 'stop_lon', 'stop_url']
+        fields = ['id', 'stop_id', 'stop_code', 'stop_name', 'stop_lat', 'stop_lon', 'stop_url']
+        read_only = ['id']
 
 
-class PathwaySerializer(serializers.ModelSerializer):
+class PathwaySerializer(NestedModelSerializer):
     class Meta:
         model = Pathway
-        fields = ['project', 'pathway_id', 'from_stop', 'to_stop', 'pathway_mode', 'is_bidirectional']
+        fields = ['id', 'pathway_id', 'from_stop', 'to_stop', 'pathway_mode', 'is_bidirectional']
+        read_only = ['id']
 
 
-class ShapeSerializer(serializers.ModelSerializer):
+class ShapeSerializer(NestedModelSerializer):
     point_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Shape
-        fields = ['project', 'shape_id', 'point_count']
+        fields = ['id', 'shape_id', 'point_count']
+        read_only = ['id']
 
     def get_point_count(self, obj):
         return obj.points.count()
 
 
-class DetailedShapeSerializer(serializers.ModelSerializer):
+class DetailedShapeSerializer(NestedModelSerializer):
     points = serializers.SerializerMethodField()
     class Meta:
         model = Shape
-        fields = ['project', 'shape_id', 'points']
+        fields = ['id', 'shape_id', 'points']
+        read_only = ['id']
 
     def get_points(self, obj):
         pts = ShapePointSerializer(obj.points.all(), many=True)
         return pts.data
 
 
-class ShapePointSerializer(serializers.ModelSerializer):
+class ShapePointSerializer(NestedModelSerializer):
     class Meta:
         model = ShapePoint
-        fields = ['shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon']
+        fields = ['id', 'shape_id', 'shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon']
+        read_only = ['id']
 
 
-class TransferSerializer(serializers.ModelSerializer):
+class TransferSerializer(NestedModelSerializer):
     class Meta:
         model = Transfer
-        fields = ['from_stop', 'to_stop']
+        fields = ['id', 'from_stop', 'to_stop']
+        read_only = ['id']
 
 
-class AgencySerializer(serializers.ModelSerializer):
+class AgencySerializer(NestedModelSerializer):
     class Meta:
         model = Agency
-        fields = ['project', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone']
+        fields = ['id', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone']
+        read_only = ['id']
 
 
 class RouteSerializer(serializers.ModelSerializer):
     class Meta:
         model = Route
-        fields = ['agency', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_type',
+        fields = ['id', 'agency', 'route_id', 'route_short_name', 'route_long_name', 'route_desc', 'route_type',
                   'route_url', 'route_color', 'route_text_color']
+        read_only = ['id']
 
 
-class FareAttributeSerializer(serializers.ModelSerializer):
+class FareAttributeSerializer(NestedModelSerializer):
     class Meta:
         model = FareAttribute
-        fields = ['project', 'fare_id', 'price', 'currency_type', 'payment_method',
+        fields = ['id', 'fare_id', 'price', 'currency_type', 'payment_method',
                   'transfers', 'transfer_duration', 'agency']
+        read_only = ['id']
 
 
-class FareRuleSerializer(serializers.ModelSerializer):
+class FareRuleSerializer(NestedModelSerializer):
     class Meta:
         model = FareRule
-        fields = ['fare_attribute', 'route']
+        fields = ['id', 'fare_attribute', 'route']
+        read_only = ['id']
 
 
-class TripSerializer(serializers.ModelSerializer):
+class TripSerializer(NestedModelSerializer):
     class Meta:
         model = Trip
-        fields = ['project', 'trip_id', 'route', 'shape', 'service_id', 'trip_headsign', 'direction_id']
+        fields = ['id', 'trip_id', 'route', 'shape', 'service_id', 'trip_headsign', 'direction_id']
+        read_only = ['id']
 
 
 class StopTimeSerializer(serializers.ModelSerializer):
     class Meta:
         model = StopTime
-        fields = ['trip', 'stop', 'stop_sequence', 'arrival_time', 'departure_time']
+        fields = ['id', 'trip', 'stop', 'stop_sequence', 'arrival_time', 'departure_time']
+        read_only = ['id']
