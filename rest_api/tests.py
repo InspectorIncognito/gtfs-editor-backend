@@ -349,6 +349,9 @@ class BaseTableTest(BaseTestCase):
         return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
 
 
+# Parametrized test suite. Implementing classes require a bunch of parameters in order
+# to run the tests. The tests focus on checking the correct behavior of basic REST
+# requests and their failure on invalid data.
 class BasicTestSuiteMixin(object):
     # Tests the GET method to list all objects
     # Requires class' Meta to contain:

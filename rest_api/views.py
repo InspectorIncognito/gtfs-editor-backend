@@ -1,8 +1,8 @@
 import csv
 import io
 import sys
-from http.client import HTTPResponse
 
+from django.db import transaction
 from django.http import HttpResponse, FileResponse
 from rest_framework import viewsets, generics, mixins, status, renderers
 from rest_framework.decorators import action
@@ -34,9 +34,6 @@ def parse_csv(file):
                 yield result
 
 
-class CSVUploadMixin:
-    pass
-
 # Classes using this mixin require a Meta class that contains the following attributes
 # csv_header: list containing the names of the CSV rows
 # csv_filename: name of the CSV file, does not require the extension
@@ -47,26 +44,84 @@ class CSVDownloadMixin:
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
-        meta = self.Meta()
-        filename = meta.csv_filename
-        header = meta.csv_header
+        try:
+            meta = self.Meta()
+            filename = meta.csv_filename
+            header = meta.csv_header
+            qs = self.get_queryset()
+            list_attrs = meta.list_attrs
+        except AttributeError as err:
+            print(err)
+            return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
+                                status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
         writer = csv.writer(response)
-        objects = self.filter_by_project(kwargs['project_pk'])
         writer.writerow(header)
-        for obj in objects:
-            writer.writerow(meta.list_attrs(obj))
+        for obj in qs:
+            writer.writerow(list_attrs(obj))
         return response
 
 
+class CSVUploadMixin:
+    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @transaction.atomic
+    def upload(self, request, *args, **kwargs):
+        if 'file' not in request.FILES:
+            return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
+        file = request.FILES['file']
+        try:
+            meta = self.Meta()
+            header = meta.csv_header
+            qs = self.get_queryset()
+            model = meta.model
+            update_or_create = self.update_or_create
+            filter_params = meta.filter_params
+            add_foreign_keys = meta.add_foreign_keys
+        except AttributeError as err:
+            print(err)
+            return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
+                                status=status.HTTP_501_NOT_IMPLEMENTED)
+        updated = list()
+        for entry in parse_csv(file):
+            add_foreign_keys(entry, kwargs['project_pk'])
+            obj = update_or_create(qs, model, filter_params, entry)
+            updated.append(obj.id)
+        to_delete = qs.exclude(id__in=updated)
+        to_delete.delete()
+        return HttpResponse(content_type='text/plain')
+
+
 # This class bundles up the CSVUploadMixin and CSVDownloadMixin,
-# adding a few methods that tend to be generic
+# adding a few methods that are common to many models
 class CSVHandlerMixin(CSVUploadMixin,
                       CSVDownloadMixin):
-    def filter_by_project(self, project_pk):
-        qs = self.get_queryset()
-        return qs.filter(project_id=project_pk)
+    @staticmethod
+    def update_or_create(qs, model, filter_params, values):
+        print(filter_params)
+        print(values)
+        # First we filter the queryset to see if the object exists
+        d = dict()
+        for k in filter_params:
+            d[k] = values[k]
+        obj = qs.filter(**d)
+        cnt = obj.count()
+        # If it doesn't exist we create it
+        if cnt == 0:
+            obj = model.objects.create(**values)
+        # If it exists we update it
+        elif cnt == 1:
+            obj.update(**values)
+            obj = obj[0]
+        # If there is more than one then the filter was improperly configured,
+        # please make sure that the parameters in the Meta class are enough to
+        # guarantee unicity of the result. Note that the qs should already come
+        # filtered by project.
+        else:
+            print(obj)
+            raise RuntimeError("Error: improperly configured filter is returning multiple objects")
+        return obj
+
 
 class ProjectViewSet(viewsets.ModelViewSet):
     """
@@ -74,10 +129,6 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     queryset = Project.objects.all().order_by('name')
     serializer_class = ProjectSerializer
-
-
-class CSVDownloadMixIn:
-    pass
 
 
 class ShapeViewSet(viewsets.ModelViewSet):
@@ -107,12 +158,13 @@ class ShapeViewSet(viewsets.ModelViewSet):
         return response
 
     @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @transaction.atomic
     def upload(self, request, *args, **kwargs):
         if 'file' not in request.FILES:
-            return Response('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
+            return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES['file']
-        print(file)
         shape_qs = Shape.objects.all()
+        shape_ids = list()
         for entry in parse_csv(file):
             if shape_qs.filter(project_id=kwargs['project_pk'], shape_id=entry['shape_id']).count() == 0:
                 Shape.objects.create(project_id=kwargs['project_pk'], shape_id=entry['shape_id'])
@@ -127,6 +179,10 @@ class ShapeViewSet(viewsets.ModelViewSet):
                 for k in entry:
                     setattr(sp, k, entry[k])
             sp.save()
+            shape_ids.append(sp.shape.shape_id)
+        to_delete = Shape.objects.filter(project_id=kwargs['project_pk']).exclude(shape_id__in=shape_ids)
+        to_delete.delete()
+
         return HttpResponse(content_type='text/plain')
 
     def retrieve(self, request, project_pk=None, pk=None):
@@ -150,17 +206,29 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class GenericListAttrsMeta:
     def list_attrs(self, obj):
+        attrs = self.csv_header
+        if hasattr(self, 'csv_fields'):
+            attrs = self.csv_fields
         result = list()
-        for field in self.csv_header:
-            result.append(getattr(obj, field))
+        for field in attrs:
+            if type(field) == str:
+                field = [field]
+            value = obj
+            for step in field:
+                value = getattr(value, step)
+            result.append(value)
         return result
+
+    @staticmethod
+    def add_foreign_keys(values, project_id):
+        values['project_id'] = project_id
 
 
 class CalendarViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = CalendarSerializer
 
-    class Meta (GenericListAttrsMeta):
+    class Meta(GenericListAttrsMeta):
         csv_filename = 'calendars'
         csv_header = ['service_id',
                       'monday',
@@ -170,6 +238,8 @@ class CalendarViewSet(CSVHandlerMixin,
                       'friday',
                       'saturday',
                       'sunday']
+        model = Calendar
+        filter_params = ['service_id']
 
     def get_queryset(self):
         return Calendar.objects.filter(project=self.kwargs['project_pk'])
@@ -179,7 +249,7 @@ class LevelViewSet(CSVHandlerMixin,
                    viewsets.ModelViewSet):
     serializer_class = LevelSerializer
 
-    class Meta (GenericListAttrsMeta):
+    class Meta(GenericListAttrsMeta):
         csv_filename = 'levels'
         csv_header = ['level_id',
                       'level_index',
@@ -238,8 +308,31 @@ class AgencyViewSet(viewsets.ModelViewSet):
         return Agency.objects.filter(project=self.kwargs['project_pk'])
 
 
-class RouteViewSet(viewsets.ModelViewSet):
+class RouteViewSet(CSVHandlerMixin,
+                   viewsets.ModelViewSet):
     serializer_class = RouteSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'routes'
+        csv_header = ['route_id',
+                      'agency_id',
+                      'route_short_name',
+                      'route_long_name',
+                      'route_desc',
+                      'route_type',
+                      'route_url',
+                      'route_color',
+                      'route_text_color']
+        csv_fields = [e for e in csv_header]
+        csv_fields[1] = ['agency', 'agency_id']
+        model = Route
+        filter_params = ['agency', 'route_id']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            print(values)
+            values['agency'] = Agency.objects.filter(project_id=project_id, agency_id=values['agency_id'])[0]
+            del values['agency_id']
 
     def get_queryset(self):
         return Route.objects.filter(agency__project=self.kwargs['project_pk'])

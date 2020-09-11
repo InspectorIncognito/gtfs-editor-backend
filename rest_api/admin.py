@@ -13,6 +13,7 @@ def reg(adm, model):
     admin.site.register(model, adm)
     return adm
 
+
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     title = "name"
@@ -68,6 +69,7 @@ class ShapeAdmin(admin.ModelAdmin):
     list_display = ("project", "shape_id")
     list_filter = ("project",)
 
+
 class ProjectFilter(admin.SimpleListFilter, ABC):
     title = 'Project'
     parameter_name = 'project'
@@ -75,6 +77,7 @@ class ProjectFilter(admin.SimpleListFilter, ABC):
     def lookups(self, request, model_admin):
         projects = Project.objects.all().values_list('name', flat=True).distinct()
         return list(map(lambda project: (project, project), projects))
+
 
 class TransferProjectFilter(ProjectFilter):
     def queryset(self, request, queryset):
@@ -93,5 +96,32 @@ class ShapePointAdmin(admin.ModelAdmin):
 class TransferAdmin(admin.ModelAdmin):
     def project(self, obj):
         return obj.from_stop.project
+
     list_filter = (TransferProjectFilter,)
     list_display = ("project", "from_stop", "to_stop", "type")
+
+
+@admin.register(Route)
+class RouteAdmin(admin.ModelAdmin):
+    def project(self, obj):
+        return obj.agency.project
+    list_display = ('project',
+                    'route_id',
+                    'agency_id',
+                    'route_short_name',
+                    'route_long_name',
+                    'route_desc',
+                    'route_type',
+                    'route_url',
+                    'route_color',
+                    'route_text_color')
+
+@admin.register(Agency)
+class AgencyAdmin(admin.ModelAdmin):
+    list_display = ('project',
+                    'agency_id',
+                    'agency_name',
+                    'agency_url',
+                    'agency_timezone')
+
+#

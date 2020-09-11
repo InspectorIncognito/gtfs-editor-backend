@@ -85,8 +85,6 @@ class FeedInfo(models.Model):
         return str(self.project)
 
 
-
-
 class Stop(models.Model):
     project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
     stop_id = models.CharField(max_length=50)
@@ -235,7 +233,7 @@ class StopTime(models.Model):
     departure_time = models.TimeField(null=True)
 
     def __str__(self):
-        return 'Trip "{}", Stop "{}", Position {}'\
+        return 'Trip "{}", Stop "{}", Position {}' \
             .format(str(self.trip.trip_id),
                     str(self.stop.id),
                     str(self.stop_sequence))
