@@ -49,7 +49,8 @@ class BaseTestCase(TestCase):
             return json.loads(response.content)
         return response
 
-    def create_data(self):
+    @staticmethod
+    def create_data():
         projects_number = 1
         Project.objects.create(name="Empty Project")
         projects = list()
@@ -922,7 +923,9 @@ class ShapeTableTest(BaseTableTest):
         }
         id = self.get_id(shape_id)
         json_response = self.put(self.project.project_id, id, self.client, data)
-        print(json_response)
+        data['id'] = json_response['id']
+        data['point_count'] = json_response['point_count']
+        self.assertDictEqual(data, json_response)
 
     def test_patch(self):
         shape_id = 'shape_1'
@@ -931,7 +934,6 @@ class ShapeTableTest(BaseTableTest):
         }
         id = self.get_id(shape_id)
         json_response = self.patch(self.project.project_id, id, self.client, data)
-        print(json_response)
 
     def test_create(self):
         shape_id = 'shape_create'
@@ -939,7 +941,9 @@ class ShapeTableTest(BaseTableTest):
             'shape_id': shape_id
         }
         json_response = self.create(self.project.project_id, self.client, data)
-        print(json_response)
+        data['id'] = json_response['id']
+        data['point_count'] = json_response['point_count']
+        self.assertDictEqual(data, json_response)
 
     def test_delete_invalid(self):
         id = 123456789
@@ -956,6 +960,5 @@ class ShapeTableTest(BaseTableTest):
     def test_retrieve_invalid(self):
         id = 123456789
         self.retrieve(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
-
 
 
