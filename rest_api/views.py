@@ -134,7 +134,6 @@ class GenericListAttrsMeta:
             for step in field:
                 value = getattr(value, step)
             result.append(value)
-        print(result)
         return result
 
     @staticmethod
@@ -152,7 +151,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 class ShapeViewSet(viewsets.ModelViewSet):
     serializer_class = ShapeSerializer
-    queryset = Shape.objects.all()
+    queryset = Shape.objects.all().order_by('shape_id')
 
     def list(self, request, *args, **kwargs):
         project_pk = kwargs['project_pk']
@@ -241,7 +240,7 @@ class CalendarViewSet(CSVHandlerMixin,
         filter_params = ['service_id']
 
     def get_queryset(self):
-        return Calendar.objects.filter(project=self.kwargs['project_pk'])
+        return Calendar.objects.filter(project=self.kwargs['project_pk']).order_by('service_id')
 
 
 class LevelViewSet(CSVHandlerMixin,
@@ -258,7 +257,7 @@ class LevelViewSet(CSVHandlerMixin,
                          'level_index']
 
     def get_queryset(self):
-        return Level.objects.filter(project=self.kwargs['project_pk'])
+        return Level.objects.filter(project=self.kwargs['project_pk']).order_by('level_id', 'level_index')
 
 
 class CalendarDateViewSet(CSVHandlerMixin,
@@ -273,7 +272,7 @@ class CalendarDateViewSet(CSVHandlerMixin,
         filter_params = ['date']
 
     def get_queryset(self):
-        return CalendarDate.objects.filter(project=self.kwargs['project_pk'])
+        return CalendarDate.objects.filter(project=self.kwargs['project_pk']).order_by('date')
 
 
 class FeedInfoViewSet(viewsets.ModelViewSet):
@@ -299,7 +298,7 @@ class StopViewSet(CSVHandlerMixin,
         filter_params = ['stop_id']
 
     def get_queryset(self):
-        return Stop.objects.filter(project=self.kwargs['project_pk'])
+        return Stop.objects.filter(project=self.kwargs['project_pk']).order_by('stop_id')
 
 
 class PathwayViewSet(CSVHandlerMixin,
@@ -334,14 +333,14 @@ class PathwayViewSet(CSVHandlerMixin,
             GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
     def get_queryset(self):
-        return Pathway.objects.filter(project=self.kwargs['project_pk'])
+        return Pathway.objects.filter(project=self.kwargs['project_pk']).order_by('pathway_id')
 
 
 class ShapePointViewSet(viewsets.ModelViewSet):
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
-        return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk'])
+        return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk']).order_by('shape_id', 'shape_pt_sequence')
 
 
 class TransferViewSet(CSVHandlerMixin,
@@ -365,7 +364,7 @@ class TransferViewSet(CSVHandlerMixin,
                                                     stop_id=values['to_stop'])[0]
 
     def get_queryset(self):
-        return Transfer.objects.filter(from_stop__project=self.kwargs['project_pk'])
+        return Transfer.objects.filter(from_stop__project=self.kwargs['project_pk']).order_by('from_stop', 'to_stop')
 
 
 class AgencyViewSet(CSVHandlerMixin,
@@ -382,7 +381,7 @@ class AgencyViewSet(CSVHandlerMixin,
         filter_params = ['agency_id']
 
     def get_queryset(self):
-        return Agency.objects.filter(project=self.kwargs['project_pk'])
+        return Agency.objects.filter(project=self.kwargs['project_pk']).order_by('agency_id')
 
 
 class RouteViewSet(CSVHandlerMixin,
@@ -411,7 +410,7 @@ class RouteViewSet(CSVHandlerMixin,
             del values['agency_id']
 
     def get_queryset(self):
-        return Route.objects.filter(agency__project=self.kwargs['project_pk'])
+        return Route.objects.filter(agency__project=self.kwargs['project_pk']).order_by('route_id')
 
 
 class FareAttributeViewSet(CSVHandlerMixin,
@@ -437,7 +436,7 @@ class FareAttributeViewSet(CSVHandlerMixin,
             GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
     def get_queryset(self):
-        return FareAttribute.objects.filter(project=self.kwargs['project_pk'])
+        return FareAttribute.objects.filter(project=self.kwargs['project_pk']).order_by('fare_id')
 
 
 class FareRuleViewSet(CSVHandlerMixin,
@@ -459,7 +458,7 @@ class FareRuleViewSet(CSVHandlerMixin,
                                                    route_id=values['route'])[0]
 
     def get_queryset(self):
-        return FareRule.objects.filter(fare_attribute__project=self.kwargs['project_pk'])
+        return FareRule.objects.filter(fare_attribute__project=self.kwargs['project_pk']).order_by('route')
 
 
 class TripViewSet(CSVHandlerMixin,
@@ -486,7 +485,7 @@ class TripViewSet(CSVHandlerMixin,
                                                    shape_id=values['shape'])[0]
 
     def get_queryset(self):
-        return Trip.objects.filter(project=self.kwargs['project_pk'])
+        return Trip.objects.filter(project=self.kwargs['project_pk']).order_by('trip_id')
 
 
 class StopTimeViewSet(CSVHandlerMixin,
@@ -511,6 +510,6 @@ class StopTimeViewSet(CSVHandlerMixin,
                                                  stop_id=values['stop'])[0]
 
     def get_queryset(self):
-        return StopTime.objects.filter(trip__project=self.kwargs['project_pk'])
+        return StopTime.objects.filter(trip__project=self.kwargs['project_pk']).order_by('trip', 'stop_sequence')
 
 
