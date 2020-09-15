@@ -1,0 +1,4 @@
+agency_id,agency_name,agency_url,agency_timezone
+agency_0,Agency 0,http://www.agency0.com,America/Santiago
+agency_1,Agency 1,http://www.agency1.com,America/Santiago
+test_agency,Test Agency,http://www.testagency.com,America/Santiago
