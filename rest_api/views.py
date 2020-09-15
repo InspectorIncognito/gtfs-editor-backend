@@ -59,7 +59,8 @@ class CSVDownloadMixin:
         writer = csv.writer(response)
         writer.writerow(header)
         for obj in qs:
-            writer.writerow(list_attrs(obj))
+            attrs = list_attrs(obj)
+            writer.writerow(attrs)
         return response
 
 
@@ -98,8 +99,6 @@ class CSVHandlerMixin(CSVUploadMixin,
                       CSVDownloadMixin):
     @staticmethod
     def update_or_create(qs, model, filter_params, values):
-        print(filter_params)
-        print(values)
         # First we filter the queryset to see if the object exists
         d = dict()
         for k in filter_params:
@@ -118,9 +117,29 @@ class CSVHandlerMixin(CSVUploadMixin,
         # guarantee unicity of the result. Note that the qs should already come
         # filtered by project.
         else:
-            print(obj)
             raise RuntimeError("Error: improperly configured filter is returning multiple objects")
         return obj
+
+
+class GenericListAttrsMeta:
+    def list_attrs(self, obj):
+        attrs = self.csv_header
+        if hasattr(self, 'csv_fields'):
+            attrs = self.csv_fields
+        result = list()
+        for field in attrs:
+            if type(field) == str:
+                field = [field]
+            value = obj
+            for step in field:
+                value = getattr(value, step)
+            result.append(value)
+        print(result)
+        return result
+
+    @staticmethod
+    def add_foreign_keys(values, project_id):
+        values['project_id'] = project_id
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -204,26 +223,6 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
 
 
-class GenericListAttrsMeta:
-    def list_attrs(self, obj):
-        attrs = self.csv_header
-        if hasattr(self, 'csv_fields'):
-            attrs = self.csv_fields
-        result = list()
-        for field in attrs:
-            if type(field) == str:
-                field = [field]
-            value = obj
-            for step in field:
-                value = getattr(value, step)
-            result.append(value)
-        return result
-
-    @staticmethod
-    def add_foreign_keys(values, project_id):
-        values['project_id'] = project_id
-
-
 class CalendarViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = CalendarSerializer
@@ -254,13 +253,24 @@ class LevelViewSet(CSVHandlerMixin,
         csv_header = ['level_id',
                       'level_index',
                       'level_name']
+        model = Level
+        filter_params = ['level_id',
+                         'level_index']
 
     def get_queryset(self):
         return Level.objects.filter(project=self.kwargs['project_pk'])
 
 
-class CalendarDateViewSet(viewsets.ModelViewSet):
+class CalendarDateViewSet(CSVHandlerMixin,
+                          viewsets.ModelViewSet):
     serializer_class = CalendarDateSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'calendar_dates'
+        csv_header = ['date',
+                      'exception_type']
+        model = CalendarDate
+        filter_params = ['date']
 
     def get_queryset(self):
         return CalendarDate.objects.filter(project=self.kwargs['project_pk'])
@@ -273,15 +283,55 @@ class FeedInfoViewSet(viewsets.ModelViewSet):
         return FeedInfo.objects.filter(project=self.kwargs['project_pk'])
 
 
-class StopViewSet(viewsets.ModelViewSet):
+class StopViewSet(CSVHandlerMixin,
+                  viewsets.ModelViewSet):
     serializer_class = StopSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'stops'
+        csv_header = ['stop_id',
+                      'stop_code',
+                      'stop_name',
+                      'stop_lat',
+                      'stop_lon',
+                      'stop_url']
+        model = Stop
+        filter_params = ['stop_id']
 
     def get_queryset(self):
         return Stop.objects.filter(project=self.kwargs['project_pk'])
 
 
-class PathwayViewSet(viewsets.ModelViewSet):
+class PathwayViewSet(CSVHandlerMixin,
+                     viewsets.ModelViewSet):
     serializer_class = PathwaySerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'pathways'
+        csv_header = ['pathway_id',
+                      'from_stop',
+                      'to_stop',
+                      'pathway_mode',
+                      'is_bidirectional']
+        model = Pathway
+        filter_params = ['pathway_id']
+
+        def list_attrs(self, obj):
+            result = super().list_attrs(obj)
+            ib = self.csv_header.index('is_bidirectional')
+            if result[ib] == True:
+                result[ib] = 1
+            elif result[ib] == False:
+                result[ib] = 0
+            return result
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            values['from_stop'] = Stop.objects.filter(project_id=project_id,
+                                                      stop_id=values['from_stop'])[0]
+            values['to_stop'] = Stop.objects.filter(project_id=project_id,
+                                                    stop_id=values['to_stop'])[0]
+            GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
     def get_queryset(self):
         return Pathway.objects.filter(project=self.kwargs['project_pk'])
@@ -294,15 +344,42 @@ class ShapePointViewSet(viewsets.ModelViewSet):
         return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk'])
 
 
-class TransferViewSet(viewsets.ModelViewSet):
+class TransferViewSet(CSVHandlerMixin,
+                      viewsets.ModelViewSet):
     serializer_class = TransferSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'transfers'
+        csv_header = ['from_stop',
+                      'to_stop',
+                      'type']
+        model = Transfer
+        filter_params = ['from_stop',
+                         'to_stop']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            values['from_stop'] = Stop.objects.filter(project_id=project_id,
+                                                      stop_id=values['from_stop'])[0]
+            values['to_stop'] = Stop.objects.filter(project_id=project_id,
+                                                    stop_id=values['to_stop'])[0]
 
     def get_queryset(self):
         return Transfer.objects.filter(from_stop__project=self.kwargs['project_pk'])
 
 
-class AgencyViewSet(viewsets.ModelViewSet):
+class AgencyViewSet(CSVHandlerMixin,
+                    viewsets.ModelViewSet):
     serializer_class = AgencySerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'agencies'
+        csv_header = ['agency_id',
+                      'agency_name',
+                      'agency_url',
+                      'agency_timezone']
+        model = Agency
+        filter_params = ['agency_id']
 
     def get_queryset(self):
         return Agency.objects.filter(project=self.kwargs['project_pk'])
@@ -330,7 +407,6 @@ class RouteViewSet(CSVHandlerMixin,
 
         @staticmethod
         def add_foreign_keys(values, project_id):
-            print(values)
             values['agency'] = Agency.objects.filter(project_id=project_id, agency_id=values['agency_id'])[0]
             del values['agency_id']
 
@@ -338,29 +414,103 @@ class RouteViewSet(CSVHandlerMixin,
         return Route.objects.filter(agency__project=self.kwargs['project_pk'])
 
 
-class FareAttributeViewSet(viewsets.ModelViewSet):
+class FareAttributeViewSet(CSVHandlerMixin,
+                           viewsets.ModelViewSet):
     serializer_class = FareAttributeSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'fare_attributes'
+        csv_header = ['fare_id',
+                      'price',
+                      'currency_type',
+                      'payment_method',
+                      'transfers',
+                      'transfer_duration',
+                      'agency']
+        model = FareAttribute
+        filter_params = ['fare_id']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            values['agency'] = Agency.objects.filter(project_id=project_id,
+                                                     agency_id=values['agency'])[0]
+            GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
     def get_queryset(self):
         return FareAttribute.objects.filter(project=self.kwargs['project_pk'])
 
 
-class FareRuleViewSet(viewsets.ModelViewSet):
+class FareRuleViewSet(CSVHandlerMixin,
+                      viewsets.ModelViewSet):
     serializer_class = FareRuleSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'fare_rules'
+        csv_header = ['fare_attribute',
+                      'route']
+        model = FareRule
+        filter_params = ['fare_attribute']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            values['fare_attribute'] = FareAttribute.objects.filter(project_id=project_id,
+                                                                    fare_id=values['fare_attribute'])[0]
+            values['route'] = Route.objects.filter(agency__project_id=project_id,
+                                                   route_id=values['route'])[0]
 
     def get_queryset(self):
         return FareRule.objects.filter(fare_attribute__project=self.kwargs['project_pk'])
 
 
-class TripViewSet(viewsets.ModelViewSet):
+class TripViewSet(CSVHandlerMixin,
+                  viewsets.ModelViewSet):
     serializer_class = TripSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'trips'
+        csv_header = ['trip_id',
+                      'route',
+                      'shape',
+                      'service_id',
+                      'trip_headsign',
+                      'direction_id']
+        model = Trip
+        filter_params = ['trip_id']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            GenericListAttrsMeta.add_foreign_keys(values, project_id)
+            values['route'] = Route.objects.filter(agency__project_id=project_id,
+                                                   route_id=values['route'])[0]
+            values['shape'] = Shape.objects.filter(project_id=project_id,
+                                                   shape_id=values['shape'])[0]
 
     def get_queryset(self):
         return Trip.objects.filter(project=self.kwargs['project_pk'])
 
 
-class StopTimeViewSet(viewsets.ModelViewSet):
+class StopTimeViewSet(CSVHandlerMixin,
+                      viewsets.ModelViewSet):
     serializer_class = StopTimeSerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'stoptimes'
+        csv_header = ['trip',
+                      'stop',
+                      'stop_sequence',
+                      'arrival_time',
+                      'departure_time']
+        model = StopTime
+        filter_params = ['trip', 'stop', 'stop_sequence']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            values['trip'] = Trip.objects.filter(project_id=project_id,
+                                                 trip_id=values['trip'])[0]
+            values['stop'] = Stop.objects.filter(project_id=project_id,
+                                                 stop_id=values['stop'])[0]
 
     def get_queryset(self):
         return StopTime.objects.filter(trip__project=self.kwargs['project_pk'])
+
+
