@@ -1,4 +1,4 @@
-from datetime import datetime, date
+import datetime
 from unittest import skip
 
 import django
@@ -12,9 +12,12 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.test import APIClient
 
-from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, StopTime, Level, Shape, ShapePoint
+from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, StopTime, Level, Shape, ShapePoint, \
+    CalendarDate, Pathway, Transfer, FareAttribute, Frequency, FareRule
 from rest_api.serializers import ProjectSerializer, CalendarSerializer, LevelSerializer, StopSerializer, \
-    FeedInfoSerializer, AgencySerializer, RouteSerializer, TripSerializer, StopTimeSerializer, DetailedShapeSerializer
+    FeedInfoSerializer, AgencySerializer, RouteSerializer, TripSerializer, StopTimeSerializer, DetailedShapeSerializer, \
+    CalendarDateSerializer, PathwaySerializer, TransferSerializer, FrequencySerializer, FareAttributeSerializer, \
+    ShapePointSerializer, FareRuleSerializer
 
 
 class BaseTestCase(TestCase):
@@ -205,18 +208,25 @@ class BaseTestCase(TestCase):
                                              route_id="route{0}".format(i),
                                              route_type=3)
 
-                trip = Trip.objects.create(project=project,
-                                           trip_id="trip{0}".format(i),
-                                           route=route)
+                t = Trip.objects.create(project=project,
+                                        trip_id="trip{0}".format(i),
+                                        route=route)
+
+                Frequency.objects.create(trip=t,
+                                         start_time="00:00",
+                                         end_time="23:00",
+                                         headway_secs=600,
+                                         exact_times=0)
+
                 my_stops = stops[11 * i:11 * i + 11]
                 for j in range(len(my_stops)):
                     stop = my_stops[j]
-                    stop_time = StopTime.objects.create(trip=trip,
+                    stop_time = StopTime.objects.create(trip=t,
                                                         stop=stop,
                                                         stop_sequence=j + 1)
             for i in range(-2, 3):
                 Level.objects.create(project=project,
-                                     level_id="Cool Leveled Segment",
+                                     level_id="test_level",
                                      level_index=i,
                                      level_name="Level {}".format(i))
             shapes = [[(0.0, 0.0), (0.5, 0.5), (1.0, 1.0), (1.5, 1.5), (2.0, 2.0)],
@@ -231,6 +241,40 @@ class BaseTestCase(TestCase):
                                               shape_pt_sequence=k + 1,
                                               shape_pt_lat=point[0],
                                               shape_pt_lon=point[1])
+            CalendarDate.objects.create(project=project,
+                                        date=datetime.date(2020, 9, 18),
+                                        exception_type=1)
+            CalendarDate.objects.create(project=project,
+                                        date=datetime.date(2020, 9, 19),
+                                        exception_type=1)
+            Pathway.objects.create(project=project,
+                                   pathway_id='test_pathway',
+                                   from_stop=stops[20],
+                                   to_stop=stops[40],
+                                   pathway_mode=1,
+                                   is_bidirectional=True)
+            Transfer.objects.create(from_stop=Stop.objects.filter(project=project, stop_id='stop_1')[0],
+                                    to_stop=Stop.objects.filter(project=project, stop_id='stop_2')[0],
+                                    type=1)
+            FareAttribute.objects.create(project=project,
+                                         fare_id='test_fare_attr',
+                                         price=890.0,
+                                         currency_type='CLP',
+                                         payment_method=1,
+                                         transfers=2,
+                                         transfer_duration=7200,
+                                         agency=agencies[0])
+            fa = FareAttribute.objects.create(project=project,
+                                         fare_id='test_fare_attr_2',
+                                         price=890.0,
+                                         currency_type='CLP',
+                                         payment_method=1,
+                                         transfers=2,
+                                         transfer_duration=7200,
+                                         agency=agencies[0])
+            FareRule.objects.create(fare_attribute=fa,
+                                    route=route)
+
         return projects
 
 
@@ -390,9 +434,14 @@ class BasicTestSuiteMixin(object):
     def contains(self, data, obj):
         for key in data:
             val = getattr(obj, key)
-            if type(val) == date:
-                day = datetime.strptime(data[key], '%Y-%m-%d').date()
+            if isinstance(val, datetime.date):
+                day = datetime.datetime.strptime(data[key], '%Y-%m-%d').date()
                 self.assertEqual(day, val)
+            elif isinstance(val, datetime.time):
+                t = data[key]
+                if type(t) == str:
+                    t = datetime.datetime.strptime(t, '%H:%M:%S').time()
+                self.assertEqual(t, val)
             elif isinstance(val, models.Model):
                 self.assertEqual(data[key], val.id)
             else:
@@ -462,8 +511,8 @@ class BasicTestSuiteMixin(object):
         self.retrieve(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
 
 
-class CalendarsTableTest(BaseTableTest,
-                         BasicTestSuiteMixin):
+class CalendarTableTest(BaseTableTest,
+                        BasicTestSuiteMixin):
     table_name = "project-calendars"
 
     class Meta:
@@ -813,7 +862,7 @@ class TripTableTest(BaseTableTest, BasicTestSuiteMixin):
         super().test_put()
 
 
-class StopTimesTest(BaseTableTest, BasicTestSuiteMixin):
+class StopTimesTableTest(BaseTableTest, BasicTestSuiteMixin):
     table_name = "project-stoptimes"
 
     def enrich_data(self, data):
@@ -881,6 +930,7 @@ class StopTimesTest(BaseTableTest, BasicTestSuiteMixin):
     def test_create(self):
         self.enrich_data(self.Meta.create_data)
         super().test_create()
+
 
 class ShapeTableTest(BaseTableTest):
     table_name = 'project-shapes'
@@ -961,4 +1011,533 @@ class ShapeTableTest(BaseTableTest):
         id = 123456789
         self.retrieve(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
 
+
+class LevelTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-levels"
+
+    class Meta:
+        model = Level
+        serializer = LevelSerializer
+        initial_size = 5
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             level_id=data['level_id'],
+                                             level_index=data['level_index'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'level_id': 'test_level',
+            'level_index': 0
+        }
+
+        # create params
+        create_data = {
+            'level_id': "test_level_2",
+            'level_index': 1,
+            'level_name': "Test Level 2"
+        }
+
+        # delete params
+        delete_data = {
+            'level_id': 'test_level',
+            'level_index': 0
+        }
+
+        # put params
+        put_data = {
+            'level_id': "test_level",
+            'level_index': 0,
+            'level_name': "New Name"
+        }
+
+        # patch params
+        patch_data = {
+            'level_id': "test_level",
+            'level_index': 0,
+            'level_name': "New Name2"
+        }
+
+
+class CalendarDateTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-calendardates"
+
+    class Meta:
+        model = CalendarDate
+        serializer = CalendarDateSerializer
+        initial_size = 2
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             date=data['date'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'date': '2020-09-18'
+        }
+
+        # create params
+        create_data = {
+            'date': '2020-09-20',
+            'exception_type': 200
+        }
+
+        # delete params
+        delete_data = {
+            'date': '2020-09-18'
+        }
+
+        # put params
+        put_data = {
+            'date': '2020-09-18',
+            'exception_type': 100
+        }
+
+        # patch params
+        patch_data = {
+            'date': '2020-09-18',
+            'exception_type': 100
+        }
+
+
+class PathwayTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-pathways"
+
+    class Meta:
+        model = Pathway
+        serializer = PathwaySerializer
+        initial_size = 1
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             pathway_id=data['pathway_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'pathway_id': 'test_pathway'
+        }
+
+        # create params
+        create_data = {
+            'pathway_id': 'test_pathway_created',
+            'pathway_mode': 10,
+            'is_bidirectional': False,
+            'from_stop': 'stop_1',
+            'to_stop': 'stop_2'
+        }
+
+        # delete params
+        delete_data = {
+            'pathway_id': 'test_pathway'
+        }
+
+        # put params
+        put_data = {
+            'pathway_id': 'test_pathway',
+            'pathway_mode': 10,
+            'is_bidirectional': False,
+            'from_stop': 'stop_1',
+            'to_stop': 'stop_2'
+        }
+
+        # patch params
+        patch_data = {
+            'pathway_id': 'test_pathway',
+            'pathway_mode': 1000
+        }
+
+    def enrich_data(self, data):
+        data.update({
+            'from_stop': Stop.objects.filter(project=self.project, stop_id='stop_1')[0].id,
+            'to_stop': Stop.objects.filter(project=self.project, stop_id='stop_2')[0].id
+        })
+
+    def test_create(self):
+        data = self.Meta.create_data
+        self.enrich_data(data)
+        super().test_create()
+
+    def test_put(self):
+        data = self.Meta.put_data
+        self.enrich_data(data)
+        super().test_put()
+
+
+class TransferTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-transfers"
+
+    class Meta:
+        model = Transfer
+        serializer = TransferSerializer
+        initial_size = 1
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(from_stop_id=data['from_stop'],
+                                             to_stop_id=data['to_stop'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+        }
+
+        # create params
+        create_data = {
+            'type': 1
+        }
+
+        # delete params
+        delete_data = {
+        }
+
+        # put params
+        put_data = {
+            'type': 10
+        }
+
+        # patch params
+        patch_data = {
+            'type': 100
+        }
+
+    def existing_data(self, data):
+        data.update({
+            'from_stop': Stop.objects.filter(project=self.project, stop_id='stop_1')[0].id,
+            'to_stop': Stop.objects.filter(project=self.project, stop_id='stop_2')[0].id
+        })
+
+    def new_data(self, data):
+        data.update({
+            'from_stop': Stop.objects.filter(project=self.project, stop_id='stop_3')[0].id,
+            'to_stop': Stop.objects.filter(project=self.project, stop_id='stop_4')[0].id
+        })
+
+    def test_delete(self):
+        self.existing_data(self.Meta.delete_data)
+        super().test_delete()
+
+    def test_retrieve(self):
+        self.existing_data(self.Meta.retrieve_data)
+        super().test_retrieve()
+
+    def test_patch(self):
+        self.existing_data(self.Meta.patch_data)
+        super().test_patch()
+
+    def test_put(self):
+        self.existing_data(self.Meta.put_data)
+        super().test_put()
+
+    def test_create(self):
+        self.new_data(self.Meta.create_data)
+        print(self.Meta.create_data)
+        super().test_create()
+
+
+class FrequencyTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-frequencies"
+
+    class Meta:
+        model = Frequency
+        serializer = FrequencySerializer
+        initial_size = 4
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(trip__project_id=project,
+                                             trip_id=data['trip'],
+                                             start_time=data['start_time'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'trip': 'trip0',
+            'start_time': "00:00",
+            'end_time': "23:00",
+            'headway_secs': 600,
+            'exact_times': 0
+        }
+
+        # create params
+        create_data = {
+            'trip': 'trip0',
+            'start_time': datetime.time(10, 0),
+            'end_time': datetime.time(22, 0),
+            'headway_secs': 1200,
+            'exact_times': 1
+        }
+
+        # delete params
+        delete_data = {
+            'trip': 'trip0',
+            'start_time': "00:00",
+            'end_time': "23:00",
+            'headway_secs': 600,
+            'exact_times': 0
+        }
+
+        # put params
+        put_data = {
+            'trip': 'trip0',
+            'start_time': datetime.time(0, 0),
+            'end_time': datetime.time(23, 0),
+            'headway_secs': 200,
+            'exact_times': 1
+        }
+
+        # patch params
+        patch_data = {
+            'trip': 'trip0',
+            'start_time': '00:00:00',
+            'headway_secs': 200,
+            'exact_times': 1
+        }
+
+    def enrich_data(self, data):
+        data['trip'] = Trip.objects.filter(project=self.project,
+                                           trip_id=data['trip'])[0].id
+
+    def test_delete(self):
+        self.enrich_data(self.Meta.delete_data)
+        super().test_delete()
+
+    def test_retrieve(self):
+        self.enrich_data(self.Meta.retrieve_data)
+        super().test_retrieve()
+
+    def test_patch(self):
+        self.enrich_data(self.Meta.patch_data)
+        super().test_patch()
+
+    def test_put(self):
+        self.enrich_data(self.Meta.put_data)
+        super().test_put()
+
+    def test_create(self):
+        self.enrich_data(self.Meta.create_data)
+        super().test_create()
+
+
+class FareAttributeTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-fareattributes"
+
+    class Meta:
+        model = FareAttribute
+        serializer = FareAttributeSerializer
+        initial_size = 2
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(project=project,
+                                             fare_id=data['fare_id'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'fare_id': 'test_fare_attr'
+        }
+
+        # create params
+        create_data = {
+            'fare_id': 'test_fare_attr_created',
+            'price': 1.0,
+            'currency_type': 'USD',
+            'payment_method': 2,
+            'transfers': 3,
+            'transfer_duration': 3600,
+            'agency': 'test_agency'
+        }
+
+        # delete params
+        delete_data = {
+            'fare_id': 'test_fare_attr'
+        }
+
+        # put params
+        put_data = {
+            'fare_id': 'test_fare_attr',
+            'price': 1.0,
+            'currency_type': 'USD',
+            'payment_method': 2,
+            'transfers': 3,
+            'transfer_duration': 3600,
+            'agency': 'test_agency'
+        }
+
+        # patch params
+        patch_data = {
+            'fare_id': 'test_fare_attr',
+            'transfers': 100
+        }
+
+    def enrich_data(self, data):
+        data['agency'] = Agency.objects.filter_by_project(self.project).filter(agency_id=data['agency'])[0].id
+
+    def test_create(self):
+        self.enrich_data(self.Meta.create_data)
+        super().test_create()
+
+    def test_put(self):
+        self.enrich_data(self.Meta.put_data)
+        super().test_put()
+
+
+class FrequencyTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-frequencies"
+
+    class Meta:
+        model = Frequency
+        serializer = FrequencySerializer
+        initial_size = 4
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            return self.model.objects.filter(trip__project_id=project,
+                                             trip_id=data['trip'],
+                                             start_time=data['start_time'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'trip': 'trip0',
+            'start_time': "00:00",
+            'end_time': "23:00",
+            'headway_secs': 600,
+            'exact_times': 0
+        }
+
+        # create params
+        create_data = {
+            'trip': 'trip0',
+            'start_time': datetime.time(10, 0),
+            'end_time': datetime.time(22, 0),
+            'headway_secs': 1200,
+            'exact_times': 1
+        }
+
+        # delete params
+        delete_data = {
+            'trip': 'trip0',
+            'start_time': "00:00",
+            'end_time': "23:00",
+            'headway_secs': 600,
+            'exact_times': 0
+        }
+
+        # put params
+        put_data = {
+            'trip': 'trip0',
+            'start_time': datetime.time(0, 0),
+            'end_time': datetime.time(23, 0),
+            'headway_secs': 200,
+            'exact_times': 1
+        }
+
+        # patch params
+        patch_data = {
+            'trip': 'trip0',
+            'start_time': '00:00:00',
+            'headway_secs': 200,
+            'exact_times': 1
+        }
+
+    def add_foreign_ids(self,data):
+        if 'trip' in data:
+            data['trip'] = Trip.objects.filter_by_project(self.project.project_id).filter(trip_id=data['trip'])[0].id
+
+    def test_delete(self):
+        self.add_foreign_ids(self.Meta.delete_data)
+        super().test_delete()
+
+    def test_retrieve(self):
+        self.add_foreign_ids(self.Meta.retrieve_data)
+        super().test_retrieve()
+
+    def test_patch(self):
+        self.add_foreign_ids(self.Meta.patch_data)
+        super().test_patch()
+
+    def test_put(self):
+        self.add_foreign_ids(self.Meta.put_data)
+        super().test_put()
+
+    def test_create(self):
+        self.add_foreign_ids(self.Meta.create_data)
+        super().test_create()
+
+
+class ShapePointTableTest(BaseTableTest, BasicTestSuiteMixin):
+    table_name = "project-shapepoints"
+
+    def add_foreign_ids(self, data):
+        data['shape'] = Shape.objects \
+            .filter_by_project(self.project.project_id) \
+            .filter(shape_id=data['shape'])[0].id
+
+    class Meta:
+        model = ShapePoint
+        serializer = ShapePointSerializer
+        initial_size = 10
+        invalid_id = 123456789
+
+        def get_id(self, project, data):
+            print(ShapePoint.objects.filter(shape=data['shape']))
+            return self.model.objects.filter(shape_id=data['shape'],
+                                             shape_pt_sequence=data['shape_pt_sequence'])[0].id
+
+        # retrieve params
+        retrieve_data = {
+            'shape': 'shape_1',
+            'shape_pt_sequence': 1,
+            'shape_pt_lat': 0.0,
+            'shape_pt_lon': 0.0
+        }
+
+        # create params
+        create_data = {
+            'shape': 'shape_1',
+            'shape_pt_sequence': 100,
+            'shape_pt_lat': 200.0,
+            'shape_pt_lon': 30.0
+        }
+
+        # delete params
+        delete_data = {
+            'shape': 'shape_1',
+            'shape_pt_sequence': 1
+        }
+
+        # put params
+        put_data = {
+            'shape': 'shape_1',
+            'shape_pt_sequence': 1,
+            'shape_pt_lat': 1000.0,
+            'shape_pt_lon': 100.0
+        }
+
+        # patch params
+        patch_data = {
+            'shape': 'shape_1',
+            'shape_pt_sequence': 1,
+            'shape_pt_lon': 10000.0
+        }
+
+    def test_delete(self):
+        self.add_foreign_ids(self.Meta.delete_data)
+        super().test_delete()
+
+    def test_retrieve(self):
+        self.add_foreign_ids(self.Meta.retrieve_data)
+        super().test_retrieve()
+
+    def test_patch(self):
+        self.add_foreign_ids(self.Meta.patch_data)
+        super().test_patch()
+
+    def test_put(self):
+        self.add_foreign_ids(self.Meta.put_data)
+        super().test_put()
+
+    def test_create(self):
+        self.add_foreign_ids(self.Meta.create_data)
+        super().test_create()
 

@@ -14,6 +14,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['project_id', 'name']
 
+
 class NestedModelSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         project_id = self.context['view'].kwargs['project_pk']
@@ -24,8 +25,8 @@ class NestedModelSerializer(serializers.ModelSerializer):
         validated_data['project'] = project
         return super().create(validated_data)
 
-class CalendarSerializer(NestedModelSerializer):
 
+class CalendarSerializer(NestedModelSerializer):
     class Meta:
         model = Calendar
         fields = ['id', "service_id", "monday", "tuesday",
@@ -56,7 +57,6 @@ class FeedInfoSerializer(NestedModelSerializer):
 
 
 class StopSerializer(NestedModelSerializer):
-
     class Meta:
         model = Stop
         fields = ['id', 'stop_id', 'stop_code', 'stop_name', 'stop_lat', 'stop_lon', 'stop_url']
@@ -84,6 +84,7 @@ class ShapeSerializer(NestedModelSerializer):
 
 class DetailedShapeSerializer(NestedModelSerializer):
     points = serializers.SerializerMethodField()
+
     class Meta:
         model = Shape
         fields = ['id', 'shape_id', 'points']
@@ -94,17 +95,17 @@ class DetailedShapeSerializer(NestedModelSerializer):
         return pts.data
 
 
-class ShapePointSerializer(NestedModelSerializer):
+class ShapePointSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShapePoint
-        fields = ['id', 'shape_id', 'shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon']
+        fields = ['id', 'shape', 'shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon']
         read_only = ['id']
 
 
-class TransferSerializer(NestedModelSerializer):
+class TransferSerializer(serializers.ModelSerializer):
     class Meta:
         model = Transfer
-        fields = ['id', 'from_stop', 'to_stop']
+        fields = ['id', 'type', 'from_stop', 'to_stop']
         read_only = ['id']
 
 
@@ -149,4 +150,12 @@ class StopTimeSerializer(serializers.ModelSerializer):
     class Meta:
         model = StopTime
         fields = ['id', 'trip', 'stop', 'stop_sequence', 'arrival_time', 'departure_time']
+        read_only = ['id']
+
+
+class FrequencySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Frequency
+        fields = ['id', "trip", "start_time", "end_time",
+                  "headway_secs", "exact_times"]
         read_only = ['id']

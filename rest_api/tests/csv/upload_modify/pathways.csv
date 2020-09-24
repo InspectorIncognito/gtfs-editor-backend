@@ -1,1 +1,2 @@
 pathway_id,from_stop,to_stop,pathway_mode,is_bidirectional
+test_pathway,stop_1,stop_2,2,0

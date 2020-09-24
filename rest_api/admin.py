@@ -6,12 +6,6 @@ from rest_api.models import *
 
 # Missing models:
 # Publishing models (currently preliminary version)
-# Shape points (does it make sense to manage shapes here?)
-
-
-def reg(adm, model):
-    admin.site.register(model, adm)
-    return adm
 
 
 @admin.register(Project)
@@ -105,6 +99,7 @@ class TransferAdmin(admin.ModelAdmin):
 class RouteAdmin(admin.ModelAdmin):
     def project(self, obj):
         return obj.agency.project
+
     list_display = ('project',
                     'route_id',
                     'agency_id',
@@ -116,6 +111,7 @@ class RouteAdmin(admin.ModelAdmin):
                     'route_color',
                     'route_text_color')
 
+
 @admin.register(Agency)
 class AgencyAdmin(admin.ModelAdmin):
     list_display = ('project',
@@ -124,4 +120,49 @@ class AgencyAdmin(admin.ModelAdmin):
                     'agency_url',
                     'agency_timezone')
 
-#
+
+@admin.register(FareAttribute)
+class FareAttributeAdmin(admin.ModelAdmin):
+    list_display = ('project',
+                    'fare_id',
+                    'price',
+                    'currency_type',
+                    'payment_method',
+                    'transfers',
+                    'transfer_duration',
+                    'agency')
+
+
+@admin.register(FareRule)
+class FareRuleAdmin(admin.ModelAdmin):
+    list_display = ('fare_attribute',
+                    'route')
+
+
+@admin.register(Trip)
+class TripAdmin(admin.ModelAdmin):
+    list_display = ('project',
+                    'trip_id',
+                    'route',
+                    'shape',
+                    'service_id',
+                    'trip_headsign',
+                    'direction_id')
+
+
+@admin.register(StopTime)
+class StopTimeAdmin(admin.ModelAdmin):
+    list_display = ('trip',
+                    'stop',
+                    'stop_sequence',
+                    'arrival_time',
+                    'departure_time')
+
+
+@admin.register(Frequency)
+class FrequencyAdmin(admin.ModelAdmin):
+    list_display = ('trip',
+                    'start_time',
+                    'end_time',
+                    'headway_secs',
+                    'exact_times')

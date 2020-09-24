@@ -1,6 +1,6 @@
 level_id,level_index,level_name
-Cool Leveled Segment,-2.0,Level -2
-Cool Leveled Segment,-1.0,Level -1
-Cool Leveled Segment,0.0,Level 0
-Cool Leveled Segment,1.0,Level 1
-Cool Leveled Segment,2.0,Level 2
+test_level,-2.0,Level -2
+test_level,-1.0,Level -1
+test_level,0.0,Ground Floor
+test_level,1.0,Level 1
+test_level,2.0,Level 2

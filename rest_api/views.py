@@ -1,37 +1,22 @@
 import csv
 import io
 import sys
+import zipfile
 
+from django import urls
 from django.db import transaction
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, HttpRequest
 from rest_framework import viewsets, generics, mixins, status, renderers
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
-from rest_framework.parsers import FileUploadParser
+from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.test import APIClient
 
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.models import *
 from django.contrib.auth.models import User
-
-
-def parse_csv(file):
-    first = True
-    for row in file:
-        if row.strip():  # row is not empty
-            # Remove trailing newlines/spaces, convert to non-binary string and convert to list
-            row = row.strip().decode('utf-8').split(',')
-            if first:
-                first = False
-                header = row
-            else:
-                result = dict()
-                if len(row) != len(header):
-                    raise RuntimeError("Header and row of CSV file do not match in length")
-                for i in range(len(row)):
-                    result[header[i]] = row[i]
-                yield result
 
 
 # Classes using this mixin require a Meta class that contains the following attributes
@@ -41,6 +26,19 @@ def parse_csv(file):
 # In addition the class requires a filter_by_project method that returns all objects
 # that belong to the project with the primary key entered
 class CSVDownloadMixin:
+
+    @staticmethod
+    def load_as_file(out, Meta, qs):
+        meta = Meta()
+        header = meta.csv_header
+        list_attrs = meta.list_attrs
+        writer = csv.writer(out)
+        writer.writerow(header)
+        for obj in qs:
+            attrs = list_attrs(obj)
+            meta.convert_values(attrs)
+
+            writer.writerow(attrs)
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
@@ -56,16 +54,12 @@ class CSVDownloadMixin:
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
-        writer = csv.writer(response)
-        writer.writerow(header)
-        for obj in qs:
-            attrs = list_attrs(obj)
-            writer.writerow(attrs)
+        self.load_as_file(response, self.Meta, qs)
         return response
 
 
 class CSVUploadMixin:
-    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser,))
     @transaction.atomic
     def upload(self, request, *args, **kwargs):
         if 'file' not in request.FILES:
@@ -84,19 +78,25 @@ class CSVUploadMixin:
             return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
         updated = list()
-        for entry in parse_csv(file):
-            add_foreign_keys(entry, kwargs['project_pk'])
-            obj = update_or_create(qs, model, filter_params, entry)
-            updated.append(obj.id)
+        file.seek(0)
+        # We wrap so we can read the file as utf-8 instead of binary
+        with io.TextIOWrapper(file, encoding='utf-8') as text_file:
+            # This gives us an ordered dictionary with the rows
+            reader = csv.DictReader(text_file)
+            for row in reader:
+                add_foreign_keys(row, kwargs['project_pk'])
+                obj = update_or_create(qs, model, filter_params, row)
+                updated.append(obj.id)
         to_delete = qs.exclude(id__in=updated)
         to_delete.delete()
-        return HttpResponse(content_type='text/plain')
+        return HttpResponse(content_type='text/plain', status=status.HTTP_200_OK)
 
 
 # This class bundles up the CSVUploadMixin and CSVDownloadMixin,
 # adding a few methods that are common to many models
 class CSVHandlerMixin(CSVUploadMixin,
                       CSVDownloadMixin):
+
     @staticmethod
     def update_or_create(qs, model, filter_params, values):
         # First we filter the queryset to see if the object exists
@@ -120,6 +120,9 @@ class CSVHandlerMixin(CSVUploadMixin,
             raise RuntimeError("Error: improperly configured filter is returning multiple objects")
         return obj
 
+    def get_queryset(self):
+        return self.get_qs(self.kwargs)
+
 
 class GenericListAttrsMeta:
     def list_attrs(self, obj):
@@ -137,6 +140,10 @@ class GenericListAttrsMeta:
         return result
 
     @staticmethod
+    def convert_values(values):
+        pass
+
+    @staticmethod
     def add_foreign_keys(values, project_id):
         values['project_id'] = project_id
 
@@ -148,10 +155,56 @@ class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all().order_by('name')
     serializer_class = ProjectSerializer
 
+    @action(methods=['get'], detail=True, renderer_classes=(BinaryRenderer,))
+    def download(self, *args, **kwargs):
+        project = Project.objects.filter(project_id=kwargs['pk'])[0]
+        fname = "GTFS-" + project.name
+        feedinfo = FeedInfo.objects.filter(project=project)
+        if feedinfo.count() > 0:
+            fname += "-" + feedinfo[0].feed_version
+        s = io.BytesIO()
+        files = {
+            'agency': AgencyViewSet,
+            'stops': StopViewSet,
+            'routes': RouteViewSet,
+            'trips': TripViewSet,
+            'stop_times': StopTimeViewSet,
+            'calendar': CalendarViewSet,
+            'calendar_dates': CalendarDateViewSet,
+            'fare_attributes': FareAttributeViewSet,
+            'fare_rules': FareRuleViewSet,
+            'shapes': ShapeViewSet,
+            'frequencies': FrequencyViewSet,
+            'transfers': TransferViewSet,
+            'pathways': PathwayViewSet,
+            'levels': LevelViewSet,
+            'feed_info': FeedInfoViewSet
+        }
+        zf = zipfile.ZipFile(s, "w", zipfile.ZIP_DEFLATED, False)
+        for f in files:
+            out = io.StringIO()
+            view = files[f]
+            qs = view.get_qs({'project_pk': kwargs['pk']})
+            view.load_as_file(out, view.Meta, qs)
+            zf.writestr('{}.txt'.format(f), out.getvalue())
+        zf.close()
+        response = HttpResponse(s.getvalue(), content_type="application/x-zip-compressed")
+        response['Content-Disposition'] = 'attachment; filename={}.zip'.format(fname)
+        return response
+
 
 class ShapeViewSet(viewsets.ModelViewSet):
     serializer_class = ShapeSerializer
-    queryset = Shape.objects.all().order_by('shape_id')
+
+    def get_queryset(self):
+        return self.get_qs(self.kwargs)
+
+    @staticmethod
+    def get_qs(kwargs):
+        return Shape.objects.filter(project__project_id=kwargs['project_pk']).order_by('shape_id')
+
+    class Meta:
+        pass
 
     def list(self, request, *args, **kwargs):
         project_pk = kwargs['project_pk']
@@ -162,17 +215,22 @@ class ShapeViewSet(viewsets.ModelViewSet):
         serializer = ShapeSerializer(queryset, context=serializer_context, many=True)
         return Response(serializer.data)
 
-    @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
-    def download(self, *args, **kwargs):
-        queryset = self.get_queryset()
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="shapes.csv"'
-        writer = csv.writer(response)
-        shape_set = queryset.filter(project__pk=kwargs['project_pk'])
+    @staticmethod
+    def load_as_file(out, Meta, qs):
+        meta = Meta()
+        writer = csv.writer(out)
+        shape_set = qs
         writer.writerow(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'])
         for shape in shape_set:
             for sp in shape.points.all():
                 writer.writerow([sp.shape.shape_id, sp.shape_pt_lat, sp.shape_pt_lon, sp.shape_pt_sequence])
+
+    @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
+    def download(self, *args, **kwargs):
+        qs = self.get_queryset()
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="shapes.csv"'
+        self.load_as_file(response, self.Meta, qs)
         return response
 
     @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
@@ -239,8 +297,17 @@ class CalendarViewSet(CSVHandlerMixin,
         model = Calendar
         filter_params = ['service_id']
 
-    def get_queryset(self):
-        return Calendar.objects.filter(project=self.kwargs['project_pk']).order_by('service_id')
+        @staticmethod
+        def convert_values(values):
+            for day in range(1, 8):
+                if values[day] == True:
+                    values[day] = 1
+                elif values[day] == False:
+                    values[day] = 0
+
+    @staticmethod
+    def get_qs(kwargs):
+        return Calendar.objects.filter(project=kwargs['project_pk']).order_by('service_id')
 
 
 class LevelViewSet(CSVHandlerMixin,
@@ -256,8 +323,9 @@ class LevelViewSet(CSVHandlerMixin,
         filter_params = ['level_id',
                          'level_index']
 
-    def get_queryset(self):
-        return Level.objects.filter(project=self.kwargs['project_pk']).order_by('level_id', 'level_index')
+    @staticmethod
+    def get_qs(kwargs):
+        return Level.objects.filter(project=kwargs['project_pk']).order_by('level_id', 'level_index')
 
 
 class CalendarDateViewSet(CSVHandlerMixin,
@@ -271,15 +339,29 @@ class CalendarDateViewSet(CSVHandlerMixin,
         model = CalendarDate
         filter_params = ['date']
 
-    def get_queryset(self):
-        return CalendarDate.objects.filter(project=self.kwargs['project_pk']).order_by('date')
+    @staticmethod
+    def get_qs(kwargs):
+        return CalendarDate.objects.filter(project=kwargs['project_pk']).order_by('date')
 
 
-class FeedInfoViewSet(viewsets.ModelViewSet):
+class FeedInfoViewSet(CSVHandlerMixin,
+                      viewsets.ModelViewSet):
     serializer_class = FeedInfoSerializer
 
-    def get_queryset(self):
-        return FeedInfo.objects.filter(project=self.kwargs['project_pk'])
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'feedinfo'
+        csv_header = ['feed_publisher_name',
+                      'feed_publisher_url',
+                      'feed_lang',
+                      'feed_start_date',
+                      'feed_end_date',
+                      'feed_version',
+                      'feed_id']
+        model = FeedInfo
+
+    @staticmethod
+    def get_qs(kwargs):
+        return FeedInfo.objects.filter(project=kwargs['project_pk'])
 
 
 class StopViewSet(CSVHandlerMixin,
@@ -297,8 +379,9 @@ class StopViewSet(CSVHandlerMixin,
         model = Stop
         filter_params = ['stop_id']
 
-    def get_queryset(self):
-        return Stop.objects.filter(project=self.kwargs['project_pk']).order_by('stop_id')
+    @staticmethod
+    def get_qs(kwargs):
+        return Stop.objects.filter(project=kwargs['project_pk']).order_by('stop_id')
 
 
 class PathwayViewSet(CSVHandlerMixin,
@@ -318,9 +401,9 @@ class PathwayViewSet(CSVHandlerMixin,
         def list_attrs(self, obj):
             result = super().list_attrs(obj)
             ib = self.csv_header.index('is_bidirectional')
-            if result[ib] == True:
+            if result[ib]:
                 result[ib] = 1
-            elif result[ib] == False:
+            else:
                 result[ib] = 0
             return result
 
@@ -332,15 +415,17 @@ class PathwayViewSet(CSVHandlerMixin,
                                                     stop_id=values['to_stop'])[0]
             GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
-    def get_queryset(self):
-        return Pathway.objects.filter(project=self.kwargs['project_pk']).order_by('pathway_id')
+    @staticmethod
+    def get_qs(kwargs):
+        return Pathway.objects.filter(from_stop__project__project_id=kwargs['project_pk']).order_by('pathway_id')
 
 
 class ShapePointViewSet(viewsets.ModelViewSet):
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
-        return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk']).order_by('shape_id', 'shape_pt_sequence')
+        return ShapePoint.objects.filter(shape__project=self.kwargs['project_pk']).order_by('shape_id',
+                                                                                            'shape_pt_sequence')
 
 
 class TransferViewSet(CSVHandlerMixin,
@@ -349,7 +434,10 @@ class TransferViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'transfers'
-        csv_header = ['from_stop',
+        csv_header = ['from_stop_id',
+                      'to_stop_id',
+                      'transfer_type']
+        csv_fields = ['from_stop',
                       'to_stop',
                       'type']
         model = Transfer
@@ -362,9 +450,11 @@ class TransferViewSet(CSVHandlerMixin,
                                                       stop_id=values['from_stop'])[0]
             values['to_stop'] = Stop.objects.filter(project_id=project_id,
                                                     stop_id=values['to_stop'])[0]
+            GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
-    def get_queryset(self):
-        return Transfer.objects.filter(from_stop__project=self.kwargs['project_pk']).order_by('from_stop', 'to_stop')
+    @staticmethod
+    def get_qs(kwargs):
+        return Transfer.objects.filter(from_stop__project=kwargs['project_pk']).order_by('from_stop', 'to_stop')
 
 
 class AgencyViewSet(CSVHandlerMixin,
@@ -380,8 +470,9 @@ class AgencyViewSet(CSVHandlerMixin,
         model = Agency
         filter_params = ['agency_id']
 
-    def get_queryset(self):
-        return Agency.objects.filter(project=self.kwargs['project_pk']).order_by('agency_id')
+    @staticmethod
+    def get_qs(kwargs):
+        return Agency.objects.filter(project=kwargs['project_pk']).order_by('agency_id')
 
 
 class RouteViewSet(CSVHandlerMixin,
@@ -409,8 +500,9 @@ class RouteViewSet(CSVHandlerMixin,
             values['agency'] = Agency.objects.filter(project_id=project_id, agency_id=values['agency_id'])[0]
             del values['agency_id']
 
-    def get_queryset(self):
-        return Route.objects.filter(agency__project=self.kwargs['project_pk']).order_by('route_id')
+    @staticmethod
+    def get_qs(kwargs):
+        return Route.objects.filter(agency__project=kwargs['project_pk']).order_by('route_id')
 
 
 class FareAttributeViewSet(CSVHandlerMixin,
@@ -435,8 +527,9 @@ class FareAttributeViewSet(CSVHandlerMixin,
                                                      agency_id=values['agency'])[0]
             GenericListAttrsMeta.add_foreign_keys(values, project_id)
 
-    def get_queryset(self):
-        return FareAttribute.objects.filter(project=self.kwargs['project_pk']).order_by('fare_id')
+    @staticmethod
+    def get_qs(kwargs):
+        return FareAttribute.objects.filter(project=kwargs['project_pk']).order_by('fare_id')
 
 
 class FareRuleViewSet(CSVHandlerMixin,
@@ -445,7 +538,9 @@ class FareRuleViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'fare_rules'
-        csv_header = ['fare_attribute',
+        csv_header = ['fare_id',
+                      'route_id']
+        csv_fields = ['fare_attribute',
                       'route']
         model = FareRule
         filter_params = ['fare_attribute']
@@ -457,8 +552,9 @@ class FareRuleViewSet(CSVHandlerMixin,
             values['route'] = Route.objects.filter(agency__project_id=project_id,
                                                    route_id=values['route'])[0]
 
-    def get_queryset(self):
-        return FareRule.objects.filter(fare_attribute__project=self.kwargs['project_pk']).order_by('route')
+    @staticmethod
+    def get_qs(kwargs):
+        return FareRule.objects.filter(fare_attribute__project=kwargs['project_pk']).order_by('route')
 
 
 class TripViewSet(CSVHandlerMixin,
@@ -481,11 +577,16 @@ class TripViewSet(CSVHandlerMixin,
             GenericListAttrsMeta.add_foreign_keys(values, project_id)
             values['route'] = Route.objects.filter(agency__project_id=project_id,
                                                    route_id=values['route'])[0]
-            values['shape'] = Shape.objects.filter(project_id=project_id,
-                                                   shape_id=values['shape'])[0]
+            shapes = Shape.objects.filter(project_id=project_id,
+                                          shape_id=values['shape'])
+            if len(shapes) > 0:
+                values['shape'] = shapes[0]
+            else:
+                del values['shape']
 
-    def get_queryset(self):
-        return Trip.objects.filter(project=self.kwargs['project_pk']).order_by('trip_id')
+    @staticmethod
+    def get_qs(kwargs):
+        return Trip.objects.filter(project=kwargs['project_pk']).order_by('trip_id')
 
 
 class StopTimeViewSet(CSVHandlerMixin,
@@ -509,7 +610,31 @@ class StopTimeViewSet(CSVHandlerMixin,
             values['stop'] = Stop.objects.filter(project_id=project_id,
                                                  stop_id=values['stop'])[0]
 
-    def get_queryset(self):
-        return StopTime.objects.filter(trip__project=self.kwargs['project_pk']).order_by('trip', 'stop_sequence')
+    @staticmethod
+    def get_qs(kwargs):
+        return StopTime.objects.filter(trip__project=kwargs['project_pk']).order_by('trip', 'stop_sequence')
 
 
+class FrequencyViewSet(CSVHandlerMixin,
+                       viewsets.ModelViewSet):
+    serializer_class = FrequencySerializer
+
+    class Meta(GenericListAttrsMeta):
+        csv_filename = 'frequencies'
+        csv_header = ['trip_id',
+                      'start_time',
+                      'end_time',
+                      'headway_secs',
+                      'exact_times']
+        model = Frequency
+        filter_params = ['trip',
+                         'start_time']
+
+        @staticmethod
+        def add_foreign_keys(values, project_id):
+            values['trip'] = Trip.objects.filter(project_id=project_id,
+                                                 trip_id=values['trip'])[0]
+
+    @staticmethod
+    def get_qs(kwargs):
+        return Frequency.objects.filter(trip__project=kwargs['project_pk']).order_by('trip__trip_id')

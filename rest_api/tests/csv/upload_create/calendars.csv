@@ -1,3 +1,4 @@
 service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday
 mon-fri,True,True,True,True,True,False,False
 sat-sun,False,False,False,False,False,True,True
+regular days,True,True,True,True,False,False,False

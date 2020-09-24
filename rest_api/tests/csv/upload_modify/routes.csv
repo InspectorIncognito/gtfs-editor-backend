@@ -3,5 +3,5 @@ route0,agency_0,,,,3,,,
 route1,agency_0,,,,3,,,
 route2,agency_1,,,,3,,,
 route3,agency_1,,,,3,,,
-test_route,agency_0,Test Route,Test Route - The Route,This route was made for testing,1,http://www.testroute.com,FF00FF,00FF00
+test_route,agency_0,Test Route,Test Route - The Route,I have updated the description,3,http://www.testroute.com,55AA55,AA55AA
 trip_test_route,agency_0,,,,3,,,
