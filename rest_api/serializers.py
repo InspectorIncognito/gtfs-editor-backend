@@ -30,7 +30,8 @@ class CalendarSerializer(NestedModelSerializer):
     class Meta:
         model = Calendar
         fields = ['id', "service_id", "monday", "tuesday",
-                  "wednesday", "thursday", "friday", "saturday", "sunday"]
+                  "wednesday", "thursday", "friday", "saturday", "sunday",
+                  'start_date', 'end_date']
         read_only = ['id']
 
 
@@ -44,7 +45,7 @@ class LevelSerializer(NestedModelSerializer):
 class CalendarDateSerializer(NestedModelSerializer):
     class Meta:
         model = CalendarDate
-        fields = ['id', 'date', 'exception_type']
+        fields = ['id', 'service_id', 'date', 'exception_type']
         read_only = ['id']
 
 

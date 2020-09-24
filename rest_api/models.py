@@ -47,6 +47,9 @@ class Calendar(models.Model):
     friday = models.BooleanField()
     saturday = models.BooleanField()
     sunday = models.BooleanField()
+    start_date = models.DateField()
+    end_date = models.DateField()
+
     objects = FilterManager()
 
     def __str__(self):
@@ -72,6 +75,7 @@ class Level(models.Model):
 
 class CalendarDate(models.Model):
     project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    service_id = models.CharField(max_length=50)
     date = models.DateField()
     exception_type = models.IntegerField()
     objects = FilterManager()
@@ -80,7 +84,7 @@ class CalendarDate(models.Model):
         return str(self.date)
 
     class Meta:
-        unique_together = ['project', 'date']
+        unique_together = ['project', 'service_id', 'date']
 
 
 class FeedInfo(models.Model):
@@ -274,8 +278,6 @@ class Frequency(models.Model):
 
     objects = FilterManager('trip__project__project_id')
 
-    def __str__(self):
-        return ''.format()
 
     class Meta:
         unique_together = ['trip', 'start_time']

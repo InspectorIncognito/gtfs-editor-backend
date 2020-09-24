@@ -17,7 +17,7 @@ class ProjectAdmin(admin.ModelAdmin):
 @admin.register(Calendar)
 class CalendarAdmin(admin.ModelAdmin):
     title = "service_id"
-    list_display = ("project", "service_id", "monday", "tuesday",
+    list_display = ("project", "start_date", "end_date", "service_id", "monday", "tuesday",
                     "wednesday", "thursday", "friday", "saturday", "sunday",)
     list_filter = ("project",)
 
@@ -32,7 +32,7 @@ class LevelAdmin(admin.ModelAdmin):
 @admin.register(CalendarDate)
 class CalendarDateAdmin(admin.ModelAdmin):
     title = "date"
-    list_display = ("project", "date", "exception_type")
+    list_display = ("project", "service_id", "date", "exception_type")
     list_filter = ("project",)
 
 

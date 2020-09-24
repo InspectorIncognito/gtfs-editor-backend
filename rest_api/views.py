@@ -2,6 +2,7 @@ import csv
 import io
 import sys
 import zipfile
+import datetime
 
 from django import urls
 from django.db import transaction
@@ -141,7 +142,10 @@ class GenericListAttrsMeta:
 
     @staticmethod
     def convert_values(values):
-        pass
+        for k in range(len(values)):
+            v = values[k]
+            if isinstance(v, datetime.date):
+                values[k] = v.strftime('%Y%m%d')
 
     @staticmethod
     def add_foreign_keys(values, project_id):
@@ -241,21 +245,24 @@ class ShapeViewSet(viewsets.ModelViewSet):
         file = request.FILES['file']
         shape_qs = Shape.objects.all()
         shape_ids = list()
-        for entry in parse_csv(file):
-            if shape_qs.filter(project_id=kwargs['project_pk'], shape_id=entry['shape_id']).count() == 0:
-                Shape.objects.create(project_id=kwargs['project_pk'], shape_id=entry['shape_id'])
-            shape = shape_qs.filter(project_id=kwargs['project_pk'],
-                                    shape_id=entry['shape_id'])[0]
-            del entry['shape_id']
-            sp = ShapePoint.objects.filter(shape=shape, shape_pt_sequence=entry['shape_pt_sequence'])
-            if sp.count() == 0:
-                sp = ShapePoint(shape=shape, **entry)
-            else:
-                sp = sp[0]
-                for k in entry:
-                    setattr(sp, k, entry[k])
-            sp.save()
-            shape_ids.append(sp.shape.shape_id)
+        with io.TextIOWrapper(file, encoding='utf-8') as text_file:
+            # This gives us an ordered dictionary with the rows
+            reader = csv.DictReader(text_file)
+            for entry in reader:
+                if shape_qs.filter(project_id=kwargs['project_pk'], shape_id=entry['shape_id']).count() == 0:
+                    Shape.objects.create(project_id=kwargs['project_pk'], shape_id=entry['shape_id'])
+                shape = shape_qs.filter(project_id=kwargs['project_pk'],
+                                        shape_id=entry['shape_id'])[0]
+                del entry['shape_id']
+                sp = ShapePoint.objects.filter(shape=shape, shape_pt_sequence=entry['shape_pt_sequence'])
+                if sp.count() == 0:
+                    sp = ShapePoint(shape=shape, **entry)
+                else:
+                    sp = sp[0]
+                    for k in entry:
+                        setattr(sp, k, entry[k])
+                sp.save()
+                shape_ids.append(sp.shape.shape_id)
         to_delete = Shape.objects.filter(project_id=kwargs['project_pk']).exclude(shape_id__in=shape_ids)
         to_delete.delete()
 
@@ -293,12 +300,15 @@ class CalendarViewSet(CSVHandlerMixin,
                       'thursday',
                       'friday',
                       'saturday',
-                      'sunday']
+                      'sunday',
+                      'start_date',
+                      'end_date']
         model = Calendar
         filter_params = ['service_id']
 
         @staticmethod
         def convert_values(values):
+            GenericListAttrsMeta.convert_values(values)
             for day in range(1, 8):
                 if values[day] == True:
                     values[day] = 1
@@ -334,10 +344,11 @@ class CalendarDateViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'calendar_dates'
-        csv_header = ['date',
+        csv_header = ['service_id',
+                      'date',
                       'exception_type']
         model = CalendarDate
-        filter_params = ['date']
+        filter_params = ['service_id', 'date']
 
     @staticmethod
     def get_qs(kwargs):
@@ -511,13 +522,15 @@ class FareAttributeViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'fare_attributes'
-        csv_header = ['fare_id',
+        csv_fields = ['fare_id',
                       'price',
                       'currency_type',
                       'payment_method',
                       'transfers',
                       'transfer_duration',
                       'agency']
+        csv_header = [e for e in csv_fields]
+        csv_header[6] = 'agency_id'
         model = FareAttribute
         filter_params = ['fare_id']
 
@@ -563,12 +576,16 @@ class TripViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'trips'
-        csv_header = ['trip_id',
+        csv_fields = ['trip_id',
                       'route',
                       'shape',
                       'service_id',
                       'trip_headsign',
                       'direction_id']
+
+        csv_header = [e for e in csv_fields]
+        csv_header[1] = 'route_id'
+        csv_header[2] = 'shape_id'
         model = Trip
         filter_params = ['trip_id']
 
@@ -595,11 +612,14 @@ class StopTimeViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'stoptimes'
-        csv_header = ['trip',
-                      'stop',
+        csv_header = ['trip_id',
+                      'stop_id',
                       'stop_sequence',
                       'arrival_time',
                       'departure_time']
+        csv_fields = [e for e in csv_header]
+        csv_fields[0] = 'trip'
+        csv_fields[1] = 'stop'
         model = StopTime
         filter_params = ['trip', 'stop', 'stop_sequence']
 
@@ -626,6 +646,8 @@ class FrequencyViewSet(CSVHandlerMixin,
                       'end_time',
                       'headway_secs',
                       'exact_times']
+        csv_fields = [e for e in csv_header]
+        csv_fields[0] = 'trip'
         model = Frequency
         filter_params = ['trip',
                          'start_time']

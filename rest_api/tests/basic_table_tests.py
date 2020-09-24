@@ -73,7 +73,9 @@ class BaseTestCase(TestCase):
                                                           thursday=True,
                                                           friday=True,
                                                           saturday=False,
-                                                          sunday=False)
+                                                          sunday=False,
+                                                          start_date="2020-01-01",
+                                                          end_date="2020-12-31")
             data['ss_calendar'] = Calendar.objects.create(project=project, service_id="sat-sun",
                                                           monday=False,
                                                           tuesday=False,
@@ -81,7 +83,9 @@ class BaseTestCase(TestCase):
                                                           thursday=False,
                                                           friday=False,
                                                           saturday=True,
-                                                          sunday=True)
+                                                          sunday=True,
+                                                          start_date="2020-01-01",
+                                                          end_date="2020-12-31")
 
             # Create feed info
             FeedInfo.objects.create(project=project,
@@ -265,13 +269,13 @@ class BaseTestCase(TestCase):
                                          transfer_duration=7200,
                                          agency=agencies[0])
             fa = FareAttribute.objects.create(project=project,
-                                         fare_id='test_fare_attr_2',
-                                         price=890.0,
-                                         currency_type='CLP',
-                                         payment_method=1,
-                                         transfers=2,
-                                         transfer_duration=7200,
-                                         agency=agencies[0])
+                                              fare_id='test_fare_attr_2',
+                                              price=890.0,
+                                              currency_type='CLP',
+                                              payment_method=1,
+                                              transfers=2,
+                                              transfer_duration=7200,
+                                              agency=agencies[0])
             FareRule.objects.create(fare_attribute=fa,
                                     route=route)
 
@@ -539,7 +543,9 @@ class CalendarTableTest(BaseTableTest,
             'thursday': False,
             'friday': False,
             'saturday': False,
-            'sunday': False
+            'sunday': False,
+            'start_date': "2020-01-01",
+            'end_date': "2020-12-31"
         }
 
         # delete params
@@ -556,14 +562,17 @@ class CalendarTableTest(BaseTableTest,
             'thursday': False,
             'friday': False,
             'saturday': True,
-            "sunday": True
+            "sunday": True,
+            'start_date': "2020-01-01",
+            'end_date': "2020-12-31"
         }
 
         # patch params
         patch_data = {
             'service_id': 'mon-fri',
             'saturday': True,
-            "sunday": True
+            "sunday": True,
+            'start_date': '2020-01-02'
         }
 
 
@@ -1081,7 +1090,8 @@ class CalendarDateTableTest(BaseTableTest, BasicTestSuiteMixin):
         # create params
         create_data = {
             'date': '2020-09-20',
-            'exception_type': 200
+            'exception_type': 200,
+            'service_id': 'new service id'
         }
 
         # delete params
@@ -1092,7 +1102,8 @@ class CalendarDateTableTest(BaseTableTest, BasicTestSuiteMixin):
         # put params
         put_data = {
             'date': '2020-09-18',
-            'exception_type': 100
+            'exception_type': 100,
+            'service_id': 'test'
         }
 
         # patch params
@@ -1232,7 +1243,6 @@ class TransferTableTest(BaseTableTest, BasicTestSuiteMixin):
 
     def test_create(self):
         self.new_data(self.Meta.create_data)
-        print(self.Meta.create_data)
         super().test_create()
 
 
@@ -1440,7 +1450,7 @@ class FrequencyTableTest(BaseTableTest, BasicTestSuiteMixin):
             'exact_times': 1
         }
 
-    def add_foreign_ids(self,data):
+    def add_foreign_ids(self, data):
         if 'trip' in data:
             data['trip'] = Trip.objects.filter_by_project(self.project.project_id).filter(trip_id=data['trip'])[0].id
 
@@ -1480,7 +1490,6 @@ class ShapePointTableTest(BaseTableTest, BasicTestSuiteMixin):
         invalid_id = 123456789
 
         def get_id(self, project, data):
-            print(ShapePoint.objects.filter(shape=data['shape']))
             return self.model.objects.filter(shape_id=data['shape'],
                                              shape_pt_sequence=data['shape_pt_sequence'])[0].id
 
@@ -1540,4 +1549,3 @@ class ShapePointTableTest(BaseTableTest, BasicTestSuiteMixin):
     def test_create(self):
         self.add_foreign_ids(self.Meta.create_data)
         super().test_create()
-
