@@ -60,7 +60,21 @@ class FeedInfoSerializer(NestedModelSerializer):
 class StopSerializer(NestedModelSerializer):
     class Meta:
         model = Stop
-        fields = ['id', 'stop_id', 'stop_code', 'stop_name', 'stop_lat', 'stop_lon', 'stop_url']
+        fields = ['id',
+                  'stop_id',
+                  'stop_code',
+                  'stop_name',
+                  'stop_lat',
+                  'stop_lon',
+                  'stop_url',
+                  'stop_desc',
+                  'zone_id',
+                  'location_type',
+                  'parent_station',
+                  'stop_timezone',
+                  'wheelchair_boarding',
+                  'level_id',
+                  'platform_code']
         read_only = ['id']
 
 
@@ -113,7 +127,8 @@ class TransferSerializer(serializers.ModelSerializer):
 class AgencySerializer(NestedModelSerializer):
     class Meta:
         model = Agency
-        fields = ['id', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone']
+        fields = ['id', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_lang',
+                  'agency_phone', 'agency_fare_url', 'agency_email']
         read_only = ['id']
 
 
@@ -143,14 +158,36 @@ class FareRuleSerializer(NestedModelSerializer):
 class TripSerializer(NestedModelSerializer):
     class Meta:
         model = Trip
-        fields = ['id', 'trip_id', 'route', 'shape', 'service_id', 'trip_headsign', 'direction_id']
+        fields = ['id',
+                  'trip_id',
+                  'route',
+                  'shape',
+                  'service_id',
+                  'trip_headsign',
+                  'direction_id',
+                  'trip_short_name',
+                  'block_id',
+                  'wheelchair_accessible',
+                  'bikes_allowed']
         read_only = ['id']
 
 
 class StopTimeSerializer(serializers.ModelSerializer):
     class Meta:
         model = StopTime
-        fields = ['id', 'trip', 'stop', 'stop_sequence', 'arrival_time', 'departure_time']
+        fields = ['id',
+                  'trip',
+                  'stop',
+                  'stop_sequence',
+                  'arrival_time',
+                  'departure_time',
+                  'stop_headsign',
+                  'pickup_type',
+                  'drop_off_type',
+                  'continuous_pickup',
+                  'continuous_dropoff',
+                  'shape_dist_traveled',
+                  'timepoint']
         read_only = ['id']
 
 

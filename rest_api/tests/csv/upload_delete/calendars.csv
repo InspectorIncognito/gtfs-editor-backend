@@ -1,2 +1,2 @@
-service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday
-sat-sun,False,False,False,False,False,True,True
+service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date
+sat-sun,0,0,0,0,0,1,1,20200101,20201231

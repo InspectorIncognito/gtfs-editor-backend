@@ -29,16 +29,15 @@ from django.contrib.auth.models import User
 class CSVDownloadMixin:
 
     @staticmethod
-    def load_as_file(out, Meta, qs):
+    def write_to_file(out_file, Meta, qs):
         meta = Meta()
         header = meta.csv_header
         list_attrs = meta.list_attrs
-        writer = csv.writer(out)
+        writer = csv.writer(out_file)
         writer.writerow(header)
         for obj in qs:
             attrs = list_attrs(obj)
             meta.convert_values(attrs)
-
             writer.writerow(attrs)
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
@@ -55,7 +54,7 @@ class CSVDownloadMixin:
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
-        self.load_as_file(response, self.Meta, qs)
+        self.write_to_file(response, self.Meta, qs)
         return response
 
 
@@ -74,6 +73,17 @@ class CSVUploadMixin:
             update_or_create = self.update_or_create
             filter_params = meta.filter_params
             add_foreign_keys = meta.add_foreign_keys
+            attrs = meta.csv_header
+            if hasattr(meta, 'csv_fields'):
+                attrs = meta.csv_fields
+            preprocess = {}
+            if hasattr(meta, 'upload_preprocess'):
+                preprocess = meta.upload_preprocess
+            if len(attrs) != len(header):
+                return HttpResponse(
+                    'Error: endpoint not correctly implemented, check Meta class.\n' +
+                    "Size of header and size of fields don't match",
+                    status=status.HTTP_501_NOT_IMPLEMENTED)
         except AttributeError as err:
             print(err)
             return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
@@ -81,11 +91,32 @@ class CSVUploadMixin:
         updated = list()
         file.seek(0)
         # We wrap so we can read the file as utf-8 instead of binary
-        with io.TextIOWrapper(file, encoding='utf-8') as text_file:
+        with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
             # This gives us an ordered dictionary with the rows
             reader = csv.DictReader(text_file)
+            cnt = 0
             for row in reader:
-                add_foreign_keys(row, kwargs['project_pk'])
+                cnt += 1
+                if cnt % 1000 == 0:
+                    print('{} rows uploaded'.format(cnt))
+                for i in range(len(header)):
+                    if header[i] != attrs[i]:
+                        row[attrs[i]] = row[header[i]]
+                        del row[header[i]]
+                try:
+                    add_foreign_keys(row, kwargs['project_pk'])
+                except IndexError as err:
+                    print(err)
+                    return HttpResponse(
+                        'Error: problem associating the identifiers in the CSV to an object in the database',
+                        status=status.HTTP_501_NOT_IMPLEMENTED)
+                for k in row:
+                    if row[k] == "":
+                        row[k] = None
+                for k in preprocess:
+                    if k in row and row[k] is not None:
+                        row[k] = preprocess[k](kwargs['project_pk'], row[k])
+
                 obj = update_or_create(qs, model, filter_params, row)
                 updated.append(obj.id)
         to_delete = qs.exclude(id__in=updated)
@@ -172,24 +203,24 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'stops': StopViewSet,
             'routes': RouteViewSet,
             'trips': TripViewSet,
-            'stop_times': StopTimeViewSet,
             'calendar': CalendarViewSet,
             'calendar_dates': CalendarDateViewSet,
             'fare_attributes': FareAttributeViewSet,
             'fare_rules': FareRuleViewSet,
-            'shapes': ShapeViewSet,
             'frequencies': FrequencyViewSet,
             'transfers': TransferViewSet,
             'pathways': PathwayViewSet,
             'levels': LevelViewSet,
-            'feed_info': FeedInfoViewSet
+            'feed_info': FeedInfoViewSet,
+            'shapes': ShapeViewSet,
+            'stop_times': StopTimeViewSet,
         }
         zf = zipfile.ZipFile(s, "w", zipfile.ZIP_DEFLATED, False)
         for f in files:
             out = io.StringIO()
             view = files[f]
             qs = view.get_qs({'project_pk': kwargs['pk']})
-            view.load_as_file(out, view.Meta, qs)
+            view.write_to_file(out, view.Meta, qs)
             zf.writestr('{}.txt'.format(f), out.getvalue())
         zf.close()
         response = HttpResponse(s.getvalue(), content_type="application/x-zip-compressed")
@@ -220,7 +251,7 @@ class ShapeViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @staticmethod
-    def load_as_file(out, Meta, qs):
+    def write_to_file(out, Meta, qs):
         meta = Meta()
         writer = csv.writer(out)
         shape_set = qs
@@ -234,7 +265,7 @@ class ShapeViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset()
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="shapes.csv"'
-        self.load_as_file(response, self.Meta, qs)
+        self.write_to_file(response, self.Meta, qs)
         return response
 
     @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
@@ -245,7 +276,7 @@ class ShapeViewSet(viewsets.ModelViewSet):
         file = request.FILES['file']
         shape_qs = Shape.objects.all()
         shape_ids = list()
-        with io.TextIOWrapper(file, encoding='utf-8') as text_file:
+        with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
             # This gives us an ordered dictionary with the rows
             reader = csv.DictReader(text_file)
             for entry in reader:
@@ -305,6 +336,10 @@ class CalendarViewSet(CSVHandlerMixin,
                       'end_date']
         model = Calendar
         filter_params = ['service_id']
+        upload_preprocess = {
+            'start_date': lambda project, date: datetime.datetime.strptime(date, '%Y%m%d'),
+            'end_date': lambda project, date: datetime.datetime.strptime(date, '%Y%m%d'),
+        }
 
         @staticmethod
         def convert_values(values):
@@ -375,6 +410,12 @@ class FeedInfoViewSet(CSVHandlerMixin,
         return FeedInfo.objects.filter(project=kwargs['project_pk'])
 
 
+def object_or_null(qs):
+    if qs.count() == 0:
+        return None
+    return qs[0]
+
+
 class StopViewSet(CSVHandlerMixin,
                   viewsets.ModelViewSet):
     serializer_class = StopSerializer
@@ -386,9 +427,22 @@ class StopViewSet(CSVHandlerMixin,
                       'stop_name',
                       'stop_lat',
                       'stop_lon',
-                      'stop_url']
+                      'stop_url',
+                      'zone_id',
+                      'location_type',
+                      'parent_station',
+                      'stop_timezone',
+                      'wheelchair_boarding',
+                      'level_id',
+                      'platform_code']
         model = Stop
         filter_params = ['stop_id']
+        upload_preprocess = {
+            'parent_station': lambda project, stop: object_or_null(
+                Stop.objects.filter_by_project(project).filter(stop_id=stop)),
+            'level_id': lambda project, level: object_or_null(
+                Level.objects.filter_by_project(project).filter(level_id=level)),
+        }
 
     @staticmethod
     def get_qs(kwargs):
@@ -477,7 +531,11 @@ class AgencyViewSet(CSVHandlerMixin,
         csv_header = ['agency_id',
                       'agency_name',
                       'agency_url',
-                      'agency_timezone']
+                      'agency_timezone',
+                      'agency_lang',
+                      'agency_phone',
+                      'agency_fare_url',
+                      'agency_email']
         model = Agency
         filter_params = ['agency_id']
 
@@ -502,14 +560,13 @@ class RouteViewSet(CSVHandlerMixin,
                       'route_color',
                       'route_text_color']
         csv_fields = [e for e in csv_header]
-        csv_fields[1] = ['agency', 'agency_id']
+        csv_fields[1] = 'agency'
         model = Route
         filter_params = ['agency', 'route_id']
 
         @staticmethod
         def add_foreign_keys(values, project_id):
-            values['agency'] = Agency.objects.filter(project_id=project_id, agency_id=values['agency_id'])[0]
-            del values['agency_id']
+            values['agency'] = Agency.objects.filter(project_id=project_id, agency_id=values['agency'])[0]
 
     @staticmethod
     def get_qs(kwargs):
@@ -581,7 +638,11 @@ class TripViewSet(CSVHandlerMixin,
                       'shape',
                       'service_id',
                       'trip_headsign',
-                      'direction_id']
+                      'direction_id',
+                      'trip_short_name',
+                      'block_id',
+                      'wheelchair_accessible',
+                      'bikes_allowed']
 
         csv_header = [e for e in csv_fields]
         csv_header[1] = 'route_id'
@@ -616,7 +677,14 @@ class StopTimeViewSet(CSVHandlerMixin,
                       'stop_id',
                       'stop_sequence',
                       'arrival_time',
-                      'departure_time']
+                      'departure_time',
+                      'stop_headsign',
+                      'pickup_type',
+                      'drop_off_type',
+                      'continuous_pickup',
+                      'continuous_dropoff',
+                      'shape_dist_traveled',
+                      'timepoint']
         csv_fields = [e for e in csv_header]
         csv_fields[0] = 'trip'
         csv_fields[1] = 'stop'

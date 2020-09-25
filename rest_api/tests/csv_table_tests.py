@@ -44,6 +44,8 @@ class CSVTestMixin:
         with open('rest_api/tests/csv/download/{}.csv'.format(filename), 'rb') as expected_file:
             expected = expected_file.read().strip()
         output = response.content.strip()
+        print(output)
+        print(expected)
         self.assertEquals(output, expected)
 
     def test_upload_create(self):

@@ -105,11 +105,20 @@ class FeedInfo(models.Model):
 class Stop(models.Model):
     project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
     stop_id = models.CharField(max_length=50)
-    stop_code = models.CharField(max_length=50)
+    stop_code = models.CharField(max_length=50, null=True)
     stop_name = models.CharField(max_length=50)
     stop_lat = models.FloatField()
     stop_lon = models.FloatField()
-    stop_url = models.URLField()
+    stop_url = models.URLField(null=True)
+    stop_desc = models.CharField(max_length=200, null=True)
+    zone_id = models.CharField(max_length=50, null=True)
+    location_type = models.IntegerField(null=True)
+    # Since it's a self-referential FK we can't use Stop so we reference it by name instead
+    parent_station = models.ForeignKey("Stop", null=True, on_delete=models.SET_NULL)
+    stop_timezone = models.CharField(max_length=200, null=True)
+    wheelchair_boarding = models.CharField(max_length=200, null=True)
+    level_id = models.ForeignKey(Level, null=True, on_delete=models.SET_NULL)
+    platform_code = models.CharField(max_length=200, null=True)
     objects = FilterManager()
 
     def __str__(self):
@@ -180,6 +189,10 @@ class Agency(models.Model):
     agency_name = models.CharField(max_length=50)
     agency_url = models.URLField()
     agency_timezone = models.CharField(max_length=20)
+    agency_lang = models.CharField(max_length=10, null=True)
+    agency_phone = models.CharField(max_length=20, null=True)
+    agency_fare_url = models.URLField(max_length=255, null=True)
+    agency_email = models.EmailField(max_length=255, null=True)
     objects = FilterManager()
 
     def __str__(self):
@@ -241,9 +254,15 @@ class Trip(models.Model):
     route = models.ForeignKey(Route, on_delete=models.DO_NOTHING)
     shape = models.ForeignKey(Shape, on_delete=models.DO_NOTHING, null=True)
     service_id = models.CharField(max_length=50)
-    trip_headsign = models.CharField(max_length=50)
-    direction_id = models.CharField(max_length=50)
+    trip_headsign = models.CharField(max_length=50, null=True)
+    direction_id = models.CharField(max_length=50, null=True)
+    trip_short_name = models.CharField(max_length=50, null=True)
+    block_id = models.CharField(max_length=50, null=True)
+    wheelchair_accessible = models.IntegerField(null=True)
+    bikes_allowed = models.IntegerField(null=True)
+
     objects = FilterManager()
+
 
     def __str__(self):
         return str(self.trip_id)
@@ -258,6 +277,14 @@ class StopTime(models.Model):
     stop_sequence = models.IntegerField()
     arrival_time = models.TimeField(null=True)
     departure_time = models.TimeField(null=True)
+    stop_headsign = models.CharField(max_length=50, null=True)
+    pickup_type = models.IntegerField(null=True)
+    drop_off_type = models.IntegerField(null=True)
+    continuous_pickup = models.IntegerField(null=True)
+    continuous_dropoff = models.IntegerField(null=True)
+    shape_dist_traveled = models.FloatField(null=True)
+    timepoint = models.IntegerField(null=True)
+
     objects = FilterManager('trip__project')
 
     def __str__(self):
