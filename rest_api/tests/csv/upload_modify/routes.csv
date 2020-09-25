@@ -1,0 +1,7 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+route0,agency_0,,,,3,,,
+route1,agency_0,,,,3,,,
+route2,agency_1,,,,3,,,
+route3,agency_1,,,,3,,,
+test_route,agency_0,Test Route,Test Route - The Route,I have updated the description,3,http://www.testroute.com,55AA55,AA55AA
+trip_test_route,agency_0,,,,3,,,

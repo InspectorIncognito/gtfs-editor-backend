@@ -1,0 +1,7 @@
+trip_id,route_id,shape_id,service_id,trip_headsign,direction_id
+test_trip,trip_test_route,,,,
+trip0,route0,,,,
+trip1,route1,,,,
+trip2,route2,,,,
+trip3,route3,,,,
+trip_new,route0,,,,

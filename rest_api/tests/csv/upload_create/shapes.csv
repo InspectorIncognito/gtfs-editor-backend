@@ -1,0 +1,13 @@
+shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence
+shape_1,0.0,0.0,1
+shape_1,0.5,0.5,2
+shape_1,1.0,1.0,3
+shape_1,1.5,1.5,4
+shape_1,2.0,2.0,5
+shape_2,0.0,0.0,1
+shape_2,-0.5,-0.5,2
+shape_2,-1.0,-1.0,3
+shape_2,-1.5,-1.5,4
+shape_2,-2.0,-2.0,5
+shape_3,0.0,0.0,1
+shape_3,-0.5,-0.5,2

@@ -1,0 +1,8 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url,route_color,route_text_color
+route0,agency_0,,,,3,,,
+route1,agency_0,,,,3,,,
+route2,agency_1,,,,3,,,
+route3,agency_1,,,,3,,,
+test_route,agency_0,Test Route,Test Route - The Route,This route was made for testing,1,http://www.testroute.com,FF00FF,00FF00
+trip_test_route,agency_0,,,,3,,,
+new_route,agency_1,Short Name,Long Name,New Route for Testing,3,,FF00FF,00FF00

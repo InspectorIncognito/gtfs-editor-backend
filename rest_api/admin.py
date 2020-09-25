@@ -1,8 +1,12 @@
+from abc import ABC
+
 from django.contrib import admin
 from rest_api.models import *
+
+
 # Missing models:
 # Publishing models (currently preliminary version)
-# Shape points (does it make sense to manage shapes here?)
+
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
@@ -13,7 +17,7 @@ class ProjectAdmin(admin.ModelAdmin):
 @admin.register(Calendar)
 class CalendarAdmin(admin.ModelAdmin):
     title = "service_id"
-    list_display = ("project", "service_id", "monday", "tuesday",
+    list_display = ("project", "start_date", "end_date", "service_id", "monday", "tuesday",
                     "wednesday", "thursday", "friday", "saturday", "sunday",)
     list_filter = ("project",)
 
@@ -28,7 +32,7 @@ class LevelAdmin(admin.ModelAdmin):
 @admin.register(CalendarDate)
 class CalendarDateAdmin(admin.ModelAdmin):
     title = "date"
-    list_display = ("project", "date", "exception_type")
+    list_display = ("project", "service_id", "date", "exception_type")
     list_filter = ("project",)
 
 
@@ -60,21 +64,19 @@ class ShapeAdmin(admin.ModelAdmin):
     list_filter = ("project",)
 
 
-class ProjectFilter(admin.SimpleListFilter):
-    title = ('Project',)
-
+class ProjectFilter(admin.SimpleListFilter, ABC):
+    title = 'Project'
     parameter_name = 'project'
 
     def lookups(self, request, model_admin):
-        projects = []
-        qs = Project.objects.filter(project_id__in=model_admin.model.objects.all().values_list('project__project_id', flat=True).distinct())
-        for p in qs:
-            projects.append([p.project_id, p.name])
-        return projects
+        projects = Project.objects.all().values_list('name', flat=True).distinct()
+        return list(map(lambda project: (project, project), projects))
 
+
+class TransferProjectFilter(ProjectFilter):
     def queryset(self, request, queryset):
         if self.value():
-            return queryset.filter(project__project_id__exact=self.value())
+            return queryset.filter(from_stop__project__name=self.value())
         else:
             return queryset
 
@@ -86,5 +88,81 @@ class ShapePointAdmin(admin.ModelAdmin):
 
 @admin.register(Transfer)
 class TransferAdmin(admin.ModelAdmin):
-    list_display = ("from_stop", "to_stop")
+    def project(self, obj):
+        return obj.from_stop.project
 
+    list_filter = (TransferProjectFilter,)
+    list_display = ("project", "from_stop", "to_stop", "type")
+
+
+@admin.register(Route)
+class RouteAdmin(admin.ModelAdmin):
+    def project(self, obj):
+        return obj.agency.project
+
+    list_display = ('project',
+                    'route_id',
+                    'agency_id',
+                    'route_short_name',
+                    'route_long_name',
+                    'route_desc',
+                    'route_type',
+                    'route_url',
+                    'route_color',
+                    'route_text_color')
+
+
+@admin.register(Agency)
+class AgencyAdmin(admin.ModelAdmin):
+    list_display = ('project',
+                    'agency_id',
+                    'agency_name',
+                    'agency_url',
+                    'agency_timezone')
+
+
+@admin.register(FareAttribute)
+class FareAttributeAdmin(admin.ModelAdmin):
+    list_display = ('project',
+                    'fare_id',
+                    'price',
+                    'currency_type',
+                    'payment_method',
+                    'transfers',
+                    'transfer_duration',
+                    'agency')
+
+
+@admin.register(FareRule)
+class FareRuleAdmin(admin.ModelAdmin):
+    list_display = ('fare_attribute',
+                    'route')
+
+
+@admin.register(Trip)
+class TripAdmin(admin.ModelAdmin):
+    list_display = ('project',
+                    'trip_id',
+                    'route',
+                    'shape',
+                    'service_id',
+                    'trip_headsign',
+                    'direction_id')
+
+
+@admin.register(StopTime)
+class StopTimeAdmin(admin.ModelAdmin):
+    list_display = ('trip',
+                    'stop',
+                    'stop_sequence',
+                    'arrival_time',
+                    'departure_time')
+
+
+@admin.register(Frequency)
+class FrequencyAdmin(admin.ModelAdmin):
+    list_display = ('trip',
+                    'start_time',
+                    'end_time',
+                    'headway_secs',
+                    'exact_times')
