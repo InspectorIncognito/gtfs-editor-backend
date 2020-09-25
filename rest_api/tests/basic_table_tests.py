@@ -489,8 +489,7 @@ class BasicTestSuiteMixin(object):
     def test_delete(self):
         data = self.Meta.delete_data
         id = self.Meta().get_id(self.project, data)
-        with self.assertNumQueries(2):
-            json_response = self.delete(self.project.project_id, id, self.client, dict())
+        json_response = self.delete(self.project.project_id, id, self.client, dict())
         self.assertEqual(self.Meta.model.objects.filter(**data).count(), 0)
 
     def clean_data(self, data):
