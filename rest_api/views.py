@@ -1,12 +1,14 @@
 import csv
 import io
 import sys
+import time
 import zipfile
 import datetime
 
 from django import urls
-from django.db import transaction
+from django.db import transaction, connection
 from django.http import HttpResponse, FileResponse, HttpRequest
+
 from rest_framework import viewsets, generics, mixins, status, renderers
 from rest_framework.decorators import action
 from rest_framework.generics import get_object_or_404
@@ -18,7 +20,7 @@ from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.models import *
 from django.contrib.auth.models import User
-
+from rest_api.utils import log
 
 # Classes using this mixin require a Meta class that contains the following attributes
 # csv_header: list containing the names of the CSV rows
@@ -98,7 +100,7 @@ class CSVUploadMixin:
             for row in reader:
                 cnt += 1
                 if cnt % 1000 == 0:
-                    print('{} rows uploaded'.format(cnt))
+                    log('{} rows uploaded'.format(cnt))
                 for i in range(len(header)):
                     if header[i] != attrs[i]:
                         row[attrs[i]] = row[header[i]]
@@ -230,6 +232,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 class ShapeViewSet(viewsets.ModelViewSet):
     serializer_class = ShapeSerializer
+    CHUNK_SIZE = 10000
 
     def get_queryset(self):
         return self.get_qs(self.kwargs)
@@ -268,33 +271,45 @@ class ShapeViewSet(viewsets.ModelViewSet):
         self.write_to_file(response, self.Meta, qs)
         return response
 
+    def update_or_create_chunk(self, chunk, project_pk, shape_id_set):
+        shape_qs = Shape.objects.filter_by_project(project_pk)
+        shape_ids = set(map(lambda row: row['shape_id'], chunk))
+        for shape_id in shape_ids:
+            shape_id_set.add(shape_id)
+        old_ids = set(shape_qs.filter(shape_id__in=shape_ids).distinct('shape_id').values_list('shape_id', flat=True))
+        new_ids = shape_ids.difference(old_ids)
+        Shape.objects.bulk_create(map(lambda id: Shape(project_id=project_pk, shape_id=id), new_ids))
+        id_dict = dict()
+        for row in shape_qs.filter(shape_id__in=shape_ids).distinct('shape_id').values_list('shape_id', 'id'):
+            id_dict[row[0]] = row[1]
+
+        def dereference_shape_id(row):
+            row['shape_id'] = id_dict[row['shape_id']]
+            return row
+
+        ShapePoint.objects.bulk_create(map(lambda row: ShapePoint(**row), map(dereference_shape_id, chunk)))
+
     @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
-    @transaction.atomic
+    @transaction.atomic()
     def upload(self, request, *args, **kwargs):
         if 'file' not in request.FILES:
             return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES['file']
-        shape_qs = Shape.objects.all()
-        shape_ids = list()
+        ShapePoint.objects.filter_by_project(kwargs['project_pk']).delete()
         with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
             # This gives us an ordered dictionary with the rows
             reader = csv.DictReader(text_file)
+            shape_id_set = set()
+            chunk = list()
+
             for entry in reader:
-                if shape_qs.filter(project_id=kwargs['project_pk'], shape_id=entry['shape_id']).count() == 0:
-                    Shape.objects.create(project_id=kwargs['project_pk'], shape_id=entry['shape_id'])
-                shape = shape_qs.filter(project_id=kwargs['project_pk'],
-                                        shape_id=entry['shape_id'])[0]
-                del entry['shape_id']
-                sp = ShapePoint.objects.filter(shape=shape, shape_pt_sequence=entry['shape_pt_sequence'])
-                if sp.count() == 0:
-                    sp = ShapePoint(shape=shape, **entry)
-                else:
-                    sp = sp[0]
-                    for k in entry:
-                        setattr(sp, k, entry[k])
-                sp.save()
-                shape_ids.append(sp.shape.shape_id)
-        to_delete = Shape.objects.filter(project_id=kwargs['project_pk']).exclude(shape_id__in=shape_ids)
+                chunk.append(entry)
+                if len(chunk) >= self.CHUNK_SIZE:
+                    self.update_or_create_chunk(chunk, kwargs['project_pk'], shape_id_set)
+                    chunk = list()
+            self.update_or_create_chunk(chunk, kwargs['project_pk'], shape_id_set)
+
+        to_delete = Shape.objects.filter(project_id=kwargs['project_pk']).exclude(shape_id__in=shape_id_set)
         to_delete.delete()
 
         return HttpResponse(content_type='text/plain')
@@ -416,9 +431,51 @@ def object_or_null(qs):
     return qs[0]
 
 
-class StopViewSet(CSVHandlerMixin,
+class ChunkUploadMixin(object):
+    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @transaction.atomic()
+    def upload(self, request, *args, **kwargs):
+        q1 = len(connection.queries)
+        if 'file' not in request.FILES:
+            return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
+        file = request.FILES['file']
+        t0 = time.time()
+        t = t0
+        chunk_num = 1
+        with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
+            # This gives us an ordered dictionary with the rows
+            reader = csv.DictReader(text_file)
+            id_set = set()
+            chunk = list()
+
+            for entry in reader:
+                for k in entry:
+                    if entry[k] == '':
+                        entry[k] = None
+                chunk.append(entry)
+                if len(chunk) >= self.CHUNK_SIZE:
+                    log("Chunk Number", chunk_num)
+                    chunk_num += 1
+                    self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
+                    t2 = time.time()
+                    log("Total Time", t2 - t)
+                    t = t2
+                    chunk = list()
+            log("Chunk Number", chunk_num)
+            self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
+            t2 = time.time()
+            log("total", t2 - t)
+            t = t2
+        q2 = len(connection.queries)
+        log("Operation completed performing", q2 - q1, "queries")
+        return HttpResponse(content_type='text/plain')
+
+
+class StopViewSet(ChunkUploadMixin,
+                  CSVHandlerMixin,
                   viewsets.ModelViewSet):
     serializer_class = StopSerializer
+    CHUNK_SIZE = 10000
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'stops'
@@ -443,6 +500,50 @@ class StopViewSet(CSVHandlerMixin,
             'level_id': lambda project, level: object_or_null(
                 Level.objects.filter_by_project(project).filter(level_id=level)),
         }
+
+    def update_or_create_chunk(self, chunk, project_pk, id_set):
+        print(chunk[0])
+        parent_station = True
+        level_id = True
+        if 'parent_station' not in chunk[0]:
+            parent_station = False
+        if 'level_id' not in chunk[0]:
+            level_id = False
+        stop_id_map = dict()
+        level_id_map = dict()
+
+        if parent_station:
+            stop_ids = set(map(lambda entry: entry['parent_station'], chunk))
+            for row in Stop.objects.filter_by_project(project_pk).filter(stop_id__in=stop_ids).values_list('stop_id', 'id'):
+                stop_id_map[row[0]] = row[1]
+        if level_id:
+            level_ids = set(map(lambda entry: entry['level_id'], chunk))
+            for row in Level.objects.filter_by_project(project_pk).filter(level_id__in=level_ids).values_list('level_id',
+                                                                                                              'id'):
+                level_id_map[row[0]] = row[1]
+        entries = list()
+        for row in chunk:
+            if parent_station:
+                row['parent_station'] = stop_ids[row['parent_station']]
+            if level_id:
+                row['level_id'] = level_ids[row['level_id']]
+            entries.append(Stop(project_id=project_pk, **row))
+        existing = set(Stop.objects.filter_by_project(project_pk) \
+                       .filter(stop_id__in=map(lambda entry: entry['stop_id'], chunk)) \
+                       .values_list('stop_id'))
+        to_update = filter(lambda entry: entry.stop_id in existing, entries)
+        to_create = filter(lambda entry: entry.stop_id not in existing, entries)
+        t1 = time.time()
+        Stop.objects.bulk_create(to_create, batch_size=1000)
+        t2 = time.time()
+        fields = filter(lambda field: field != 'stop_id' and field != 'id',
+                        map(lambda field: field.name, Stop._meta.fields))
+        Stop.objects.bulk_update(to_update, fields, batch_size=1000)
+        t3 = time.time()
+        log("Time to create:", t2 - t1)
+        log("Time to update:", t3 - t2)
+        for row in chunk:
+            id_set.add(row['stop_id'])
 
     @staticmethod
     def get_qs(kwargs):
@@ -627,9 +728,11 @@ class FareRuleViewSet(CSVHandlerMixin,
         return FareRule.objects.filter(fare_attribute__project=kwargs['project_pk']).order_by('route')
 
 
-class TripViewSet(CSVHandlerMixin,
+class TripViewSet(ChunkUploadMixin,
+                  CSVHandlerMixin,
                   viewsets.ModelViewSet):
     serializer_class = TripSerializer
+    CHUNK_SIZE = 10000
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'trips'
@@ -662,6 +765,43 @@ class TripViewSet(CSVHandlerMixin,
             else:
                 del values['shape']
 
+    def update_or_create_chunk(self, chunk, project_pk, id_set):
+        print(chunk[0])
+        route_ids = set(map(lambda entry: entry['route_id'], chunk))
+        shape_ids = set(map(lambda entry: entry['shape_id'], chunk))
+        route_id_map = dict()
+        for row in Route.objects.filter_by_project(project_pk).filter(route_id__in=route_ids).values_list('route_id',
+                                                                                                          'id'):
+            route_id_map[row[0]] = row[1]
+
+        shape_id_map = dict()
+        for row in Shape.objects.filter_by_project(project_pk).filter(shape_id__in=shape_ids).values_list('shape_id',
+                                                                                                          'id'):
+            shape_id_map[row[0]] = row[1]
+
+        entries = list()
+        for row in chunk:
+            row['route_id'] = route_id_map[row['route_id']]
+            row['shape_id'] = shape_id_map[row['shape_id']]
+            row['project_id'] = project_pk
+            entries.append(Trip(**row))
+        existing = set(Trip.objects.filter_by_project(project_pk) \
+                       .filter(trip_id__in=map(lambda entry: entry['trip_id'], chunk)) \
+                       .values_list('trip_id'))
+        to_update = filter(lambda entry: entry.trip_id in existing, entries)
+        to_create = filter(lambda entry: entry.trip_id not in existing, entries)
+        t1 = time.time()
+        Trip.objects.bulk_create(to_create, batch_size=1000)
+        t2 = time.time()
+        fields = filter(lambda field: field != 'trip_id' and field != 'id',
+                        map(lambda field: field.name, Trip._meta.fields))
+        Trip.objects.bulk_update(to_update, fields, batch_size=1000)
+        t3 = time.time()
+        log("Time to create:", t2 - t1)
+        log("Time to update:", t3 - t2)
+        for row in chunk:
+            id_set.add(row['trip_id'])
+
     @staticmethod
     def get_qs(kwargs):
         return Trip.objects.filter(project=kwargs['project_pk']).order_by('trip_id')
@@ -670,6 +810,7 @@ class TripViewSet(CSVHandlerMixin,
 class StopTimeViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = StopTimeSerializer
+    CHUNK_SIZE = 100000
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'stoptimes'
@@ -701,6 +842,64 @@ class StopTimeViewSet(CSVHandlerMixin,
     @staticmethod
     def get_qs(kwargs):
         return StopTime.objects.filter(trip__project=kwargs['project_pk']).order_by('trip', 'stop_sequence')
+
+    def update_or_create_chunk(self, chunk, project_pk, id_set):
+        st_qs = StopTime.objects.filter_by_project(project_pk)
+        trip_ids = set(map(lambda entry: entry['trip_id'], chunk))
+        stop_ids = set(map(lambda entry: entry['stop_id'], chunk))
+        trip_id_map = dict()
+        for row in Trip.objects.filter_by_project(project_pk).filter(trip_id__in=trip_ids).values_list('trip_id', 'id'):
+            trip_id_map[row[0]] = row[1]
+        stop_id_map = dict()
+        for row in Stop.objects.filter_by_project(project_pk).filter(stop_id__in=stop_ids).values_list('stop_id', 'id'):
+            stop_id_map[row[0]] = row[1]
+        sts = list()
+        for row in chunk:
+            row['trip_id'] = trip_id_map[row['trip_id']]
+            row['stop_id'] = stop_id_map[row['stop_id']]
+            sts.append(StopTime(**row))
+        t1 = time.time()
+        StopTime.objects.bulk_create(sts, batch_size=1000)
+        t2 = time.time()
+        log("Time to create:", t2 - t1)
+
+    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @transaction.atomic()
+    def upload(self, request, *args, **kwargs):
+        q1 = len(connection.queries)
+        if 'file' not in request.FILES:
+            return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
+        file = request.FILES['file']
+        StopTime.objects.filter_by_project(kwargs['project_pk']).delete()
+        t = time.time()
+        chunk_num = 1
+        with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
+            # This gives us an ordered dictionary with the rows
+            reader = csv.DictReader(text_file)
+            id_set = set()
+            chunk = list()
+
+            for entry in reader:
+                for k in entry:
+                    if entry[k] == '':
+                        entry[k] = None
+                chunk.append(entry)
+                if len(chunk) >= self.CHUNK_SIZE:
+                    log("Chunk Number", chunk_num)
+                    chunk_num += 1
+                    self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
+                    t2 = time.time()
+                    log("Total Time", t2 - t)
+                    t = t2
+                    chunk = list()
+            log("Chunk Number", chunk_num)
+            self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
+            t2 = time.time()
+            log("total", t2 - t)
+            t = t2
+        q2 = len(connection.queries)
+        log("Operation completed performing", q2 - q1, "queries")
+        return HttpResponse(content_type='text/plain')
 
 
 class FrequencyViewSet(CSVHandlerMixin,

@@ -16,35 +16,39 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_nested import routers
-from rest_api import views
+from rest_api import views as api_views
+from frontend import views as frontend_views
 
 
 router = routers.SimpleRouter()
-router.register(r'projects', views.ProjectViewSet)
-router.register(r'users', views.UserViewSet)
+router.register(r'projects', api_views.ProjectViewSet)
+router.register(r'users', api_views.UserViewSet)
 
 project_router = routers.NestedSimpleRouter(router, r'projects', lookup='project')
-project_router.register(r'calendars', views.CalendarViewSet, basename='project-calendars')
-project_router.register(r'levels', views.LevelViewSet, basename='project-levels')
-project_router.register(r'calendardates', views.CalendarDateViewSet, basename='project-calendardates')
-project_router.register(r'feedinfo', views.FeedInfoViewSet, basename='project-feedinfo')
-project_router.register(r'stops', views.StopViewSet, basename='project-stops')
-project_router.register(r'pathways', views.PathwayViewSet, basename='project-pathways')
-project_router.register(r'shapes', views.ShapeViewSet, basename='project-shapes')
-project_router.register(r'shapepoints', views.ShapePointViewSet, basename='project-shapepoints')
-project_router.register(r'transfers', views.TransferViewSet, basename='project-transfers')
-project_router.register(r'agencies', views.AgencyViewSet, basename='project-agencies')
-project_router.register(r'routes', views.RouteViewSet, basename='project-routes')
-project_router.register(r'fareattributes', views.FareAttributeViewSet, basename='project-fareattributes')
-project_router.register(r'farerules', views.FareRuleViewSet, basename='project-farerules')
-project_router.register(r'trips', views.TripViewSet, basename='project-trips')
-project_router.register(r'stoptimes', views.StopTimeViewSet, basename='project-stoptimes')
-project_router.register(r'frequencies', views.FrequencyViewSet, basename='project-frequencies')
+project_router.register(r'calendars', api_views.CalendarViewSet, basename='project-calendars')
+project_router.register(r'levels', api_views.LevelViewSet, basename='project-levels')
+project_router.register(r'calendardates', api_views.CalendarDateViewSet, basename='project-calendardates')
+project_router.register(r'feedinfo', api_views.FeedInfoViewSet, basename='project-feedinfo')
+project_router.register(r'stops', api_views.StopViewSet, basename='project-stops')
+project_router.register(r'pathways', api_views.PathwayViewSet, basename='project-pathways')
+project_router.register(r'shapes', api_views.ShapeViewSet, basename='project-shapes')
+project_router.register(r'shapepoints', api_views.ShapePointViewSet, basename='project-shapepoints')
+project_router.register(r'transfers', api_views.TransferViewSet, basename='project-transfers')
+project_router.register(r'agencies', api_views.AgencyViewSet, basename='project-agencies')
+project_router.register(r'routes', api_views.RouteViewSet, basename='project-routes')
+project_router.register(r'fareattributes', api_views.FareAttributeViewSet, basename='project-fareattributes')
+project_router.register(r'farerules', api_views.FareRuleViewSet, basename='project-farerules')
+project_router.register(r'trips', api_views.TripViewSet, basename='project-trips')
+project_router.register(r'stoptimes', api_views.StopTimeViewSet, basename='project-stoptimes')
+project_router.register(r'frequencies', api_views.FrequencyViewSet, basename='project-frequencies')
+
+
 
 urlpatterns = [
     path(r'admin/', admin.site.urls),
     path(r'django-rq/', include('django_rq.urls')),
     path(r'api/', include(router.urls)),
     path(r'api/', include(project_router.urls)),
-    path(r'api-auth/', include('rest_framework.urls', namespace='rest_framework'))
+    path(r'api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path(r'app/', frontend_views.index, name='index')
 ]
