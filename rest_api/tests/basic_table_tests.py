@@ -246,9 +246,11 @@ class BaseTestCase(TestCase):
                                               shape_pt_lat=point[0],
                                               shape_pt_lon=point[1])
             CalendarDate.objects.create(project=project,
+                                        service_id='mon-fri',
                                         date=datetime.date(2020, 9, 18),
                                         exception_type=1)
             CalendarDate.objects.create(project=project,
+                                        service_id='mon-fri',
                                         date=datetime.date(2020, 9, 19),
                                         exception_type=1)
             Pathway.objects.create(project=project,
@@ -623,16 +625,6 @@ class StopTableTest(BaseTableTest, BasicTestSuiteMixin):
             'stop_id': 'stop_1',
             'stop_url': 'http://www.stop-1-patched.cl'
         }
-
-    # def test_cascade_stops(self):
-    #     data = {
-    #         'stop_id': 'stop_1'
-    #     }
-    #     id = self.Meta().get_id(self.project, data)
-    #     self.delete(self.project.project_id,
-    #                 id,
-    #                 self.client,
-    #                 dict())
 
 
 class FeedInfoTableTest(BaseTableTest, BasicTestSuiteMixin):

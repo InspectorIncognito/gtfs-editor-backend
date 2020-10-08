@@ -1,26 +1,20 @@
 import csv
+import datetime
 import io
-import sys
 import time
 import zipfile
-import datetime
 
-from django import urls
 from django.db import transaction, connection
-from django.http import HttpResponse, FileResponse, HttpRequest
-
-from rest_framework import viewsets, generics, mixins, status, renderers
+from django.http import HttpResponse
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.generics import get_object_or_404
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.test import APIClient
 
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
-from rest_api.models import *
-from django.contrib.auth.models import User
-from rest_api.utils import log
+from rest_api.utils import log, create_foreign_key_hashmap
+
 
 # Classes using this mixin require a Meta class that contains the following attributes
 # csv_header: list containing the names of the CSV rows
@@ -30,15 +24,21 @@ from rest_api.utils import log
 # that belong to the project with the primary key entered
 class CSVDownloadMixin:
 
+    # We use this static method in order to allow us to
+    # generate a CSV without having to create an HTTP request on the API
     @staticmethod
     def write_to_file(out_file, Meta, qs):
         meta = Meta()
         header = meta.csv_header
         list_attrs = meta.list_attrs
         writer = csv.writer(out_file)
+        # First we write the header
         writer.writerow(header)
         for obj in qs:
+            # We convert the row into an ordered list
             attrs = list_attrs(obj)
+            # We transform the types that need transforming, for instance the booleans
+            # into 0-1 and the dates get formatted
             meta.convert_values(attrs)
             writer.writerow(attrs)
 
@@ -60,70 +60,159 @@ class CSVDownloadMixin:
         return response
 
 
+# This mixin allows us to implement an upload endpoint through PUT on our viewsets.
+# The put method will update existing entries, create the ones that don't and delete the ones that
+# are not present in the CSV. The following attributes of the Meta class are used to configure it:
+# model: the model associated with the viewset.
+# chunk_size: how many rows are processed at once for the bulk operations, defaults to 1000.
+# use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise it will
+#   delete all entries and create them anew. Defaults to True, requires the model to have a InternalIDFilterManager
+# upload_preprocess: dict that associates attribute names to functions that will be called on each row. An example is
+#   using it to convert the entries that correspond to a date into the correct format (YYYYMMDD instead of python's
+#   default YYYY-MM-DD). Its default value is an empty dict.
+# foreign_key_mappings: List of dicts defining the foreign keys. These will be used to reference the foreign keys in
+# bulk due to the GTFS IDs not being the internal IDs. The attributes in each dict are:
+#       model: the model of the foreign key
+#       csv_key: name of the field in the CSV (such as from_stop)
+#       model_key: name of the id used by the foreign model (such as stop_id)
+#       internal_key: name of the value for the original model (such as from_stop). Defaults to model_key
+# include_project_id: flag to define whether project_id is included in the model. Defaults to true.
+# csv_header/csv_fields: if csv_fields is present it will be used, otherwise csv_header will be used.
+#   This is used to define the parameters to update in the bulk_update operation.
+
 class CSVUploadMixin:
-    @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser,))
-    @transaction.atomic
+    def update_or_create_chunk(self, meta, chunk, project_pk, id_set):
+        print(chunk[0])
+        foreign_key_maps = dict()
+        preprocess_funcs = getattr(meta, 'upload_preprocess', dict())
+        foreign_key_mappings = getattr(meta, 'foreign_key_mappings', dict())
+        include_project_id = getattr(meta, 'include_project_id', True)
+        use_internal_id = getattr(meta, 'use_internal_id', True)
+        params = getattr(meta, 'csv_fields', meta.csv_header)
+        model = meta.model
+
+        # For each foreign key we create a hashmap that maps the GTFS IDs into django model IDs
+        for fk in foreign_key_mappings:
+            foreign_key_maps[fk['csv_key']] = create_foreign_key_hashmap(chunk,
+                                                                         fk['model'],
+                                                                         project_pk,
+                                                                         fk['csv_key'],
+                                                                         fk['model_key'])
+            if 'internal_key' not in fk:
+                fk['internal_key'] = fk['model_key']
+        for row in chunk:
+            # First we replace the foreign keys
+            for fk in foreign_key_mappings:
+                k = fk['csv_key']
+                id_map = foreign_key_maps[k]
+                if k not in row:
+                    continue
+                val = id_map[row[k]]
+                if fk['csv_key'] != fk['internal_key']:
+                    del row[k]
+                row[fk['internal_key']] = val
+            # Then we do all processing required on the data (like date formatting)
+            for k in preprocess_funcs:
+                if k in row and row[k] is not None:
+                    row[k] = preprocess_funcs[k](row[k])
+            # Include project_id if the model requires it
+            if include_project_id:
+                row['project_id'] = project_pk
+
+        to_create = list()
+        to_update = list()
+        # if using internal IDs we have to choose whether we create or update each row
+        if use_internal_id:
+            # using the name of the GTFS ID we create a map for the model itself, to be used in the update
+            internal_id = model.objects.get_internal_id_name()
+            id_map = create_foreign_key_hashmap(chunk, model, project_pk, internal_id, internal_id)
+
+            for row in chunk:
+                # We store the internal ID so we don't delete the entries afterwards
+                id_set.add(row[internal_id])
+                row['id'] = id_map[row[internal_id]]
+                # Create a model but don't save it! we don't want to perform one SQL operation per entry
+                obj = model(**row)
+                # if the row already existed we prepare it for updating
+                if row[internal_id] in id_map:
+                    to_update.append(obj)
+                # otherwise we prepare it for creation
+                else:
+                    to_create.append(obj)
+        # If not using internal IDs we just create every row
+        else:
+            for row in chunk:
+                to_create.append(model(**row))
+        # Then we simply create the new objects and update the existing ones
+        t1 = time.time()
+        model.objects.bulk_create(to_create, batch_size=1000)
+        t2 = time.time()
+        log("Time to create:", t2 - t1)
+        if use_internal_id:
+            model.objects.bulk_update(to_update, params, batch_size=1000)
+            t3 = time.time()
+            log("Time to update:", t3 - t2)
+
+    @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
+    @transaction.atomic()
     def upload(self, request, *args, **kwargs):
         if 'file' not in request.FILES:
             return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES['file']
+        # First we check the required attributes are present
         try:
             meta = self.Meta()
-            header = meta.csv_header
-            qs = self.get_queryset()
             model = meta.model
-            update_or_create = self.update_or_create
-            filter_params = meta.filter_params
-            add_foreign_keys = meta.add_foreign_keys
-            attrs = meta.csv_header
-            if hasattr(meta, 'csv_fields'):
-                attrs = meta.csv_fields
-            preprocess = {}
-            if hasattr(meta, 'upload_preprocess'):
-                preprocess = meta.upload_preprocess
-            if len(attrs) != len(header):
-                return HttpResponse(
-                    'Error: endpoint not correctly implemented, check Meta class.\n' +
-                    "Size of header and size of fields don't match",
-                    status=status.HTTP_501_NOT_IMPLEMENTED)
+            chunk_size = getattr(meta, 'CHUNK_SIZE', 1000)
+            use_internal_id = getattr(meta, 'use_internal_id', True)
         except AttributeError as err:
             print(err)
             return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
-        updated = list()
-        file.seek(0)
-        # We wrap so we can read the file as utf-8 instead of binary
+        # We measure some parameters for logging
+        q1 = len(connection.queries)
+        if not use_internal_id:
+            # if the table doesn't use an internal id we can clear the table and refill it
+            model.objects.filter_by_project(kwargs['project_pk']).delete()
+        t = time.time()
+        t1 = t
+        chunk_num = 1
+        # wrap the file so the csv module can process it
         with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
-            # This gives us an ordered dictionary with the rows
+            # Each row will become a dict with the column names as the keys
             reader = csv.DictReader(text_file)
-            cnt = 0
-            for row in reader:
-                cnt += 1
-                if cnt % 1000 == 0:
-                    log('{} rows uploaded'.format(cnt))
-                for i in range(len(header)):
-                    if header[i] != attrs[i]:
-                        row[attrs[i]] = row[header[i]]
-                        del row[header[i]]
-                try:
-                    add_foreign_keys(row, kwargs['project_pk'])
-                except IndexError as err:
-                    print(err)
-                    return HttpResponse(
-                        'Error: problem associating the identifiers in the CSV to an object in the database',
-                        status=status.HTTP_501_NOT_IMPLEMENTED)
-                for k in row:
-                    if row[k] == "":
-                        row[k] = None
-                for k in preprocess:
-                    if k in row and row[k] is not None:
-                        row[k] = preprocess[k](kwargs['project_pk'], row[k])
+            id_set = set()
+            chunk = list()
 
-                obj = update_or_create(qs, model, filter_params, row)
-                updated.append(obj.id)
-        to_delete = qs.exclude(id__in=updated)
-        to_delete.delete()
-        return HttpResponse(content_type='text/plain', status=status.HTTP_200_OK)
+            for entry in reader:
+                # Replace empty values with None
+                for k in entry:
+                    if entry[k] == '':
+                        entry[k] = None
+                chunk.append(entry)
+                # If chunk has reached desired size we update or create the values contained in it
+                # and start a new chunk.
+                if len(chunk) >= chunk_size:
+                    log("Chunk Number", chunk_num)
+                    chunk_num += 1
+                    self.update_or_create_chunk(meta, chunk, kwargs['project_pk'], id_set)
+                    t2 = time.time()
+                    log("Total Time", t2 - t1)
+                    t1 = t2
+                    chunk = list()
+            # the remaining values are processed
+            log("Chunk Number", chunk_num)
+            self.update_or_create_chunk(meta, chunk, kwargs['project_pk'], id_set)
+            t2 = time.time()
+            log("total", t2 - t)
+            t = t2
+        q2 = len(connection.queries)
+        log("Operation completed performing", q2 - q1, "queries")
+        # if we were using internal ids then we delete the ones we didn't update or create.
+        if use_internal_id:
+            filter_dict = {model.objects.get_internal_id_name() + '__in': id_set}
+            model.objects.filter_by_project(kwargs['project_pk']).exclude(**filter_dict).delete()
+        return HttpResponse(content_type='text/plain')
 
 
 # This class bundles up the CSVUploadMixin and CSVDownloadMixin,
@@ -131,38 +220,13 @@ class CSVUploadMixin:
 class CSVHandlerMixin(CSVUploadMixin,
                       CSVDownloadMixin):
 
-    @staticmethod
-    def update_or_create(qs, model, filter_params, values):
-        # First we filter the queryset to see if the object exists
-        d = dict()
-        for k in filter_params:
-            d[k] = values[k]
-        obj = qs.filter(**d)
-        cnt = obj.count()
-        # If it doesn't exist we create it
-        if cnt == 0:
-            obj = model.objects.create(**values)
-        # If it exists we update it
-        elif cnt == 1:
-            obj.update(**values)
-            obj = obj[0]
-        # If there is more than one then the filter was improperly configured,
-        # please make sure that the parameters in the Meta class are enough to
-        # guarantee unicity of the result. Note that the qs should already come
-        # filtered by project.
-        else:
-            raise RuntimeError("Error: improperly configured filter is returning multiple objects")
-        return obj
-
     def get_queryset(self):
         return self.get_qs(self.kwargs)
 
 
 class GenericListAttrsMeta:
     def list_attrs(self, obj):
-        attrs = self.csv_header
-        if hasattr(self, 'csv_fields'):
-            attrs = self.csv_fields
+        attrs = getattr(self, 'csv_fields', self.csv_header)
         result = list()
         for field in attrs:
             if type(field) == str:
@@ -179,10 +243,6 @@ class GenericListAttrsMeta:
             v = values[k]
             if isinstance(v, datetime.date):
                 values[k] = v.strftime('%Y%m%d')
-
-    @staticmethod
-    def add_foreign_keys(values, project_id):
-        values['project_id'] = project_id
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -289,7 +349,7 @@ class ShapeViewSet(viewsets.ModelViewSet):
 
         ShapePoint.objects.bulk_create(map(lambda row: ShapePoint(**row), map(dereference_shape_id, chunk)))
 
-    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
     @transaction.atomic()
     def upload(self, request, *args, **kwargs):
         if 'file' not in request.FILES:
@@ -351,18 +411,19 @@ class CalendarViewSet(CSVHandlerMixin,
                       'end_date']
         model = Calendar
         filter_params = ['service_id']
+        foreign_key_mappings = {}
         upload_preprocess = {
-            'start_date': lambda project, date: datetime.datetime.strptime(date, '%Y%m%d'),
-            'end_date': lambda project, date: datetime.datetime.strptime(date, '%Y%m%d'),
+            'start_date': lambda date: datetime.datetime.strptime(date, '%Y%m%d'),
+            'end_date': lambda date: datetime.datetime.strptime(date, '%Y%m%d'),
         }
 
         @staticmethod
         def convert_values(values):
             GenericListAttrsMeta.convert_values(values)
             for day in range(1, 8):
-                if values[day] == True:
+                if values[day] is True:
                     values[day] = 1
-                elif values[day] == False:
+                elif values[day] is False:
                     values[day] = 0
 
     @staticmethod
@@ -382,6 +443,7 @@ class LevelViewSet(CSVHandlerMixin,
         model = Level
         filter_params = ['level_id',
                          'level_index']
+        use_internal_id = False
 
     @staticmethod
     def get_qs(kwargs):
@@ -399,6 +461,10 @@ class CalendarDateViewSet(CSVHandlerMixin,
                       'exception_type']
         model = CalendarDate
         filter_params = ['service_id', 'date']
+        upload_preprocess = {
+            'date': lambda date: datetime.datetime.strptime(date, '%Y%m%d'),
+        }
+        use_internal_id = False
 
     @staticmethod
     def get_qs(kwargs):
@@ -419,6 +485,7 @@ class FeedInfoViewSet(CSVHandlerMixin,
                       'feed_version',
                       'feed_id']
         model = FeedInfo
+        use_internal_id = False
 
     @staticmethod
     def get_qs(kwargs):
@@ -431,48 +498,7 @@ def object_or_null(qs):
     return qs[0]
 
 
-class ChunkUploadMixin(object):
-    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
-    @transaction.atomic()
-    def upload(self, request, *args, **kwargs):
-        q1 = len(connection.queries)
-        if 'file' not in request.FILES:
-            return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
-        file = request.FILES['file']
-        t0 = time.time()
-        t = t0
-        chunk_num = 1
-        with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
-            # This gives us an ordered dictionary with the rows
-            reader = csv.DictReader(text_file)
-            id_set = set()
-            chunk = list()
-
-            for entry in reader:
-                for k in entry:
-                    if entry[k] == '':
-                        entry[k] = None
-                chunk.append(entry)
-                if len(chunk) >= self.CHUNK_SIZE:
-                    log("Chunk Number", chunk_num)
-                    chunk_num += 1
-                    self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
-                    t2 = time.time()
-                    log("Total Time", t2 - t)
-                    t = t2
-                    chunk = list()
-            log("Chunk Number", chunk_num)
-            self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
-            t2 = time.time()
-            log("total", t2 - t)
-            t = t2
-        q2 = len(connection.queries)
-        log("Operation completed performing", q2 - q1, "queries")
-        return HttpResponse(content_type='text/plain')
-
-
-class StopViewSet(ChunkUploadMixin,
-                  CSVHandlerMixin,
+class StopViewSet(CSVHandlerMixin,
                   viewsets.ModelViewSet):
     serializer_class = StopSerializer
     CHUNK_SIZE = 10000
@@ -494,56 +520,18 @@ class StopViewSet(ChunkUploadMixin,
                       'platform_code']
         model = Stop
         filter_params = ['stop_id']
-        upload_preprocess = {
-            'parent_station': lambda project, stop: object_or_null(
-                Stop.objects.filter_by_project(project).filter(stop_id=stop)),
-            'level_id': lambda project, level: object_or_null(
-                Level.objects.filter_by_project(project).filter(level_id=level)),
-        }
-
-    def update_or_create_chunk(self, chunk, project_pk, id_set):
-        print(chunk[0])
-        parent_station = True
-        level_id = True
-        if 'parent_station' not in chunk[0]:
-            parent_station = False
-        if 'level_id' not in chunk[0]:
-            level_id = False
-        stop_id_map = dict()
-        level_id_map = dict()
-
-        if parent_station:
-            stop_ids = set(map(lambda entry: entry['parent_station'], chunk))
-            for row in Stop.objects.filter_by_project(project_pk).filter(stop_id__in=stop_ids).values_list('stop_id', 'id'):
-                stop_id_map[row[0]] = row[1]
-        if level_id:
-            level_ids = set(map(lambda entry: entry['level_id'], chunk))
-            for row in Level.objects.filter_by_project(project_pk).filter(level_id__in=level_ids).values_list('level_id',
-                                                                                                              'id'):
-                level_id_map[row[0]] = row[1]
-        entries = list()
-        for row in chunk:
-            if parent_station:
-                row['parent_station'] = stop_ids[row['parent_station']]
-            if level_id:
-                row['level_id'] = level_ids[row['level_id']]
-            entries.append(Stop(project_id=project_pk, **row))
-        existing = set(Stop.objects.filter_by_project(project_pk) \
-                       .filter(stop_id__in=map(lambda entry: entry['stop_id'], chunk)) \
-                       .values_list('stop_id'))
-        to_update = filter(lambda entry: entry.stop_id in existing, entries)
-        to_create = filter(lambda entry: entry.stop_id not in existing, entries)
-        t1 = time.time()
-        Stop.objects.bulk_create(to_create, batch_size=1000)
-        t2 = time.time()
-        fields = filter(lambda field: field != 'stop_id' and field != 'id',
-                        map(lambda field: field.name, Stop._meta.fields))
-        Stop.objects.bulk_update(to_update, fields, batch_size=1000)
-        t3 = time.time()
-        log("Time to create:", t2 - t1)
-        log("Time to update:", t3 - t2)
-        for row in chunk:
-            id_set.add(row['stop_id'])
+        foreign_key_mappings = [
+            {
+                'csv_key': 'parent_station',
+                'model': Stop,
+                'model_key': 'stop_id'
+            },
+            {
+                'csv_key': 'level_id',
+                'model': Level,
+                'model_key': 'level_id'
+            }
+        ]
 
     @staticmethod
     def get_qs(kwargs):
@@ -573,14 +561,6 @@ class PathwayViewSet(CSVHandlerMixin,
                 result[ib] = 0
             return result
 
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['from_stop'] = Stop.objects.filter(project_id=project_id,
-                                                      stop_id=values['from_stop'])[0]
-            values['to_stop'] = Stop.objects.filter(project_id=project_id,
-                                                    stop_id=values['to_stop'])[0]
-            GenericListAttrsMeta.add_foreign_keys(values, project_id)
-
     @staticmethod
     def get_qs(kwargs):
         return Pathway.objects.filter(from_stop__project__project_id=kwargs['project_pk']).order_by('pathway_id')
@@ -609,14 +589,8 @@ class TransferViewSet(CSVHandlerMixin,
         model = Transfer
         filter_params = ['from_stop',
                          'to_stop']
-
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['from_stop'] = Stop.objects.filter(project_id=project_id,
-                                                      stop_id=values['from_stop'])[0]
-            values['to_stop'] = Stop.objects.filter(project_id=project_id,
-                                                    stop_id=values['to_stop'])[0]
-            GenericListAttrsMeta.add_foreign_keys(values, project_id)
+        use_internal_id = False
+        include_project_id = False
 
     @staticmethod
     def get_qs(kwargs):
@@ -664,10 +638,15 @@ class RouteViewSet(CSVHandlerMixin,
         csv_fields[1] = 'agency'
         model = Route
         filter_params = ['agency', 'route_id']
-
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['agency'] = Agency.objects.filter(project_id=project_id, agency_id=values['agency'])[0]
+        include_project_id = False
+        foreign_key_mappings = [
+            {
+                'csv_key': 'agency_id',
+                'model': Agency,
+                'model_key': 'agency_id',
+                'internal_key': 'agency_id'
+            }
+        ]
 
     @staticmethod
     def get_qs(kwargs):
@@ -692,12 +671,6 @@ class FareAttributeViewSet(CSVHandlerMixin,
         model = FareAttribute
         filter_params = ['fare_id']
 
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['agency'] = Agency.objects.filter(project_id=project_id,
-                                                     agency_id=values['agency'])[0]
-            GenericListAttrsMeta.add_foreign_keys(values, project_id)
-
     @staticmethod
     def get_qs(kwargs):
         return FareAttribute.objects.filter(project=kwargs['project_pk']).order_by('fare_id')
@@ -715,21 +688,14 @@ class FareRuleViewSet(CSVHandlerMixin,
                       'route']
         model = FareRule
         filter_params = ['fare_attribute']
-
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['fare_attribute'] = FareAttribute.objects.filter(project_id=project_id,
-                                                                    fare_id=values['fare_attribute'])[0]
-            values['route'] = Route.objects.filter(agency__project_id=project_id,
-                                                   route_id=values['route'])[0]
+        use_internal_id = False
 
     @staticmethod
     def get_qs(kwargs):
         return FareRule.objects.filter(fare_attribute__project=kwargs['project_pk']).order_by('route')
 
 
-class TripViewSet(ChunkUploadMixin,
-                  CSVHandlerMixin,
+class TripViewSet(CSVHandlerMixin,
                   viewsets.ModelViewSet):
     serializer_class = TripSerializer
     CHUNK_SIZE = 10000
@@ -753,54 +719,18 @@ class TripViewSet(ChunkUploadMixin,
         model = Trip
         filter_params = ['trip_id']
 
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            GenericListAttrsMeta.add_foreign_keys(values, project_id)
-            values['route'] = Route.objects.filter(agency__project_id=project_id,
-                                                   route_id=values['route'])[0]
-            shapes = Shape.objects.filter(project_id=project_id,
-                                          shape_id=values['shape'])
-            if len(shapes) > 0:
-                values['shape'] = shapes[0]
-            else:
-                del values['shape']
-
-    def update_or_create_chunk(self, chunk, project_pk, id_set):
-        print(chunk[0])
-        route_ids = set(map(lambda entry: entry['route_id'], chunk))
-        shape_ids = set(map(lambda entry: entry['shape_id'], chunk))
-        route_id_map = dict()
-        for row in Route.objects.filter_by_project(project_pk).filter(route_id__in=route_ids).values_list('route_id',
-                                                                                                          'id'):
-            route_id_map[row[0]] = row[1]
-
-        shape_id_map = dict()
-        for row in Shape.objects.filter_by_project(project_pk).filter(shape_id__in=shape_ids).values_list('shape_id',
-                                                                                                          'id'):
-            shape_id_map[row[0]] = row[1]
-
-        entries = list()
-        for row in chunk:
-            row['route_id'] = route_id_map[row['route_id']]
-            row['shape_id'] = shape_id_map[row['shape_id']]
-            row['project_id'] = project_pk
-            entries.append(Trip(**row))
-        existing = set(Trip.objects.filter_by_project(project_pk) \
-                       .filter(trip_id__in=map(lambda entry: entry['trip_id'], chunk)) \
-                       .values_list('trip_id'))
-        to_update = filter(lambda entry: entry.trip_id in existing, entries)
-        to_create = filter(lambda entry: entry.trip_id not in existing, entries)
-        t1 = time.time()
-        Trip.objects.bulk_create(to_create, batch_size=1000)
-        t2 = time.time()
-        fields = filter(lambda field: field != 'trip_id' and field != 'id',
-                        map(lambda field: field.name, Trip._meta.fields))
-        Trip.objects.bulk_update(to_update, fields, batch_size=1000)
-        t3 = time.time()
-        log("Time to create:", t2 - t1)
-        log("Time to update:", t3 - t2)
-        for row in chunk:
-            id_set.add(row['trip_id'])
+        foreign_key_mappings = [
+            {
+                'csv_key': 'route_id',
+                'model': Route,
+                'model_key': 'route_id'
+            },
+            {
+                'csv_key': 'shape_id',
+                'model': Shape,
+                'model_key': 'shape_id'
+            }
+        ]
 
     @staticmethod
     def get_qs(kwargs):
@@ -832,13 +762,6 @@ class StopTimeViewSet(CSVHandlerMixin,
         model = StopTime
         filter_params = ['trip', 'stop', 'stop_sequence']
 
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['trip'] = Trip.objects.filter(project_id=project_id,
-                                                 trip_id=values['trip'])[0]
-            values['stop'] = Stop.objects.filter(project_id=project_id,
-                                                 stop_id=values['stop'])[0]
-
     @staticmethod
     def get_qs(kwargs):
         return StopTime.objects.filter(trip__project=kwargs['project_pk']).order_by('trip', 'stop_sequence')
@@ -863,7 +786,7 @@ class StopTimeViewSet(CSVHandlerMixin,
         t2 = time.time()
         log("Time to create:", t2 - t1)
 
-    @action(methods=['put'], detail=False, parser_classes=(FileUploadParser,))
+    @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
     @transaction.atomic()
     def upload(self, request, *args, **kwargs):
         q1 = len(connection.queries)
@@ -918,11 +841,15 @@ class FrequencyViewSet(CSVHandlerMixin,
         model = Frequency
         filter_params = ['trip',
                          'start_time']
-
-        @staticmethod
-        def add_foreign_keys(values, project_id):
-            values['trip'] = Trip.objects.filter(project_id=project_id,
-                                                 trip_id=values['trip'])[0]
+        foreign_key_mappings = [
+            {
+                'csv_key': 'trip_id',
+                'model': Trip,
+                'model_key': 'trip_id'
+            }
+        ]
+        include_project_id = False
+        use_internal_id = False
 
     @staticmethod
     def get_qs(kwargs):

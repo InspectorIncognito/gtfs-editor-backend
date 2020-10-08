@@ -1,13 +1,6 @@
 from django.db import models
 
-
-class FilterManager(models.Manager):
-    def __init__(self, project_filter='project_id'):
-        super().__init__()
-        self.project_filter = project_filter
-
-    def filter_by_project(self, project_id):
-        return self.get_queryset().filter(**{self.project_filter: project_id})
+from rest_api.managers import *
 
 
 class Project(models.Model):
@@ -50,7 +43,7 @@ class Calendar(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
 
-    objects = FilterManager()
+    objects = InternalIDFilterManager('service_id')
 
     def __str__(self):
         return str(self.service_id)
@@ -119,7 +112,7 @@ class Stop(models.Model):
     wheelchair_boarding = models.CharField(max_length=200, null=True)
     level_id = models.ForeignKey(Level, null=True, on_delete=models.SET_NULL)
     platform_code = models.CharField(max_length=200, null=True)
-    objects = FilterManager()
+    objects = InternalIDFilterManager('stop_id')
 
     def __str__(self):
         return str(self.stop_id)
@@ -135,7 +128,7 @@ class Pathway(models.Model):
     to_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="stop_to")
     pathway_mode = models.IntegerField()
     is_bidirectional = models.BooleanField()
-    objects = FilterManager()
+    objects = InternalIDFilterManager('pathway_id')
 
     def __str__(self):
         return str(self.pathway_id)
@@ -147,7 +140,7 @@ class Pathway(models.Model):
 class Shape(models.Model):
     project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
     shape_id = models.CharField(max_length=50)
-    objects = FilterManager()
+    objects = InternalIDFilterManager('shape_id')
 
     def __str__(self):
         return str(self.shape_id)
@@ -193,7 +186,7 @@ class Agency(models.Model):
     agency_phone = models.CharField(max_length=20, null=True)
     agency_fare_url = models.URLField(max_length=255, null=True)
     agency_email = models.EmailField(max_length=255, null=True)
-    objects = FilterManager()
+    objects = InternalIDFilterManager('agency_id')
 
     def __str__(self):
         return str(self.agency_id)
@@ -212,7 +205,7 @@ class Route(models.Model):
     route_url = models.URLField(null=True)
     route_color = models.CharField(max_length=10, null=True)
     route_text_color = models.CharField(max_length=10, null=True)
-    objects = FilterManager('agency__project__project_id')
+    objects = InternalIDFilterManager('route_id', 'agency__project__project_id')
 
     def __str__(self):
         return str(self.route_id)
@@ -230,7 +223,7 @@ class FareAttribute(models.Model):
     transfers = models.IntegerField()
     transfer_duration = models.IntegerField()
     agency = models.ForeignKey(Agency, on_delete=models.DO_NOTHING)
-    objects = FilterManager()
+    objects = InternalIDFilterManager('fare_id')
 
     def __str__(self):
         return str(self.fare_id)
@@ -261,8 +254,7 @@ class Trip(models.Model):
     wheelchair_accessible = models.IntegerField(null=True)
     bikes_allowed = models.IntegerField(null=True)
 
-    objects = FilterManager()
-
+    objects = InternalIDFilterManager('trip_id')
 
     def __str__(self):
         return str(self.trip_id)
@@ -296,6 +288,7 @@ class StopTime(models.Model):
     class Meta:
         unique_together = ['trip', 'stop', 'stop_sequence']
 
+
 class Frequency(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.DO_NOTHING)
     start_time = models.TimeField()
@@ -304,7 +297,6 @@ class Frequency(models.Model):
     exact_times = models.IntegerField()
 
     objects = FilterManager('trip__project__project_id')
-
 
     class Meta:
         unique_together = ['trip', 'start_time']

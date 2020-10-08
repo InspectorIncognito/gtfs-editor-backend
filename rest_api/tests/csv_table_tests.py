@@ -15,7 +15,7 @@ from rest_api.tests.basic_table_tests import BaseTestCase
 def create_csv():
     project = BaseTestCase.create_data()[0]
     endpoints = [
-                 'fareattributes'
+        'fareattributes'
     ]
     kwargs = {
         'project_pk': project.project_id
@@ -137,7 +137,6 @@ class CalendarsCSVTest(CSVTestMixin, CSVTestCase):
         }
 
 
-
 class LevelsCSVTest(CSVTestMixin, CSVTestCase):
     class Meta:
         filename = 'levels'
@@ -197,6 +196,7 @@ class StopsCSVTest(CSVTestMixin, CSVTestCase):
             'stop_lon': 10.0
         }
 
+
 class PathwaysCSVTest(CSVTestMixin, CSVTestCase):
     class Meta:
         filename = 'pathways'
@@ -220,7 +220,7 @@ class PathwaysCSVTest(CSVTestMixin, CSVTestCase):
             'is_bidirectional': False
         }
 
-@skip
+
 class TransfersCSVTest(CSVTestMixin, CSVTestCase):
     class Meta:
         filename = 'transfers'
@@ -291,7 +291,7 @@ class RoutesCSVTest(CSVTestMixin, CSVTestCase):
             'route_text_color': 'AA55AA'
         }
 
-@skip
+
 class FareAttributesCSVTest(CSVTestMixin, CSVTestCase):
     class Meta:
         filename = 'fareattributes'
@@ -337,7 +337,7 @@ class TripsCSVTest(CSVTestMixin, CSVTestCase):
             'shape__shape_id': 'shape_1'
         }
 
-@skip
+
 class ShapeCSVTest(CSVTestMixin, CSVTestCase):
     class Meta:
         filename = 'shapes'
@@ -359,7 +359,6 @@ class ShapeCSVTest(CSVTestMixin, CSVTestCase):
         # now the new entry should exist
         query = model.objects.filter_by_project(self.project.project_id).filter(**data)
         self.assertEquals(query.count(), 1)
-
 
     def test_upload_modify(self):
         meta = self.Meta()
