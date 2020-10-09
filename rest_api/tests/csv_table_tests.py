@@ -8,7 +8,7 @@ from rest_framework.test import APIClient, APITestCase
 from rest_framework import status
 
 from rest_api.models import Project, Shape, Calendar, Level, CalendarDate, Stop, Pathway, Transfer, Agency, Route, \
-    FareAttribute, FareRule, Trip, StopTime, ShapePoint
+    FareAttribute, FareRule, Trip, StopTime, ShapePoint, Frequency, FeedInfo
 from rest_api.tests.basic_table_tests import BaseTestCase
 
 
@@ -42,11 +42,11 @@ class CSVTestMixin:
         response = self.client.get(url, {})
 
         with open('rest_api/tests/csv/download/{}.csv'.format(filename), 'rb') as expected_file:
-            expected = expected_file.read().strip()
-        output = response.content.strip()
-        print(output)
-        print(expected)
-        self.assertEquals(output, expected)
+            expected = expected_file.read().strip().splitlines()
+        output = response.content.strip().splitlines()
+        self.assertEquals(len(output), len(expected))
+        for i in range(len(output)):
+            self.assertEquals(output[i], expected[i])
 
     def test_upload_create(self):
         meta = self.Meta()
@@ -73,7 +73,6 @@ class CSVTestMixin:
 
         # we upload the file that should alter an existing entryy
         response = self.put(meta, 'rest_api/tests/csv/upload_modify/{}.csv'.format(filename))
-
         # now the new entry should contain the expected values
         query = model.objects.filter_by_project(self.project.project_id).filter(**modified_data)
         self.assertEquals(query.count(), 1)
@@ -364,28 +363,133 @@ class ShapeCSVTest(CSVTestMixin, CSVTestCase):
         meta = self.Meta()
         filename = meta.filename
         model = meta.model
-        modified_data = meta.modified_data
+        modified_data = {'shape__shape_id': 'shape_2',
+                         'shape_pt_lat': -3.0,
+                         'shape_pt_lon': -4.0,
+                         'shape_pt_sequence': 5}
 
-        # we upload the file that should alter an existing entryy
+        # we upload the file that should alter an existing entry
         response = self.put(meta, 'rest_api/tests/csv/upload_modify/{}.csv'.format(filename))
 
         # now the new entry should contain the expected values
-        query = model.objects.filter_by_project(self.project.project_id).filter(**modified_data)
+        query = ShapePoint.objects.filter_by_project(self.project.project_id).filter(**modified_data)
         self.assertEquals(query.count(), 1)
 
     def test_upload_delete(self):
         meta = self.Meta()
         filename = meta.filename
         model = meta.model
-        deleted_data = meta.deleted_data
-
-        # first we check the entry exists originally
-        query = model.objects.filter_by_project(self.project.project_id).filter(**deleted_data)
-        self.assertEquals(query.count(), 1)
+        deleted_data = {'shape_2': [1, 2, 3, 4, 5]}
+        for k in deleted_data:
+            # first we check the entry exists originally
+            query = Shape.objects.select_by_internal_id(self.project.project_id, k)
+            self.assertEquals(query.count(), 1)
+            sequence = deleted_data[k]
+            query = ShapePoint.objects.filter_by_project(self.project.project_id).filter(shape_pt_sequence__in=sequence,
+                                                                                         shape__shape_id=k)
+            self.assertEquals(query.count(), len(sequence))
 
         # then we upload the file that should create a new entry
         response = self.put(meta, 'rest_api/tests/csv/upload_delete/{}.csv'.format(filename))
 
         # now we check it doesn't exist anymore
-        query = model.objects.filter_by_project(self.project.project_id).filter(**deleted_data)
-        self.assertEquals(query.count(), 0)
+        for k in deleted_data:
+            # first we check the entry exists originally
+            query = Shape.objects.select_by_internal_id(self.project.project_id, k)
+            self.assertEquals(query.count(), 0)
+            sequence = deleted_data[k]
+            query = ShapePoint.objects.filter_by_project(self.project.project_id).filter(shape_pt_sequence__in=sequence,
+                                                                                         shape__shape_id=k)
+            self.assertEquals(query.count(), 0)
+
+
+class StopTimesCSVTest(CSVTestMixin, CSVTestCase):
+    class Meta:
+        filename = 'stoptimes'
+        endpoint = 'stoptimes'
+        model = StopTime
+        created_data = {
+            'trip__trip_id': 'test_trip',
+            'stop__stop_id': 'stop_10',
+            'stop_sequence': 1,
+            'arrival_time': '23:00',
+            'departure_time': '23:15',
+            'stop_headsign': 'test hs',
+            'pickup_type': 1,
+            'drop_off_type': 1,
+            'continuous_pickup': 1,
+            'continuous_dropoff': 0,
+            'shape_dist_traveled': 0.5,
+            'timepoint': 1
+        }
+        deleted_data = {
+            'trip__trip_id': 'trip3',
+            'stop__stop_id': 'stop_43',
+            'stop_sequence': 11
+        }
+        modified_data = {
+            'trip__trip_id': 'trip3',
+            'stop__stop_id': 'stop_43',
+            'stop_sequence': 11,
+            'arrival_time': '23:00',
+            'departure_time': '23:15',
+            'stop_headsign': 'test hs',
+            'pickup_type': 1,
+            'drop_off_type': 1,
+            'continuous_pickup': 1,
+            'continuous_dropoff': 0,
+            'shape_dist_traveled': 0.5,
+            'timepoint': 1
+
+        }
+
+
+class FrequencyCSVTest(CSVTestMixin, CSVTestCase):
+    class Meta:
+        filename = 'frequencies'
+        endpoint = 'frequencies'
+        model = Frequency
+        created_data = {
+            'trip__trip_id': 'trip0',
+            'start_time': '1:00:00',
+            'end_time': '2:00:00',
+            'headway_secs': 1200,
+            'exact_times': 1
+        }
+        deleted_data = {
+            'trip__trip_id': 'trip0',
+            'start_time': '0:00:00'
+        }
+        modified_data = {
+            'trip__trip_id': 'trip0',
+            'start_time': '0:00:00',
+            'end_time': '22:00:00',
+            'headway_secs': 1800,
+            'exact_times': 1
+        }
+
+
+class FeedInfoCSVTest(CSVTestMixin, CSVTestCase):
+    class Meta:
+        filename = 'feedinfo'
+        endpoint = 'feedinfo'
+        model = FeedInfo
+        created_data = {
+            'feed_publisher_name': 'My Test',
+            'feed_version': '0.0.0'
+        }
+        deleted_data = {
+        }
+        modified_data = {
+            'feed_publisher_name': 'Modified Agency',
+            'feed_version': '1.2.3',
+            'feed_id': 'testing feed'
+        }
+
+    def test_upload_create(self):
+        FeedInfo.objects.filter_by_project(self.project.project_id).delete()
+        super().test_upload_create()
+
+    def test_download(self):
+        FeedInfo.objects.filter_by_project(self.project.project_id).update(feed_id='Test Feed')
+        super().test_download()

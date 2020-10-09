@@ -1,7 +1,7 @@
-trip_id,route_id,shape_id,service_id,trip_headsign,direction_id
-test_trip,trip_test_route,,,,
-trip0,route0,,,,
-trip1,route1,,,,
-trip2,route2,,,,
-trip3,route3,,,,
-trip_new,route0,,,,
+trip_id,route_id,shape_id,service_id,trip_headsign,direction_id,trip_short_name,block_id,wheelchair_accessible,bikes_allowed
+test_trip,trip_test_route,,mon-fri,,,,,,
+trip0,route0,,mon-fri,,,,,,
+trip1,route1,,mon-fri,,,,,,
+trip2,route2,,mon-fri,,,,,,
+trip3,route3,,mon-fri,,,,,,
+trip_new,route0,shape_1,mon-fri,,,,,,

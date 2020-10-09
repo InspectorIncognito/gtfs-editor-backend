@@ -27,8 +27,8 @@ class CSVDownloadMixin:
     # We use this static method in order to allow us to
     # generate a CSV without having to create an HTTP request on the API
     @staticmethod
-    def write_to_file(out_file, Meta, qs):
-        meta = Meta()
+    def write_to_file(out_file, meta_class, qs):
+        meta = meta_class()
         header = meta.csv_header
         list_attrs = meta.list_attrs
         writer = csv.writer(out_file)
@@ -82,7 +82,6 @@ class CSVDownloadMixin:
 
 class CSVUploadMixin:
     def update_or_create_chunk(self, meta, chunk, project_pk, id_set):
-        print(chunk[0])
         foreign_key_maps = dict()
         preprocess_funcs = getattr(meta, 'upload_preprocess', dict())
         foreign_key_mappings = getattr(meta, 'foreign_key_mappings', dict())
@@ -90,7 +89,7 @@ class CSVUploadMixin:
         use_internal_id = getattr(meta, 'use_internal_id', True)
         params = getattr(meta, 'csv_fields', meta.csv_header)
         model = meta.model
-
+        rename_fields = getattr(meta, 'rename_fields', dict())
         # For each foreign key we create a hashmap that maps the GTFS IDs into django model IDs
         for fk in foreign_key_mappings:
             foreign_key_maps[fk['csv_key']] = create_foreign_key_hashmap(chunk,
@@ -115,6 +114,11 @@ class CSVUploadMixin:
             for k in preprocess_funcs:
                 if k in row and row[k] is not None:
                     row[k] = preprocess_funcs[k](row[k])
+            # Rename then entries that need it
+            for k in rename_fields:
+                val = row[k]
+                del row[k]
+                row[rename_fields[k]] = val
             # Include project_id if the model requires it
             if include_project_id:
                 row['project_id'] = project_pk
@@ -130,7 +134,8 @@ class CSVUploadMixin:
             for row in chunk:
                 # We store the internal ID so we don't delete the entries afterwards
                 id_set.add(row[internal_id])
-                row['id'] = id_map[row[internal_id]]
+                if row[internal_id] in id_map:
+                    row['id'] = id_map[row[internal_id]]
                 # Create a model but don't save it! we don't want to perform one SQL operation per entry
                 obj = model(**row)
                 # if the row already existed we prepare it for updating
@@ -379,14 +384,6 @@ class ShapeViewSet(viewsets.ModelViewSet):
         serializer = DetailedShapeSerializer(instance)
         return Response(serializer.data)
 
-    def put(self, request, partial=False, project_pk=None, id=None):
-        if id == 'csv':
-            file = request.FILES['file']
-            with open(file.name, 'r') as f:
-                f.readline()
-                content = f.readlines()
-            return None
-
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all().order_by('username')
@@ -486,6 +483,10 @@ class FeedInfoViewSet(CSVHandlerMixin,
                       'feed_id']
         model = FeedInfo
         use_internal_id = False
+        upload_preprocess = {
+            'feed_start_date': lambda date: datetime.datetime.strptime(date, '%Y%m%d'),
+            'feed_end_date': lambda date: datetime.datetime.strptime(date, '%Y%m%d')
+        }
 
     @staticmethod
     def get_qs(kwargs):
@@ -551,6 +552,20 @@ class PathwayViewSet(CSVHandlerMixin,
                       'is_bidirectional']
         model = Pathway
         filter_params = ['pathway_id']
+        foreign_key_mappings = [
+            {
+                'csv_key': 'from_stop',
+                'model': Stop,
+                'model_key': 'stop_id',
+                'internal_key': 'from_stop_id'
+            },
+            {
+                'csv_key': 'to_stop',
+                'model': Stop,
+                'model_key': 'stop_id',
+                'internal_key': 'to_stop_id'
+            }
+        ]
 
         def list_attrs(self, obj):
             result = super().list_attrs(obj)
@@ -591,6 +606,21 @@ class TransferViewSet(CSVHandlerMixin,
                          'to_stop']
         use_internal_id = False
         include_project_id = False
+        rename_fields = {'transfer_type': 'type'}
+        foreign_key_mappings = [
+            {
+                'csv_key': 'from_stop_id',
+                'model': Stop,
+                'model_key': 'stop_id',
+                'internal_key': 'from_stop_id'
+            },
+            {
+                'csv_key': 'to_stop_id',
+                'model': Stop,
+                'model_key': 'stop_id',
+                'internal_key': 'to_stop_id'
+            }
+        ]
 
     @staticmethod
     def get_qs(kwargs):
@@ -670,6 +700,13 @@ class FareAttributeViewSet(CSVHandlerMixin,
         csv_header[6] = 'agency_id'
         model = FareAttribute
         filter_params = ['fare_id']
+        foreign_key_mappings = [
+            {
+                'csv_key': 'agency_id',
+                'model': Agency,
+                'model_key': 'agency_id'
+            }
+        ]
 
     @staticmethod
     def get_qs(kwargs):
@@ -767,7 +804,6 @@ class StopTimeViewSet(CSVHandlerMixin,
         return StopTime.objects.filter(trip__project=kwargs['project_pk']).order_by('trip', 'stop_sequence')
 
     def update_or_create_chunk(self, chunk, project_pk, id_set):
-        st_qs = StopTime.objects.filter_by_project(project_pk)
         trip_ids = set(map(lambda entry: entry['trip_id'], chunk))
         stop_ids = set(map(lambda entry: entry['stop_id'], chunk))
         trip_id_map = dict()
@@ -819,7 +855,6 @@ class StopTimeViewSet(CSVHandlerMixin,
             self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
             t2 = time.time()
             log("total", t2 - t)
-            t = t2
         q2 = len(connection.queries)
         log("Operation completed performing", q2 - q1, "queries")
         return HttpResponse(content_type='text/plain')

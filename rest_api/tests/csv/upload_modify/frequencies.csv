@@ -1,0 +1,5 @@
+trip_id,start_time,end_time,headway_secs,exact_times
+trip0,00:00:00,22:00:00,1800,1
+trip1,00:00:00,23:00:00,600,0
+trip2,00:00:00,23:00:00,600,0
+trip3,00:00:00,23:00:00,600,0

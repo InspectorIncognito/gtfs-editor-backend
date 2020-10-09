@@ -114,10 +114,12 @@ class BaseTestCase(TestCase):
             # Create stops
             Stop.objects.create(project=project,
                                 stop_id="stop_delete",
+                                stop_name='SD',
                                 stop_lat=0,
                                 stop_lon=0)
             Stop.objects.create(project=project,
                                 stop_id="test_stop",
+                                stop_name='TS',
                                 stop_lat=0,
                                 stop_lon=0)
             stops = [  # First route
@@ -205,6 +207,7 @@ class BaseTestCase(TestCase):
                                          route_id='trip_test_route',
                                          route_type=3)
             trip = Trip.objects.create(project=project,
+                                       service_id='mon-fri',
                                        trip_id='test_trip',
                                        route=route)
             for i in range(4):
@@ -213,6 +216,7 @@ class BaseTestCase(TestCase):
                                              route_type=3)
 
                 t = Trip.objects.create(project=project,
+                                        service_id='mon-fri',
                                         trip_id="trip{0}".format(i),
                                         route=route)
 
@@ -1234,89 +1238,6 @@ class TransferTableTest(BaseTableTest, BasicTestSuiteMixin):
 
     def test_create(self):
         self.new_data(self.Meta.create_data)
-        super().test_create()
-
-
-class FrequencyTableTest(BaseTableTest, BasicTestSuiteMixin):
-    table_name = "project-frequencies"
-
-    class Meta:
-        model = Frequency
-        serializer = FrequencySerializer
-        initial_size = 4
-        invalid_id = 123456789
-
-        def get_id(self, project, data):
-            return self.model.objects.filter(trip__project_id=project,
-                                             trip_id=data['trip'],
-                                             start_time=data['start_time'])[0].id
-
-        # retrieve params
-        retrieve_data = {
-            'trip': 'trip0',
-            'start_time': "00:00",
-            'end_time': "23:00",
-            'headway_secs': 600,
-            'exact_times': 0
-        }
-
-        # create params
-        create_data = {
-            'trip': 'trip0',
-            'start_time': datetime.time(10, 0),
-            'end_time': datetime.time(22, 0),
-            'headway_secs': 1200,
-            'exact_times': 1
-        }
-
-        # delete params
-        delete_data = {
-            'trip': 'trip0',
-            'start_time': "00:00",
-            'end_time': "23:00",
-            'headway_secs': 600,
-            'exact_times': 0
-        }
-
-        # put params
-        put_data = {
-            'trip': 'trip0',
-            'start_time': datetime.time(0, 0),
-            'end_time': datetime.time(23, 0),
-            'headway_secs': 200,
-            'exact_times': 1
-        }
-
-        # patch params
-        patch_data = {
-            'trip': 'trip0',
-            'start_time': '00:00:00',
-            'headway_secs': 200,
-            'exact_times': 1
-        }
-
-    def enrich_data(self, data):
-        data['trip'] = Trip.objects.filter(project=self.project,
-                                           trip_id=data['trip'])[0].id
-
-    def test_delete(self):
-        self.enrich_data(self.Meta.delete_data)
-        super().test_delete()
-
-    def test_retrieve(self):
-        self.enrich_data(self.Meta.retrieve_data)
-        super().test_retrieve()
-
-    def test_patch(self):
-        self.enrich_data(self.Meta.patch_data)
-        super().test_patch()
-
-    def test_put(self):
-        self.enrich_data(self.Meta.put_data)
-        super().test_put()
-
-    def test_create(self):
-        self.enrich_data(self.Meta.create_data)
         super().test_create()
 
 
