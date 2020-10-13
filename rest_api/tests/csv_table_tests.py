@@ -1,115 +1,17 @@
 from datetime import date
-from unittest import skip
 
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core.files import File
 from django.urls import reverse
-from rest_framework.test import APIClient, APITestCase
-from rest_framework import status
 
-from rest_api.models import Project, Shape, Calendar, Level, CalendarDate, Stop, Pathway, Transfer, Agency, Route, \
-    FareAttribute, FareRule, Trip, StopTime, ShapePoint, Frequency, FeedInfo
-from rest_api.tests.basic_table_tests import BaseTestCase
+from rest_api.models import Shape, Calendar, Level, CalendarDate, Stop, Pathway, Transfer, Agency, Route, \
+    FareAttribute, Trip, StopTime, ShapePoint, Frequency, FeedInfo
+from rest_api.tests.test_helpers import CSVTestCase, CSVTestMixin
 
 
-def create_csv():
-    project = BaseTestCase.create_data()[0]
-    endpoints = [
-        'fareattributes'
-    ]
-    kwargs = {
-        'project_pk': project.project_id
-    }
-    client = APIClient()
-    for endpoint in endpoints:
-        url = reverse('project-{}-download'.format(endpoint), kwargs=kwargs)
-        response = client.get(url)
-        for folder in ['download',
-                       'upload_create',
-                       'upload_delete',
-                       'upload_modify']:
-            with open('rest_api/tests/csv/{0}/{1}.csv'.format(folder, endpoint), 'wb') as f:
-                f.write(response.content)
-
-
-class CSVTestMixin:
-    def test_download(self):
-        meta = self.Meta()
-        filename = meta.filename
-        endpoint = meta.endpoint
-        url = reverse('project-{}-download'.format(endpoint), kwargs={'project_pk': self.project.project_id})
-
+class GTFDownloadTest(CSVTestCase):
+    def test_download_as_csv(self):
+        url = reverse('project-download', kwargs={'pk': self.project.project_id})
         response = self.client.get(url, {})
-
-        with open('rest_api/tests/csv/download/{}.csv'.format(filename), 'rb') as expected_file:
-            expected = expected_file.read().strip().splitlines()
-        output = response.content.strip().splitlines()
-        self.assertEquals(len(output), len(expected))
-        for i in range(len(output)):
-            self.assertEquals(output[i], expected[i])
-
-    def test_upload_create(self):
-        meta = self.Meta()
-        filename = meta.filename
-        model = meta.model
-        created_data = meta.created_data
-
-        # first we check it doesn't exist originally
-        query = model.objects.filter_by_project(self.project.project_id).filter(**created_data)
-        self.assertEquals(query.count(), 0)
-
-        # then we upload the file that should create a new entry
-        response = self.put(meta, 'rest_api/tests/csv/upload_create/{}.csv'.format(filename))
-
-        # now the new entry should exist
-        query = model.objects.filter_by_project(self.project.project_id).filter(**created_data)
-        self.assertEquals(query.count(), 1)
-
-    def test_upload_modify(self):
-        meta = self.Meta()
-        filename = meta.filename
-        model = meta.model
-        modified_data = meta.modified_data
-
-        # we upload the file that should alter an existing entryy
-        response = self.put(meta, 'rest_api/tests/csv/upload_modify/{}.csv'.format(filename))
-        # now the new entry should contain the expected values
-        query = model.objects.filter_by_project(self.project.project_id).filter(**modified_data)
-        self.assertEquals(query.count(), 1)
-
-    def test_upload_delete(self):
-        meta = self.Meta()
-        filename = meta.filename
-        model = meta.model
-        deleted_data = meta.deleted_data
-
-        # first we check the entry exists originally
-        query = model.objects.filter_by_project(self.project.project_id).filter(**deleted_data)
-        self.assertEquals(query.count(), 1)
-
-        # then we upload the file that should create a new entry
-        response = self.put(meta, 'rest_api/tests/csv/upload_delete/{}.csv'.format(filename))
-
-        # now we check it doesn't exist anymore
-        query = model.objects.filter_by_project(self.project.project_id).filter(**deleted_data)
-        self.assertEquals(query.count(), 0)
-
-    def put(self, meta, path):
-        filename = meta.filename
-        url = reverse('project-{}-upload'.format(meta.endpoint), kwargs={'project_pk': self.project.project_id})
-        file = File(open(path, 'rb'))
-        uploaded_file = SimpleUploadedFile(meta.filename, file.read(),
-                                           content_type='application/octet-stream')
-        headers = {'HTTP_CONTENT_DISPOSITION': 'attachment; filename={}.csv'.format(meta.filename)}
-        response = self._make_request(self.client, self.PUT_REQUEST, url, {'file': uploaded_file},
-                                      status.HTTP_200_OK, json_process=False, **headers)
-        return response
-
-
-class CSVTestCase(BaseTestCase):
-    def setUp(self):
-        self.project = self.create_data()[0]
-        self.client = APIClient()
+        print(response)
 
 
 class CalendarsCSVTest(CSVTestMixin, CSVTestCase):
