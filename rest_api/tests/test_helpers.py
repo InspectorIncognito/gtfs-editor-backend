@@ -22,6 +22,15 @@ class BaseTestCase(TestCase):
     PATCH_REQUEST = 'patch'  # partial update
     DELETE_REQUEST = 'delete'
 
+    def assertFileEquals(self, output_file, expected_file, file_name="unknown"):
+        expected = expected_file.read().strip().splitlines()
+        output = output_file.read().strip().splitlines()
+        self.assertEquals(len(output), len(expected), "Error: File lengths do not match for file {}.".format(file_name))
+        for i in range(len(output)):
+            self.assertEquals(output[i], expected[i], "Error: Lines should be equal but they aren't in file {}.\nAre "
+                                                      "you sure the output is getting sorted as it should?.".format(
+                file_name))
+
     def __init__(self, *args, **kwargs):
         super(BaseTestCase, self).__init__(*args, **kwargs)
 
@@ -516,7 +525,6 @@ class CSVTestCase(BaseTestCase):
     def setUp(self):
         self.project = self.create_data()[0]
         self.client = APIClient()
-
 
 class CSVTestMixin:
     def test_download(self):

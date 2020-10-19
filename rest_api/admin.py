@@ -11,7 +11,7 @@ from rest_api.models import *
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     title = "name"
-    list_display = ("name",)
+    list_display = ("name","project_id")
 
 
 @admin.register(Calendar)

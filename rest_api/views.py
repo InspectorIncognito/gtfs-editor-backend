@@ -493,12 +493,6 @@ class FeedInfoViewSet(CSVHandlerMixin,
         return FeedInfo.objects.filter(project=kwargs['project_pk'])
 
 
-def object_or_null(qs):
-    if qs.count() == 0:
-        return None
-    return qs[0]
-
-
 class StopViewSet(CSVHandlerMixin,
                   viewsets.ModelViewSet):
     serializer_class = StopSerializer

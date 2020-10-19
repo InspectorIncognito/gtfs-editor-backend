@@ -1,1 +1,2 @@
-fare_attribute,route
+fare_id,route_id
+test_fare_attr_2,route3

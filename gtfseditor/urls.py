@@ -17,7 +17,6 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_nested import routers
 from rest_api import views as api_views
-from frontend import views as frontend_views
 
 
 router = routers.SimpleRouter()
@@ -50,5 +49,4 @@ urlpatterns = [
     path(r'api/', include(router.urls)),
     path(r'api/', include(project_router.urls)),
     path(r'api-auth/', include('rest_framework.urls', namespace='rest_framework')),
-    path(r'app/', frontend_views.index, name='index')
 ]

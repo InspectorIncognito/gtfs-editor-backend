@@ -1,3 +1,4 @@
+import io, zipfile
 from datetime import date
 
 from django.urls import reverse
@@ -9,9 +10,25 @@ from rest_api.tests.test_helpers import CSVTestCase, CSVTestMixin
 
 class GTFDownloadTest(CSVTestCase):
     def test_download_as_csv(self):
+        expected_files = ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'calendar.txt', 'calendar_dates.txt',
+                          'fare_attributes.txt', 'fare_rules.txt', 'frequencies.txt', 'transfers.txt', 'pathways.txt',
+                          'levels.txt', 'feed_info.txt', 'shapes.txt', 'stop_times.txt']
+        csv_files = ['agencies.csv', 'stops.csv', 'routes.csv', 'trips.csv', 'calendars.csv', 'calendardates.csv',
+                     'fareattributes.csv', 'farerules.csv', 'frequencies.csv', 'transfers.csv', 'pathways.csv',
+                     'levels.csv', 'feedinfo.csv', 'shapes.csv', 'stoptimes.csv']
         url = reverse('project-download', kwargs={'pk': self.project.project_id})
         response = self.client.get(url, {})
-        print(response)
+        content = response.content
+        with io.BytesIO(content) as f:
+            with zipfile.ZipFile(f, 'r') as zf:
+                files = zf.namelist()
+                self.assertListEqual(files, expected_files)
+                print(list(zip(expected_files, csv_files)))
+                for file in zip(expected_files, csv_files):
+                    path = 'rest_api/tests/csv/download/{}'.format(file[1])
+                    with zf.open(file[0]) as output_file:
+                        with open(path, 'rb') as expected_file:
+                            self.assertFileEquals(output_file, expected_file, file[0])
 
 
 class CalendarsCSVTest(CSVTestMixin, CSVTestCase):
@@ -393,5 +410,5 @@ class FeedInfoCSVTest(CSVTestMixin, CSVTestCase):
         super().test_upload_create()
 
     def test_download(self):
-        FeedInfo.objects.filter_by_project(self.project.project_id).update(feed_id='Test Feed')
+        FeedInfo.objects.filter_by_project(self.project.project_id).update(feed_id='Test Feed 0')
         super().test_download()
