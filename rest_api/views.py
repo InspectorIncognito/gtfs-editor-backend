@@ -231,7 +231,11 @@ class CSVHandlerMixin(CSVUploadMixin,
         return self.get_qs(self.kwargs)
 
 
-class GenericListAttrsMeta:
+class ConvertValuesMeta:
+    """Basic Meta class that provides a convert_values method, said method takes a dict as its input
+    and performs conversions to fit the GTFS format specification, such as displaying dates without
+    dashes or booleans as 0 or 1."""
+
     @staticmethod
     def convert_values(values):
         for k in values:
@@ -389,7 +393,7 @@ class CalendarViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = CalendarSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'calendars'
         csv_header = ['service_id',
                       'monday',
@@ -418,7 +422,7 @@ class LevelViewSet(CSVHandlerMixin,
                    viewsets.ModelViewSet):
     serializer_class = LevelSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'levels'
         csv_header = ['level_id',
                       'level_index',
@@ -437,7 +441,7 @@ class CalendarDateViewSet(CSVHandlerMixin,
                           viewsets.ModelViewSet):
     serializer_class = CalendarDateSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'calendar_dates'
         csv_header = ['service_id',
                       'date',
@@ -458,7 +462,7 @@ class FeedInfoViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = FeedInfoSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'feedinfo'
         csv_header = ['feed_publisher_name',
                       'feed_publisher_url',
@@ -484,7 +488,7 @@ class StopViewSet(CSVHandlerMixin,
     serializer_class = StopSerializer
     CHUNK_SIZE = 10000
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'stops'
         csv_header = ['stop_id',
                       'stop_code',
@@ -523,7 +527,7 @@ class PathwayViewSet(CSVHandlerMixin,
                      viewsets.ModelViewSet):
     serializer_class = PathwaySerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'pathways'
         csv_header = ['pathway_id',
                       'from_stop',
@@ -566,7 +570,7 @@ class TransferViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = TransferSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'transfers'
         csv_header = ['from_stop_id',
                       'to_stop_id',
@@ -606,7 +610,7 @@ class AgencyViewSet(CSVHandlerMixin,
                     viewsets.ModelViewSet):
     serializer_class = AgencySerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'agencies'
         csv_header = ['agency_id',
                       'agency_name',
@@ -628,7 +632,7 @@ class RouteViewSet(CSVHandlerMixin,
                    viewsets.ModelViewSet):
     serializer_class = RouteSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'routes'
         csv_header = ['route_id',
                       'agency_id',
@@ -665,7 +669,7 @@ class FareAttributeViewSet(CSVHandlerMixin,
                            viewsets.ModelViewSet):
     serializer_class = FareAttributeSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'fare_attributes'
         csv_header = ['fare_id',
                       'price',
@@ -696,7 +700,7 @@ class FareRuleViewSet(CSVHandlerMixin,
                       viewsets.ModelViewSet):
     serializer_class = FareRuleSerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'fare_rules'
         csv_header = ['fare_id',
                       'route_id']
@@ -720,7 +724,7 @@ class TripViewSet(CSVHandlerMixin,
     serializer_class = TripSerializer
     CHUNK_SIZE = 10000
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'trips'
         csv_fields = ['trip_id',
                       'route',
@@ -766,7 +770,7 @@ class StopTimeViewSet(CSVHandlerMixin,
     serializer_class = StopTimeSerializer
     CHUNK_SIZE = 100000
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'stoptimes'
         csv_header = ['trip_id',
                       'stop_id',
@@ -855,7 +859,7 @@ class FrequencyViewSet(CSVHandlerMixin,
                        viewsets.ModelViewSet):
     serializer_class = FrequencySerializer
 
-    class Meta(GenericListAttrsMeta):
+    class Meta(ConvertValuesMeta):
         csv_filename = 'frequencies'
         csv_header = ['trip_id',
                       'start_time',
