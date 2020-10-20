@@ -13,16 +13,15 @@ from rest_framework.response import Response
 
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
-from rest_api.utils import log, create_foreign_key_hashmap
+from rest_api.utils import log, create_foreign_key_hashmap, DAYS
 
 
-# Classes using this mixin require a Meta class that contains the following attributes
-# csv_header: list containing the names of the CSV rows
-# csv_filename: name of the CSV file, does not require the extension
-# list_attrs: method that grabs the object and makes a list of the row representing it
-# In addition the class requires a filter_by_project method that returns all objects
-# that belong to the project with the primary key entered
 class CSVDownloadMixin:
+    """Classes using this mixin require a Meta class that contains the following attributes
+    csv_header: list containing the names of the CSV rows
+    csv_filename: name of the CSV file, does not require the extension
+    In addition the class requires a filter_by_project method that returns all objects
+    that belong to the project with the primary key entered"""
 
     # We use this static method in order to allow us to
     # generate a CSV without having to create an HTTP request on the API
@@ -30,17 +29,21 @@ class CSVDownloadMixin:
     def write_to_file(out_file, meta_class, qs):
         meta = meta_class()
         header = meta.csv_header
-        list_attrs = meta.list_attrs
         writer = csv.writer(out_file)
+        csv_fields = [e for e in getattr(meta, 'csv_fields', meta.csv_header)]
+        csv_field_mappings = getattr(meta, 'csv_field_mappings', {})
+        for k in csv_field_mappings:
+            csv_fields[csv_fields.index(k)] = csv_field_mappings[k]
         # First we write the header
         writer.writerow(header)
-        for obj in qs:
-            # We convert the row into an ordered list
-            attrs = list_attrs(obj)
+        for obj in qs.values(*csv_fields):
             # We transform the types that need transforming, for instance the booleans
             # into 0-1 and the dates get formatted
-            meta.convert_values(attrs)
-            writer.writerow(attrs)
+            meta.convert_values(obj)
+            row = list()
+            for k in csv_fields:
+                row.append(obj[k])
+            writer.writerow(row)
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
@@ -49,7 +52,6 @@ class CSVDownloadMixin:
             filename = meta.csv_filename
             header = meta.csv_header
             qs = self.get_queryset()
-            list_attrs = meta.list_attrs
         except AttributeError as err:
             print(err)
             return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
@@ -60,27 +62,27 @@ class CSVDownloadMixin:
         return response
 
 
-# This mixin allows us to implement an upload endpoint through PUT on our viewsets.
-# The put method will update existing entries, create the ones that don't and delete the ones that
-# are not present in the CSV. The following attributes of the Meta class are used to configure it:
-# model: the model associated with the viewset.
-# chunk_size: how many rows are processed at once for the bulk operations, defaults to 1000.
-# use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise it will
-#   delete all entries and create them anew. Defaults to True, requires the model to have a InternalIDFilterManager
-# upload_preprocess: dict that associates attribute names to functions that will be called on each row. An example is
-#   using it to convert the entries that correspond to a date into the correct format (YYYYMMDD instead of python's
-#   default YYYY-MM-DD). Its default value is an empty dict.
-# foreign_key_mappings: List of dicts defining the foreign keys. These will be used to reference the foreign keys in
-# bulk due to the GTFS IDs not being the internal IDs. The attributes in each dict are:
-#       model: the model of the foreign key
-#       csv_key: name of the field in the CSV (such as from_stop)
-#       model_key: name of the id used by the foreign model (such as stop_id)
-#       internal_key: name of the value for the original model (such as from_stop). Defaults to model_key
-# include_project_id: flag to define whether project_id is included in the model. Defaults to true.
-# csv_header/csv_fields: if csv_fields is present it will be used, otherwise csv_header will be used.
-#   This is used to define the parameters to update in the bulk_update operation.
-
 class CSVUploadMixin:
+    """This mixin allows us to implement an upload endpoint through PUT on our viewsets.
+    The put method will update existing entries, create the ones that don't and delete the ones that
+    are not present in the CSV. The following attributes of the Meta class are used to configure it:
+    model: the model associated with the viewset.
+    chunk_size: how many rows are processed at once for the bulk operations, defaults to 1000.
+    use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise it will
+      delete all entries and create them anew. Defaults to True, requires the model to have a InternalIDFilterManager
+    upload_preprocess: dict that associates attribute names to functions that will be called on each row. An example is
+      using it to convert the entries that correspond to a date into the correct format (YYYYMMDD instead of python's
+      default YYYY-MM-DD). Its default value is an empty dict.
+    foreign_key_mappings: List of dicts defining the foreign keys. These will be used to reference the foreign keys in
+    bulk due to the GTFS IDs not being the internal IDs. The attributes in each dict are:
+          model: the model of the foreign key
+          csv_key: name of the field in the CSV (such as from_stop)
+          model_key: name of the id used by the foreign model (such as stop_id)
+          internal_key: name of the value for the original model (such as from_stop). Defaults to model_key
+    include_project_id: flag to define whether project_id is included in the model. Defaults to true.
+    csv_header/csv_fields: if csv_fields is present it will be used, otherwise csv_header will be used.
+      This is used to define the parameters to update in the bulk_update operation."""
+
     def update_or_create_chunk(self, meta, chunk, project_pk, id_set):
         foreign_key_maps = dict()
         preprocess_funcs = getattr(meta, 'upload_preprocess', dict())
@@ -230,24 +232,17 @@ class CSVHandlerMixin(CSVUploadMixin,
 
 
 class GenericListAttrsMeta:
-    def list_attrs(self, obj):
-        attrs = getattr(self, 'csv_fields', self.csv_header)
-        result = list()
-        for field in attrs:
-            if type(field) == str:
-                field = [field]
-            value = obj
-            for step in field:
-                value = getattr(value, step)
-            result.append(value)
-        return result
-
     @staticmethod
     def convert_values(values):
-        for k in range(len(values)):
+        for k in values:
             v = values[k]
             if isinstance(v, datetime.date):
                 values[k] = v.strftime('%Y%m%d')
+            if isinstance(v, bool):
+                if v:
+                    values[k] = 1
+                else:
+                    values[k] = 0
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -309,14 +304,14 @@ class ShapeViewSet(viewsets.ModelViewSet):
     class Meta:
         pass
 
-    def list(self, request, *args, **kwargs):
-        project_pk = kwargs['project_pk']
-        queryset = Shape.objects.filter(project=project_pk)
-        serializer_context = {
-            'request': request
-        }
-        serializer = ShapeSerializer(queryset, context=serializer_context, many=True)
-        return Response(serializer.data)
+    # def list(self, request, *args, **kwargs):
+    #     project_pk = kwargs['project_pk']
+    #     queryset = self.get_queryset().filter(project=project_pk)
+    #     serializer_context = {
+    #         'request': request
+    #     }
+    #     serializer = ShapeSerializer(queryset, context=serializer_context, many=True)
+    #     return Response(serializer.data)
 
     @staticmethod
     def write_to_file(out, Meta, qs):
@@ -413,15 +408,6 @@ class CalendarViewSet(CSVHandlerMixin,
             'start_date': lambda date: datetime.datetime.strptime(date, '%Y%m%d'),
             'end_date': lambda date: datetime.datetime.strptime(date, '%Y%m%d'),
         }
-
-        @staticmethod
-        def convert_values(values):
-            GenericListAttrsMeta.convert_values(values)
-            for day in range(1, 8):
-                if values[day] is True:
-                    values[day] = 1
-                elif values[day] is False:
-                    values[day] = 0
 
     @staticmethod
     def get_qs(kwargs):
@@ -546,6 +532,8 @@ class PathwayViewSet(CSVHandlerMixin,
                       'is_bidirectional']
         model = Pathway
         filter_params = ['pathway_id']
+        csv_field_mappings = {'from_stop': 'from_stop__stop_id',
+                              'to_stop': 'to_stop__stop_id'}
         foreign_key_mappings = [
             {
                 'csv_key': 'from_stop',
@@ -560,15 +548,6 @@ class PathwayViewSet(CSVHandlerMixin,
                 'internal_key': 'to_stop_id'
             }
         ]
-
-        def list_attrs(self, obj):
-            result = super().list_attrs(obj)
-            ib = self.csv_header.index('is_bidirectional')
-            if result[ib]:
-                result[ib] = 1
-            else:
-                result[ib] = 0
-            return result
 
     @staticmethod
     def get_qs(kwargs):
@@ -598,6 +577,8 @@ class TransferViewSet(CSVHandlerMixin,
         model = Transfer
         filter_params = ['from_stop',
                          'to_stop']
+        csv_field_mappings = {'from_stop': 'from_stop__stop_id',
+                              'to_stop': 'to_stop__stop_id'}
         use_internal_id = False
         include_project_id = False
         rename_fields = {'transfer_type': 'type'}
@@ -660,6 +641,9 @@ class RouteViewSet(CSVHandlerMixin,
                       'route_text_color']
         csv_fields = [e for e in csv_header]
         csv_fields[1] = 'agency'
+        csv_field_mappings = {
+            'agency': 'agency__agency_id'
+        }
         model = Route
         filter_params = ['agency', 'route_id']
         include_project_id = False
@@ -683,15 +667,16 @@ class FareAttributeViewSet(CSVHandlerMixin,
 
     class Meta(GenericListAttrsMeta):
         csv_filename = 'fare_attributes'
-        csv_fields = ['fare_id',
+        csv_header = ['fare_id',
                       'price',
                       'currency_type',
                       'payment_method',
                       'transfers',
                       'transfer_duration',
-                      'agency']
-        csv_header = [e for e in csv_fields]
-        csv_header[6] = 'agency_id'
+                      'agency_id']
+        csv_fields = [e for e in csv_header]
+        csv_fields[6] = 'agency_id'
+        csv_field_mappings = {'agency_id': 'agency__agency_id'}
         model = FareAttribute
         filter_params = ['fare_id']
         foreign_key_mappings = [
@@ -717,6 +702,10 @@ class FareRuleViewSet(CSVHandlerMixin,
                       'route_id']
         csv_fields = ['fare_attribute',
                       'route']
+        csv_field_mappings = {
+            'fare_attribute': 'fare_attribute__fare_id',
+            'route': 'route__route_id'
+        }
         model = FareRule
         filter_params = ['fare_attribute']
         use_internal_id = False
@@ -747,6 +736,10 @@ class TripViewSet(CSVHandlerMixin,
         csv_header = [e for e in csv_fields]
         csv_header[1] = 'route_id'
         csv_header[2] = 'shape_id'
+        csv_field_mappings = {
+            'route': 'route__route_id',
+            'shape': 'shape__shape_id'
+        }
         model = Trip
         filter_params = ['trip_id']
 
@@ -790,6 +783,10 @@ class StopTimeViewSet(CSVHandlerMixin,
         csv_fields = [e for e in csv_header]
         csv_fields[0] = 'trip'
         csv_fields[1] = 'stop'
+        csv_field_mappings = {
+            'trip': 'trip__trip_id',
+            'stop': 'stop__stop_id'
+        }
         model = StopTime
         filter_params = ['trip', 'stop', 'stop_sequence']
 
@@ -870,6 +867,7 @@ class FrequencyViewSet(CSVHandlerMixin,
         model = Frequency
         filter_params = ['trip',
                          'start_time']
+        csv_field_mappings = {'trip': 'trip__trip_id'}
         foreign_key_mappings = [
             {
                 'csv_key': 'trip_id',

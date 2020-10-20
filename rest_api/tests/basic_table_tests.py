@@ -440,9 +440,9 @@ class ShapeTableTest(BaseTableTest):
                                     shape_id=shape_id)[0].id
 
     def test_list(self):
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             json_response = self.list(self.project.project_id, self.client, dict())
-        self.assertEqual(len(json_response), 2)
+        self.assertEqual(len(json_response['results']), 2)
 
     def test_retrieve(self):
         shape_id = 'shape_1'

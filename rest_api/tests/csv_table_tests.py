@@ -8,8 +8,8 @@ from rest_api.models import Shape, Calendar, Level, CalendarDate, Stop, Pathway,
 from rest_api.tests.test_helpers import CSVTestCase, CSVTestMixin
 
 
-class GTFDownloadTest(CSVTestCase):
-    def test_download_as_csv(self):
+class GTFSDownloadTest(CSVTestCase):
+    def test_download_as_gtfs(self):
         expected_files = ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt', 'calendar.txt', 'calendar_dates.txt',
                           'fare_attributes.txt', 'fare_rules.txt', 'frequencies.txt', 'transfers.txt', 'pathways.txt',
                           'levels.txt', 'feed_info.txt', 'shapes.txt', 'stop_times.txt']
@@ -23,7 +23,6 @@ class GTFDownloadTest(CSVTestCase):
             with zipfile.ZipFile(f, 'r') as zf:
                 files = zf.namelist()
                 self.assertListEqual(files, expected_files)
-                print(list(zip(expected_files, csv_files)))
                 for file in zip(expected_files, csv_files):
                     path = 'rest_api/tests/csv/download/{}'.format(file[1])
                     with zf.open(file[0]) as output_file:

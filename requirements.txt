@@ -9,3 +9,4 @@ django-redis==4.12.1
 gunicorn==20.0.4
 drf-nested-routers==0.91
 django-cors-headers==3.5.0
+djangorestframework-datatables==0.5.2

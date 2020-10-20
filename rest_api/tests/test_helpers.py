@@ -324,9 +324,9 @@ class ProjectAPITest(BaseTestCase):
 
     # tests
     def test_retrieve_project_list(self):
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             json_response = self.projects_list(self.client, dict())
-        self.assertEqual(len(json_response), 2)
+        self.assertEqual(len(json_response['results']), 2)
 
     def test_create_project(self):
         name = "Test Project"
@@ -384,6 +384,7 @@ class BaseTableTest(BaseTestCase):
     # helper methods
     def list(self, project_id, client, data, status_code=status.HTTP_200_OK):
         url = self.get_list_url(project_id)
+        data['format']='json'
         return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
 
     def create(self, project_id, client, data, status_code=status.HTTP_201_CREATED):
@@ -413,9 +414,9 @@ class BasicTestSuiteMixin(object):
     # Requires class' Meta to contain:
     # initial_size : amount of objects that will be returned
     def test_list(self):
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(2):
             json_response = self.list(self.project.project_id, self.client, dict())
-        self.assertEqual(len(json_response), self.Meta.initial_size)
+        self.assertEqual(len(json_response['results']), self.Meta.initial_size)
 
     # Tests the GET method for a specific object
     # Requires class' Meta to contain:
@@ -525,6 +526,7 @@ class CSVTestCase(BaseTestCase):
     def setUp(self):
         self.project = self.create_data()[0]
         self.client = APIClient()
+
 
 class CSVTestMixin:
     def test_download(self):
