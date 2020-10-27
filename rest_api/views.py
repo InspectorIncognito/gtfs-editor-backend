@@ -480,7 +480,7 @@ class FeedInfoViewSet(CSVHandlerMixin,
 
     @staticmethod
     def get_qs(kwargs):
-        return FeedInfo.objects.filter(project=kwargs['project_pk'])
+        return FeedInfo.objects.filter(project=kwargs['project_pk']).order_by('feed_publisher_name')
 
 
 class StopViewSet(CSVHandlerMixin,

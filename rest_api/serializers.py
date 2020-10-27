@@ -173,11 +173,16 @@ class TripSerializer(NestedModelSerializer):
 
 
 class StopTimeSerializer(serializers.ModelSerializer):
+    trip_id = serializers.CharField(source='trip.trip_id', read_only=True)
+    stop_id = serializers.CharField(source='stop.stop_id', read_only=True)
+
     class Meta:
         model = StopTime
         fields = ['id',
                   'trip',
+                  'trip_id',
                   'stop',
+                  'stop_id',
                   'stop_sequence',
                   'arrival_time',
                   'departure_time',
@@ -188,7 +193,7 @@ class StopTimeSerializer(serializers.ModelSerializer):
                   'continuous_dropoff',
                   'shape_dist_traveled',
                   'timepoint']
-        read_only = ['id']
+        read_only = ['id', 'trip_id']
 
 
 class FrequencySerializer(serializers.ModelSerializer):

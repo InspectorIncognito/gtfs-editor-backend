@@ -384,8 +384,9 @@ class BaseTableTest(BaseTestCase):
     # helper methods
     def list(self, project_id, client, data, status_code=status.HTTP_200_OK):
         url = self.get_list_url(project_id)
-        data['format']='json'
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
+        data['format'] = 'json'
+        data['no_page'] = ''
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json', no_page="a")
 
     def create(self, project_id, client, data, status_code=status.HTTP_201_CREATED):
         url = self.get_list_url(project_id)
@@ -414,9 +415,9 @@ class BasicTestSuiteMixin(object):
     # Requires class' Meta to contain:
     # initial_size : amount of objects that will be returned
     def test_list(self):
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(1):
             json_response = self.list(self.project.project_id, self.client, dict())
-        self.assertEqual(len(json_response['results']), self.Meta.initial_size)
+        self.assertEqual(len(json_response), self.Meta.initial_size)
 
     # Tests the GET method for a specific object
     # Requires class' Meta to contain:
