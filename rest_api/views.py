@@ -308,15 +308,6 @@ class ShapeViewSet(viewsets.ModelViewSet):
     class Meta:
         pass
 
-    # def list(self, request, *args, **kwargs):
-    #     project_pk = kwargs['project_pk']
-    #     queryset = self.get_queryset().filter(project=project_pk)
-    #     serializer_context = {
-    #         'request': request
-    #     }
-    #     serializer = ShapeSerializer(queryset, context=serializer_context, many=True)
-    #     return Response(serializer.data)
-
     @staticmethod
     def write_to_file(out, Meta, qs):
         meta = Meta()
@@ -324,7 +315,7 @@ class ShapeViewSet(viewsets.ModelViewSet):
         shape_set = qs
         writer.writerow(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'])
         for shape in shape_set:
-            for sp in shape.points.all():
+            for sp in shape.points.all().order_by('shape_pt_sequence'):
                 writer.writerow([sp.shape.shape_id, sp.shape_pt_lat, sp.shape_pt_lon, sp.shape_pt_sequence])
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
@@ -521,6 +512,18 @@ class StopViewSet(CSVHandlerMixin,
     @staticmethod
     def get_qs(kwargs):
         return Stop.objects.filter(project=kwargs['project_pk']).order_by('stop_id')
+
+    @action(methods=['get'], detail=False)
+    def ids(self, request, *args, **kwargs):
+        stops = self.get_queryset()
+        values = ["stop_id", "id"]
+        params = request.query_params
+        if 'reverse' in params:
+            values = values[::-1] #reverse
+        resp = dict()
+        for k, v in stops.values_list(*values):
+            resp[k] = v
+        return Response(resp)
 
 
 class PathwayViewSet(CSVHandlerMixin,
@@ -736,7 +739,7 @@ class TripViewSet(CSVHandlerMixin,
                       'block_id',
                       'wheelchair_accessible',
                       'bikes_allowed']
-
+        search_fields = ['trip_id', 'route_id', 'shape_id']
         csv_header = [e for e in csv_fields]
         csv_header[1] = 'route_id'
         csv_header[2] = 'shape_id'
@@ -784,6 +787,7 @@ class StopTimeViewSet(CSVHandlerMixin,
                       'continuous_dropoff',
                       'shape_dist_traveled',
                       'timepoint']
+        search_fields = ['trip__trip_id', 'stop__stop_id']
         csv_fields = [e for e in csv_header]
         csv_fields[0] = 'trip'
         csv_fields[1] = 'stop'
@@ -796,7 +800,8 @@ class StopTimeViewSet(CSVHandlerMixin,
 
     @staticmethod
     def get_qs(kwargs):
-        return StopTime.objects.filter(trip__project=kwargs['project_pk']).order_by('trip', 'stop_sequence')
+        return StopTime.objects.select_related('trip', 'stop').filter(trip__project=kwargs['project_pk']).order_by(
+            'trip', 'stop_sequence')
 
     def update_or_create_chunk(self, chunk, project_pk, id_set):
         trip_ids = set(map(lambda entry: entry['trip_id'], chunk))

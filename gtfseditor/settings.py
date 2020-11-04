@@ -144,6 +144,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_FILTER_BACKENDS': (
+        'rest_api.parsers.MultiSearchFilter',
         'rest_api.parsers.SortFilter',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_api.parsers.ResultsSetPagination',
@@ -214,3 +215,5 @@ if TESTING:
 
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
 CORS_ALLOWED_ORIGIN_REGEXES = config('CORS_ALLOWED_ORIGIN_REGEXES', cast=Csv())
+CORS_ALLOW_HEADERS = ('content-disposition', 'accept-encoding',
+                      'content-type', 'accept', 'origin', 'authorization')

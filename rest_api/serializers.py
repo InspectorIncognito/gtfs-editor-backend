@@ -1,3 +1,5 @@
+from django.db.models import Model
+
 from rest_api.models import *
 from rest_framework import serializers
 from django.contrib.auth.models import User
@@ -78,6 +80,13 @@ class StopSerializer(NestedModelSerializer):
         read_only = ['id']
 
 
+class StopIDSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stop
+        fields = ['id',
+                  'stop_id']
+
+
 class PathwaySerializer(NestedModelSerializer):
     class Meta:
         model = Pathway
@@ -156,12 +165,19 @@ class FareRuleSerializer(NestedModelSerializer):
 
 
 class TripSerializer(NestedModelSerializer):
+    route = serializers.IntegerField(source='route.id')
+    route_id = serializers.CharField(source='route.route_id')
+    shape = serializers.IntegerField(source='shape.id')
+    shape_id = serializers.CharField(source='shape.shape_id')
+
     class Meta:
         model = Trip
         fields = ['id',
                   'trip_id',
                   'route',
+                  'route_id',
                   'shape',
+                  'shape_id',
                   'service_id',
                   'trip_headsign',
                   'direction_id',
@@ -171,10 +187,81 @@ class TripSerializer(NestedModelSerializer):
                   'bikes_allowed']
         read_only = ['id']
 
+    def update(self, instance, validated_data):
+        route = validated_data.pop('route')
+        shape = validated_data.pop('shape')
+        id_type = None
+        try:
+            if instance.route.id != route['id']:
+                id_type = "internal"
+                instance.route = Route.objects.get(pk=route['id'])
+            elif instance.route.route_id != route['route_id']:
+                id_type = "gtfs"
+                instance.route = Route.objects.get(route_id=route['route_id'],
+                                                   project_id=instance.route.project_id)
+            if instance.shape.id != shape['id']:
+                id_type = "internal"
+                instance.shape = Shape.objects.get(pk=shape['id'])
+            elif instance.shape.shape_id != shape['shape_id']:
+                id_type = "gtfs"
+                instance.shape = Shape.objects.get(shape_id=shape['shape_id'], project_id=instance.shape.project_id)
+        except Route.DoesNotExist as err:
+            response = {
+                'id_type': id_type,
+                'message': "Attempting to update ShapeTime with invalid Route"
+            }
+            raise serializers.ValidationError(response)
+        except Shape.DoesNotExist as err:
+            response = {
+                'id_type': id_type,
+                'message': "Attempting to update ShapeTime with invalid Shape"
+            }
+            raise serializers.ValidationError(response)
+        for k in validated_data:
+            if validated_data[k] == "":
+                validated_data[k] = None
+        st_obj = super().update(instance, validated_data)
+        return st_obj
+
 
 class StopTimeSerializer(serializers.ModelSerializer):
-    trip_id = serializers.CharField(source='trip.trip_id', read_only=True)
-    stop_id = serializers.CharField(source='stop.stop_id', read_only=True)
+    trip = serializers.IntegerField(source='trip.id')
+    trip_id = serializers.CharField(source='trip.trip_id')
+    stop = serializers.IntegerField(source='stop.id')
+    stop_id = serializers.CharField(source='stop.stop_id')
+
+    def update(self, instance, validated_data):
+        trip = validated_data.pop('trip')
+        stop = validated_data.pop('stop')
+        id_type = None
+        try:
+            if instance.trip.id != trip['id']:
+                id_type = "internal"
+                validated_data['trip'] = Trip.objects.get(pk=trip['id'])
+            elif instance.trip.trip_id != trip['trip_id']:
+                id_type = "gtfs"
+                validated_data['trip'] = Trip.objects.get(trip_id=trip['trip_id'],
+                                                          project_id=instance.trip.project_id)
+            if instance.stop.id != stop['id']:
+                id_type = "internal"
+                validated_data['stop'] = Stop.objects.get(pk=stop['id'])
+            elif instance.stop.stop_id != stop['stop_id']:
+                id_type = "gtfs"
+                instance.stop = Stop.objects.get(stop_id=stop['stop_id'], project_id=instance.stop.project_id)
+        except Trip.DoesNotExist as err:
+            response = {
+                'id_type': id_type,
+                'message': "Attempting to update StopTime with invalid Trip"
+            }
+            raise serializers.ValidationError(response)
+        except Stop.DoesNotExist as err:
+            response = {
+                'id_type': id_type,
+                'message': "Attempting to update StopTime with invalid Stop"
+            }
+            raise serializers.ValidationError(response)
+        st_obj = super().update(instance, validated_data)
+        return st_obj
 
     class Meta:
         model = StopTime
