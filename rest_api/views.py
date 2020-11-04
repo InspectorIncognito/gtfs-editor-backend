@@ -519,7 +519,7 @@ class StopViewSet(CSVHandlerMixin,
         values = ["stop_id", "id"]
         params = request.query_params
         if 'reverse' in params:
-            values = values[::-1] #reverse
+            values = values[::-1]  # reverse
         resp = dict()
         for k, v in stops.values_list(*values):
             resp[k] = v
