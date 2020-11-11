@@ -306,7 +306,7 @@ class ShapeViewSet(viewsets.ModelViewSet):
         return Shape.objects.filter(project__project_id=kwargs['project_pk']).order_by('shape_id')
 
     class Meta:
-        pass
+        search_fields = ['shape_id']
 
     @staticmethod
     def write_to_file(out, Meta, qs):
@@ -373,6 +373,18 @@ class ShapeViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         serializer = DetailedShapeSerializer(instance)
         return Response(serializer.data)
+
+    @action(methods=['get'], detail=False)
+    def ids(self, request, *args, **kwargs):
+        shapes = self.get_queryset()
+        values = ["shape_id", "id"]
+        params = request.query_params
+        if 'reverse' in params:
+            values = values[::-1]  # reverse
+        resp = dict()
+        for k, v in shapes.values_list(*values):
+            resp[k] = v
+        return Response(resp)
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -496,6 +508,9 @@ class StopViewSet(CSVHandlerMixin,
                       'platform_code']
         model = Stop
         filter_params = ['stop_id']
+        search_fields = ['stop_id',
+                      'stop_code',
+                      'stop_name']
         foreign_key_mappings = [
             {
                 'csv_key': 'parent_station',
@@ -662,6 +677,19 @@ class RouteViewSet(CSVHandlerMixin,
                 'internal_key': 'agency_id'
             }
         ]
+        search_fields = ['route_id', 'agency__agency_id']
+
+    @action(methods=['get'], detail=False)
+    def ids(self, request, *args, **kwargs):
+        routes = self.get_queryset()
+        values = ["route_id", "id"]
+        params = request.query_params
+        if 'reverse' in params:
+            values = values[::-1]  # reverse
+        resp = dict()
+        for k, v in routes.values_list(*values):
+            resp[k] = v
+        return Response(resp)
 
     @staticmethod
     def get_qs(kwargs):
@@ -739,7 +767,7 @@ class TripViewSet(CSVHandlerMixin,
                       'block_id',
                       'wheelchair_accessible',
                       'bikes_allowed']
-        search_fields = ['trip_id', 'route_id', 'shape_id']
+        search_fields = ['trip_id', 'route__route_id', 'shape__shape_id']
         csv_header = [e for e in csv_fields]
         csv_header[1] = 'route_id'
         csv_header[2] = 'shape_id'

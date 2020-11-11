@@ -220,9 +220,10 @@ class FareAttribute(models.Model):
     price = models.FloatField()
     currency_type = models.CharField(max_length=10)
     payment_method = models.IntegerField()
-    transfers = models.IntegerField()
+    transfers = models.IntegerField(null=True)
     transfer_duration = models.IntegerField()
     agency = models.ForeignKey(Agency, on_delete=models.DO_NOTHING)
+
     objects = InternalIDFilterManager('fare_id')
 
     def __str__(self):

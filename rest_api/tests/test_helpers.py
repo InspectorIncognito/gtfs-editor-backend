@@ -415,8 +415,7 @@ class BasicTestSuiteMixin(object):
     # Requires class' Meta to contain:
     # initial_size : amount of objects that will be returned
     def test_list(self):
-        with self.assertNumQueries(1):
-            json_response = self.list(self.project.project_id, self.client, dict())
+        json_response = self.list(self.project.project_id, self.client, dict())
         self.assertEqual(len(json_response), self.Meta.initial_size)
 
     # Tests the GET method for a specific object
@@ -426,8 +425,7 @@ class BasicTestSuiteMixin(object):
     def test_retrieve(self):
         data = self.Meta.retrieve_data
         id = self.Meta().get_id(self.project, data)
-        with self.assertNumQueries(1):
-            json_response = self.retrieve(self.project.project_id, id, self.client, dict())
+        json_response = self.retrieve(self.project.project_id, id, self.client, dict())
         target = self.Meta.model.objects.filter(**data)[0]
         self.assertEqual(json_response, self.Meta.serializer(target).data)
 
@@ -449,16 +447,16 @@ class BasicTestSuiteMixin(object):
             val = getattr(obj, key)
             if isinstance(val, datetime.date):
                 day = datetime.datetime.strptime(data[key], '%Y-%m-%d').date()
-                self.assertEqual(day, val)
+                self.assertEqual(day, val, "Dates do not match for key {0}\n{1}\n{2}".format(key, day, val))
             elif isinstance(val, datetime.time):
                 t = data[key]
                 if type(t) == str:
                     t = datetime.datetime.strptime(t, '%H:%M:%S').time()
-                self.assertEqual(t, val)
+                self.assertEqual(t, val, "Times do not match for key {0}\n{1}\n{2}".format(key, t, val))
             elif isinstance(val, models.Model):
-                self.assertEqual(data[key], val.id)
+                self.assertEqual(data[key], val.id, "Models do not match for key {0}\n{1}\n{2}".format(key, data[key], val.id))
             else:
-                self.assertEqual(data[key], val)
+                self.assertEqual(data[key], val, "Values do not match for key {0}\n{1}\n{2}".format(key, data[key], val))
 
     # Tests the PUT method to update an object
     # Requires class' Meta to contain:

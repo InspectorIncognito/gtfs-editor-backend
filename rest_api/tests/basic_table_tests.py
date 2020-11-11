@@ -328,7 +328,7 @@ class TripTableTest(BaseTableTest, BasicTestSuiteMixin):
             'service_id': 'transantiago',
             'trip_headsign': 'TRAN',
             'shape': None,
-            'direction_id': 'SUR A ESTE'
+            'direction_id': True,
         }
 
         # delete params
@@ -342,13 +342,13 @@ class TripTableTest(BaseTableTest, BasicTestSuiteMixin):
             'service_id': 'transantiago',
             'trip_headsign': 'TRAN',
             'shape': None,
-            'direction_id': 'From East to West'
+            'direction_id': False,
         }
 
         # patch params
         patch_data = {
             'trip_id': 'test_trip',
-            'direction_id': 'NORTE A SUR'
+            'direction_id': False
         }
 
     def test_create(self):

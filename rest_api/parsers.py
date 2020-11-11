@@ -56,7 +56,8 @@ class MultiSearchFilter(filters.BaseFilterBackend):
         lookup = request.query_params.get('search', '')
         if lookup != '':
             search_vector = SearchVector(*search_fields)
-            print(search_fields)
             print(search_vector)
-            queryset = queryset.annotate(search=search_vector).filter(search=lookup)
+            print(lookup)
+            print(type(lookup))
+            queryset = queryset.annotate(search=search_vector).filter(search__icontains=lookup)
         return queryset
