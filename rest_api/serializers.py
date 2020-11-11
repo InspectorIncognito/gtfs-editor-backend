@@ -1,20 +1,13 @@
-from django.db.models import Model
+from django.contrib.auth.models import User
+from rest_framework import serializers
 
 from rest_api.models import *
-from rest_framework import serializers
-from django.contrib.auth.models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'is_staff']
-
-
-class ProjectSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Project
-        fields = ['project_id', 'name']
 
 
 class NestedModelSerializer(serializers.ModelSerializer):
@@ -251,3 +244,9 @@ class FrequencySerializer(serializers.ModelSerializer):
         read_only = ['id']
 
 
+class ProjectSerializer(serializers.ModelSerializer):
+    feedinfo = FeedInfoSerializer(read_only=True, many=True)
+
+    class Meta:
+        model = Project
+        fields = ['project_id', 'name', 'feedinfo']
