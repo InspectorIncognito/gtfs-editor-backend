@@ -53,6 +53,10 @@ DB_PORT=5432
 
 # Redis location to connect to it. For instance redis://127.0.0.1:6379 
 REDIS_LOCATION=
+
+LOG_PATH=./file.log
+# needed in dev mode
+CORS_ALLOWED_ORIGINS=http://localhost:8080
 ```
 
 ## Test
