@@ -61,6 +61,7 @@ class FeedInfoSerializer(NestedModelSerializer):
 
 class StopSerializer(NestedModelSerializer):
     parent_station_id = serializers.CharField(source='parent_station.stop_id', allow_null=True, read_only=True)
+    level_id = serializers.CharField(source='level.level_id', allow_null=True, read_only=True)
 
     class Meta:
         model = Stop
@@ -78,6 +79,7 @@ class StopSerializer(NestedModelSerializer):
                   'parent_station_id',
                   'stop_timezone',
                   'wheelchair_boarding',
+                  'level',
                   'level_id',
                   'platform_code']
         read_only = ['id']
@@ -91,9 +93,13 @@ class StopIDSerializer(serializers.ModelSerializer):
 
 
 class PathwaySerializer(NestedModelSerializer):
+    from_stop_id = serializers.CharField(source='from_stop.stop_id', read_only=True)
+    to_stop_id = serializers.CharField(source='to_stop.stop_id', read_only=True)
+
     class Meta:
         model = Pathway
-        fields = ['id', 'pathway_id', 'from_stop', 'to_stop', 'pathway_mode', 'is_bidirectional']
+        fields = ['id', 'pathway_id', 'from_stop', 'from_stop_id', 'to_stop', 'from_stop_id', 'pathway_mode',
+                  'is_bidirectional']
         read_only = ['id']
 
 
@@ -130,9 +136,12 @@ class ShapePointSerializer(serializers.ModelSerializer):
 
 
 class TransferSerializer(serializers.ModelSerializer):
+    from_stop_id = serializers.CharField(source='from_stop.stop_id', read_only=True)
+    to_stop_id = serializers.CharField(source='to_stop.stop_id', read_only=True)
+
     class Meta:
         model = Transfer
-        fields = ['id', 'type', 'from_stop', 'to_stop']
+        fields = ['id', 'type', 'from_stop', 'from_stop_id', 'to_stop', 'to_stop_id', 'min_transfer_time']
         read_only = ['id']
 
 
@@ -164,10 +173,13 @@ class FareAttributeSerializer(NestedModelSerializer):
         read_only = ['id', 'agency_id']
 
 
-class FareRuleSerializer(NestedModelSerializer):
+class FareRuleSerializer(serializers.ModelSerializer):
+    fare_id = serializers.CharField(source='fare_attribute.fare_id', read_only=True)
+    route_id = serializers.CharField(source='route.route_id', read_only=True)
+
     class Meta:
         model = FareRule
-        fields = ['id', 'fare_attribute', 'route']
+        fields = ['id', 'fare_attribute', 'fare_id', 'route', 'route_id']
         read_only = ['id']
 
 
@@ -249,5 +261,3 @@ class FrequencySerializer(serializers.ModelSerializer):
         fields = ['id', "trip", 'trip_id', "start_time", "end_time",
                   "headway_secs", "exact_times"]
         read_only = ['id']
-
-

@@ -53,8 +53,7 @@ class StopAdmin(admin.ModelAdmin):
 @admin.register(Pathway)
 class PathwayAdmin(admin.ModelAdmin):
     title = "pathway_id"
-    list_display = ("project", "pathway_id", "from_stop", "to_stop", "pathway_mode", "is_bidirectional")
-    list_filter = ("project",)
+    list_display = ("pathway_id", "from_stop", "to_stop", "pathway_mode", "is_bidirectional")
 
 
 @admin.register(Shape)

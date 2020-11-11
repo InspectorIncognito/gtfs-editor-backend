@@ -110,7 +110,7 @@ class Stop(models.Model):
     parent_station = models.ForeignKey("Stop", null=True, on_delete=models.SET_NULL)
     stop_timezone = models.CharField(max_length=200, null=True)
     wheelchair_boarding = models.CharField(max_length=200, null=True)
-    level_id = models.ForeignKey(Level, null=True, on_delete=models.SET_NULL)
+    level = models.ForeignKey(Level, null=True, on_delete=models.SET_NULL)
     platform_code = models.CharField(max_length=200, null=True)
     objects = InternalIDFilterManager('stop_id')
 
@@ -122,19 +122,23 @@ class Stop(models.Model):
 
 
 class Pathway(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
     pathway_id = models.CharField(max_length=50)
     from_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="stop_from")
     to_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="stop_to")
     pathway_mode = models.IntegerField()
     is_bidirectional = models.BooleanField()
+    # length = models.FloatField(null=True)
+    # traversal_time = models.IntegerField(null=True)
+    # stair_count = models.IntegerField(null=True)
+    # max_slope = models.FloatField(null=True)
+    # min_width = models.FloatField(null=True)
+    # signposted_as = models.CharField(null=True)
+    # reversed_signposted_as = models.CharField(null=True)
+
     objects = InternalIDFilterManager('pathway_id')
 
     def __str__(self):
         return str(self.pathway_id)
-
-    class Meta:
-        unique_together = ['project', 'pathway_id']
 
 
 class Shape(models.Model):
@@ -167,6 +171,8 @@ class Transfer(models.Model):
     from_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="from_stop")
     to_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="to_stop")
     type = models.IntegerField()
+    min_transfer_time = models.IntegerField(null=True)
+
     objects = FilterManager('from_stop__project__project_id')
 
     def __str__(self):
