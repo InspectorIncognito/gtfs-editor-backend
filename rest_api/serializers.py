@@ -245,7 +245,7 @@ class FrequencySerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
-    feedinfo = FeedInfoSerializer(read_only=True, many=True)
+    feedinfo = FeedInfoSerializer(read_only=True)
 
     class Meta:
         model = Project
