@@ -6,6 +6,9 @@ class FilterManager(models.Manager):
         super().__init__()
         self.project_filter = project_filter
 
+    def get_project_filter(self):
+        return self.project_filter
+
     def filter_by_project(self, project_id):
         return self.get_queryset().filter(**{self.project_filter: project_id})
 

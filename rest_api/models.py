@@ -13,7 +13,7 @@ class Project(models.Model):
 
 # TODO update publishing model when publishing methods are decided on
 class PublishingURL(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     name = models.CharField(max_length=50)
     url = models.URLField()
 
@@ -25,13 +25,13 @@ class PublishingURL(models.Model):
 
 
 class Publication(models.Model):
-    publishing_location = models.ForeignKey(PublishingURL, on_delete=models.DO_NOTHING)
+    publishing_location = models.ForeignKey(PublishingURL, on_delete=models.PROTECT)
     status = models.IntegerField()
     message = models.CharField(max_length=200)
 
 
 class Calendar(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     service_id = models.CharField(max_length=50)
     monday = models.BooleanField()
     tuesday = models.BooleanField()
@@ -53,7 +53,7 @@ class Calendar(models.Model):
 
 
 class Level(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     level_id = models.CharField(max_length=50)
     level_index = models.FloatField()
     level_name = models.CharField(max_length=50)
@@ -67,7 +67,7 @@ class Level(models.Model):
 
 
 class CalendarDate(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     service_id = models.CharField(max_length=50)
     date = models.DateField()
     exception_type = models.IntegerField()
@@ -81,7 +81,7 @@ class CalendarDate(models.Model):
 
 
 class FeedInfo(models.Model):
-    project = models.OneToOneField(Project, on_delete=models.DO_NOTHING)
+    project = models.OneToOneField(Project, on_delete=models.PROTECT)
     feed_publisher_name = models.CharField(max_length=50)
     feed_publisher_url = models.URLField()
     feed_lang = models.CharField(max_length=10)
@@ -96,7 +96,7 @@ class FeedInfo(models.Model):
 
 
 class Stop(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     stop_id = models.CharField(max_length=50)
     stop_code = models.CharField(max_length=50, null=True)
     stop_name = models.CharField(max_length=200)
@@ -123,8 +123,8 @@ class Stop(models.Model):
 
 class Pathway(models.Model):
     pathway_id = models.CharField(max_length=50)
-    from_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="stop_from")
-    to_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="stop_to")
+    from_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="stop_from")
+    to_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="stop_to")
     pathway_mode = models.IntegerField()
     is_bidirectional = models.BooleanField()
     # length = models.FloatField(null=True)
@@ -135,14 +135,14 @@ class Pathway(models.Model):
     # signposted_as = models.CharField(null=True)
     # reversed_signposted_as = models.CharField(null=True)
 
-    objects = InternalIDFilterManager('pathway_id')
+    objects = FilterManager('from_stop__project__project_id')
 
     def __str__(self):
         return str(self.pathway_id)
 
 
 class Shape(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     shape_id = models.CharField(max_length=50)
     objects = InternalIDFilterManager('shape_id')
 
@@ -168,8 +168,8 @@ class ShapePoint(models.Model):
 
 
 class Transfer(models.Model):
-    from_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="from_stop")
-    to_stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING, related_name="to_stop")
+    from_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="from_stop")
+    to_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="to_stop")
     type = models.IntegerField()
     min_transfer_time = models.IntegerField(null=True)
 
@@ -183,7 +183,7 @@ class Transfer(models.Model):
 
 
 class Agency(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     agency_id = models.CharField(max_length=50)
     agency_name = models.CharField(max_length=50)
     agency_url = models.URLField()
@@ -202,7 +202,7 @@ class Agency(models.Model):
 
 
 class Route(models.Model):
-    agency = models.ForeignKey(Agency, on_delete=models.DO_NOTHING)
+    agency = models.ForeignKey(Agency, on_delete=models.PROTECT)
     route_id = models.CharField(max_length=50, null=True)
     route_short_name = models.CharField(max_length=50, null=True)
     route_long_name = models.CharField(max_length=200, null=True)
@@ -221,14 +221,14 @@ class Route(models.Model):
 
 
 class FareAttribute(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     fare_id = models.CharField(max_length=50)
     price = models.FloatField()
     currency_type = models.CharField(max_length=10)
     payment_method = models.IntegerField()
     transfers = models.IntegerField(null=True)
     transfer_duration = models.IntegerField()
-    agency = models.ForeignKey(Agency, on_delete=models.DO_NOTHING)
+    agency = models.ForeignKey(Agency, on_delete=models.PROTECT)
 
     objects = InternalIDFilterManager('fare_id')
 
@@ -240,8 +240,8 @@ class FareAttribute(models.Model):
 
 
 class FareRule(models.Model):
-    fare_attribute = models.ForeignKey(FareAttribute, on_delete=models.DO_NOTHING)
-    route = models.ForeignKey(Route, on_delete=models.DO_NOTHING)
+    fare_attribute = models.ForeignKey(FareAttribute, on_delete=models.PROTECT)
+    route = models.ForeignKey(Route, on_delete=models.PROTECT)
     objects = FilterManager('fare_attribute__project__project_id')
 
     def __str__(self):
@@ -249,10 +249,10 @@ class FareRule(models.Model):
 
 
 class Trip(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.DO_NOTHING)
+    project = models.ForeignKey(Project, on_delete=models.PROTECT)
     trip_id = models.CharField(max_length=50)
-    route = models.ForeignKey(Route, on_delete=models.DO_NOTHING)
-    shape = models.ForeignKey(Shape, on_delete=models.DO_NOTHING, null=True)
+    route = models.ForeignKey(Route, on_delete=models.PROTECT)
+    shape = models.ForeignKey(Shape, on_delete=models.PROTECT, null=True)
     service_id = models.CharField(max_length=50)
     trip_headsign = models.CharField(max_length=100, null=True)
     direction_id = models.BooleanField(null=True)
@@ -271,8 +271,8 @@ class Trip(models.Model):
 
 
 class StopTime(models.Model):
-    trip = models.ForeignKey(Trip, on_delete=models.DO_NOTHING)
-    stop = models.ForeignKey(Stop, on_delete=models.DO_NOTHING)
+    trip = models.ForeignKey(Trip, on_delete=models.PROTECT)
+    stop = models.ForeignKey(Stop, on_delete=models.PROTECT)
     stop_sequence = models.IntegerField()
     arrival_time = models.TimeField(null=True)
     departure_time = models.TimeField(null=True)
@@ -297,7 +297,7 @@ class StopTime(models.Model):
 
 
 class Frequency(models.Model):
-    trip = models.ForeignKey(Trip, on_delete=models.DO_NOTHING)
+    trip = models.ForeignKey(Trip, on_delete=models.PROTECT)
     start_time = models.TimeField()
     end_time = models.TimeField()
     headway_secs = models.PositiveIntegerField()

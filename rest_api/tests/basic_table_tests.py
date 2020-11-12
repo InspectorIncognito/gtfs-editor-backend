@@ -614,8 +614,7 @@ class PathwayTableTest(BaseTableTest, BasicTestSuiteMixin):
         invalid_id = 123456789
 
         def get_id(self, project, data):
-            return self.model.objects.filter(project=project,
-                                             pathway_id=data['pathway_id'])[0].id
+            return self.model.objects.filter_by_project(project.project_id).filter(pathway_id=data['pathway_id'])[0].id
 
         # retrieve params
         retrieve_data = {

@@ -3,7 +3,7 @@ from django.db.models import Model
 from rest_api.models import *
 from rest_framework import serializers
 from django.contrib.auth.models import User
-
+from rest_api import validators
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -92,13 +92,13 @@ class StopIDSerializer(serializers.ModelSerializer):
                   'stop_id']
 
 
-class PathwaySerializer(NestedModelSerializer):
+class PathwaySerializer(serializers.ModelSerializer):
     from_stop_id = serializers.CharField(source='from_stop.stop_id', read_only=True)
     to_stop_id = serializers.CharField(source='to_stop.stop_id', read_only=True)
 
     class Meta:
         model = Pathway
-        fields = ['id', 'pathway_id', 'from_stop', 'from_stop_id', 'to_stop', 'from_stop_id', 'pathway_mode',
+        fields = ['id', 'pathway_id', 'from_stop', 'from_stop_id', 'to_stop', 'to_stop_id', 'pathway_mode',
                   'is_bidirectional']
         read_only = ['id']
 
@@ -146,6 +146,7 @@ class TransferSerializer(serializers.ModelSerializer):
 
 
 class AgencySerializer(NestedModelSerializer):
+    agency_timezone = serializers.CharField(validators=[validators.timeZoneValidator])
     class Meta:
         model = Agency
         fields = ['id', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_lang',
@@ -155,6 +156,8 @@ class AgencySerializer(NestedModelSerializer):
 
 class RouteSerializer(serializers.ModelSerializer):
     agency_id = serializers.CharField(source='agency.agency_id', read_only=True)
+    route_color = serializers.CharField(validators=[validators.colorValidator])
+    route_text_color = serializers.CharField(validators=[validators.colorValidator])
 
     class Meta:
         model = Route

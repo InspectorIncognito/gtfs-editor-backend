@@ -261,8 +261,7 @@ class BaseTestCase(TestCase):
                                         service_id='mon-fri',
                                         date=datetime.date(2020, 9, 19),
                                         exception_type=1)
-            Pathway.objects.create(project=project,
-                                   pathway_id='test_pathway',
+            Pathway.objects.create(pathway_id='test_pathway',
                                    from_stop=stops[20],
                                    to_stop=stops[40],
                                    pathway_mode=1,

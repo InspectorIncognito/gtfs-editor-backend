@@ -5,6 +5,7 @@ import time
 import zipfile
 
 from django.db import transaction, connection
+from django.db.models import ProtectedError
 from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -60,6 +61,18 @@ class CSVDownloadMixin:
         response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
         self.write_to_file(response, self.Meta, qs)
         return response
+
+
+class MyModelViewSet(viewsets.ModelViewSet):
+    def destroy(self, *args, **kwargs):
+        try:
+            return super().destroy(*args, **kwargs)
+        except ProtectedError as e:
+            pass
+        return Response({
+            'message': 'Error: cannot destroy field due to FK constraint'
+        }, status=status.HTTP_400_BAD_REQUEST,
+            content_type="application/json")
 
 
 class CSVUploadMixin:
@@ -509,8 +522,8 @@ class StopViewSet(CSVHandlerMixin,
         model = Stop
         filter_params = ['stop_id']
         search_fields = ['stop_id',
-                      'stop_code',
-                      'stop_name']
+                         'stop_code',
+                         'stop_name']
         foreign_key_mappings = [
             {
                 'csv_key': 'parent_station',
@@ -647,7 +660,7 @@ class AgencyViewSet(CSVHandlerMixin,
 
 
 class RouteViewSet(CSVHandlerMixin,
-                   viewsets.ModelViewSet):
+                   MyModelViewSet):
     serializer_class = RouteSerializer
 
     class Meta(ConvertValuesMeta):
