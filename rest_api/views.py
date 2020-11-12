@@ -266,7 +266,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
     """
     API endpoint that allows projects to be viewed or edited.
     """
-    queryset = Project.objects.all().order_by('name')
+    queryset = Project.objects.select_related('feedinfo').all().order_by('name')
     serializer_class = ProjectSerializer
 
     @action(methods=['get'], detail=True, renderer_classes=(BinaryRenderer,))
