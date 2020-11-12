@@ -262,7 +262,7 @@ class ConvertValuesMeta:
                     values[k] = 0
 
 
-class ProjectViewSet(viewsets.ModelViewSet):
+class ProjectViewSet(MyModelViewSet):
     """
     API endpoint that allows projects to be viewed or edited.
     """
@@ -307,7 +307,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         return response
 
 
-class ShapeViewSet(viewsets.ModelViewSet):
+class ShapeViewSet(MyModelViewSet):
     serializer_class = ShapeSerializer
     CHUNK_SIZE = 10000
 
@@ -400,13 +400,13 @@ class ShapeViewSet(viewsets.ModelViewSet):
         return Response(resp)
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(MyModelViewSet):
     queryset = User.objects.all().order_by('username')
     serializer_class = UserSerializer
 
 
 class CalendarViewSet(CSVHandlerMixin,
-                      viewsets.ModelViewSet):
+                      MyModelViewSet):
     serializer_class = CalendarSerializer
 
     class Meta(ConvertValuesMeta):
@@ -435,7 +435,7 @@ class CalendarViewSet(CSVHandlerMixin,
 
 
 class LevelViewSet(CSVHandlerMixin,
-                   viewsets.ModelViewSet):
+                   MyModelViewSet):
     serializer_class = LevelSerializer
 
     class Meta(ConvertValuesMeta):
@@ -454,7 +454,7 @@ class LevelViewSet(CSVHandlerMixin,
 
 
 class CalendarDateViewSet(CSVHandlerMixin,
-                          viewsets.ModelViewSet):
+                          MyModelViewSet):
     serializer_class = CalendarDateSerializer
 
     class Meta(ConvertValuesMeta):
@@ -475,7 +475,7 @@ class CalendarDateViewSet(CSVHandlerMixin,
 
 
 class FeedInfoViewSet(CSVHandlerMixin,
-                      viewsets.ModelViewSet):
+                      MyModelViewSet):
     serializer_class = FeedInfoSerializer
 
     class Meta(ConvertValuesMeta):
@@ -500,7 +500,7 @@ class FeedInfoViewSet(CSVHandlerMixin,
 
 
 class StopViewSet(CSVHandlerMixin,
-                  viewsets.ModelViewSet):
+                  MyModelViewSet):
     serializer_class = StopSerializer
     CHUNK_SIZE = 10000
 
@@ -555,7 +555,7 @@ class StopViewSet(CSVHandlerMixin,
 
 
 class PathwayViewSet(CSVHandlerMixin,
-                     viewsets.ModelViewSet):
+                     MyModelViewSet):
     serializer_class = PathwaySerializer
 
     class Meta(ConvertValuesMeta):
@@ -589,7 +589,7 @@ class PathwayViewSet(CSVHandlerMixin,
         return Pathway.objects.filter(from_stop__project__project_id=kwargs['project_pk']).order_by('pathway_id')
 
 
-class ShapePointViewSet(viewsets.ModelViewSet):
+class ShapePointViewSet(MyModelViewSet):
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
@@ -598,7 +598,7 @@ class ShapePointViewSet(viewsets.ModelViewSet):
 
 
 class TransferViewSet(CSVHandlerMixin,
-                      viewsets.ModelViewSet):
+                      MyModelViewSet):
     serializer_class = TransferSerializer
 
     class Meta(ConvertValuesMeta):
@@ -638,7 +638,7 @@ class TransferViewSet(CSVHandlerMixin,
 
 
 class AgencyViewSet(CSVHandlerMixin,
-                    viewsets.ModelViewSet):
+                    MyModelViewSet):
     serializer_class = AgencySerializer
 
     class Meta(ConvertValuesMeta):
@@ -710,7 +710,7 @@ class RouteViewSet(CSVHandlerMixin,
 
 
 class FareAttributeViewSet(CSVHandlerMixin,
-                           viewsets.ModelViewSet):
+                           MyModelViewSet):
     serializer_class = FareAttributeSerializer
 
     class Meta(ConvertValuesMeta):
@@ -741,7 +741,7 @@ class FareAttributeViewSet(CSVHandlerMixin,
 
 
 class FareRuleViewSet(CSVHandlerMixin,
-                      viewsets.ModelViewSet):
+                      MyModelViewSet):
     serializer_class = FareRuleSerializer
 
     class Meta(ConvertValuesMeta):
@@ -764,7 +764,7 @@ class FareRuleViewSet(CSVHandlerMixin,
 
 
 class TripViewSet(CSVHandlerMixin,
-                  viewsets.ModelViewSet):
+                  MyModelViewSet):
     serializer_class = TripSerializer
     CHUNK_SIZE = 10000
 
@@ -810,7 +810,7 @@ class TripViewSet(CSVHandlerMixin,
 
 
 class StopTimeViewSet(CSVHandlerMixin,
-                      viewsets.ModelViewSet):
+                      MyModelViewSet):
     serializer_class = StopTimeSerializer
     CHUNK_SIZE = 100000
 
@@ -902,7 +902,7 @@ class StopTimeViewSet(CSVHandlerMixin,
 
 
 class FrequencyViewSet(CSVHandlerMixin,
-                       viewsets.ModelViewSet):
+                       MyModelViewSet):
     serializer_class = FrequencySerializer
 
     class Meta(ConvertValuesMeta):

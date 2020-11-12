@@ -57,7 +57,6 @@ class FeedInfoSerializer(NestedModelSerializer):
 class StopSerializer(NestedModelSerializer):
     parent_station_id = serializers.CharField(source='parent_station.stop_id', allow_null=True, read_only=True)
     level_id = serializers.CharField(source='level.level_id', allow_null=True, read_only=True)
-
     class Meta:
         model = Stop
         fields = ['id',

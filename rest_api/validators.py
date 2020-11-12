@@ -13,7 +13,6 @@ color_regex = re.compile("[a-fA-F0-9]{6}")
 
 
 def colorValidator(color):
-    print(color)
     if len(color) > 0 and color[0] == "#":
         raise serializers.ValidationError("Color must not contain a leading #.")
     if len(color) != 6:
