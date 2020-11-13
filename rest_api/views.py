@@ -747,9 +747,15 @@ class FareRuleViewSet(CSVHandlerMixin,
     class Meta(ConvertValuesMeta):
         csv_filename = 'fare_rules'
         csv_header = ['fare_id',
-                      'route_id']
+                      'route_id',
+                      'origin_id',
+                      'destination_id',
+                      'contains_id']
         csv_fields = ['fare_attribute',
-                      'route']
+                      'route',
+                      'origin_id',
+                      'destination_id',
+                      'contains_id']
         csv_field_mappings = {
             'fare_attribute': 'fare_attribute__fare_id',
             'route': 'route__route_id'

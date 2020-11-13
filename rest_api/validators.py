@@ -5,7 +5,7 @@ from rest_framework import serializers
 
 
 def timeZoneValidator(timezone):
-    if timezone not in pytz.all_timezones:
+    if timezone not in pytz.all_timezones_set:
         raise serializers.ValidationError("This field must contain a valid time zone.")
 
 

@@ -241,7 +241,10 @@ class FareAttribute(models.Model):
 
 class FareRule(models.Model):
     fare_attribute = models.ForeignKey(FareAttribute, on_delete=models.PROTECT)
-    route = models.ForeignKey(Route, on_delete=models.PROTECT)
+    route = models.ForeignKey(Route, on_delete=models.SET_NULL, null=True, blank=True)
+    origin_id = models.CharField(max_length=200, null=True, blank=True)
+    destination_id = models.CharField(max_length=200, null=True, blank=True)
+    contains_id = models.CharField(max_length=200, null=True, blank=True)
     objects = FilterManager('fare_attribute__project__project_id')
 
     def __str__(self):

@@ -176,7 +176,7 @@ class FareRuleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = FareRule
-        fields = ['id', 'fare_attribute', 'fare_id', 'route', 'route_id']
+        fields = ['id', 'fare_attribute', 'fare_id', 'route', 'route_id', 'origin_id', 'destination_id', 'contains_id']
         read_only = ['id']
 
 
