@@ -1,5 +1,3 @@
-from django.db import models
-
 from rest_api.managers import *
 
 
@@ -307,3 +305,26 @@ class Frequency(models.Model):
 
     class Meta:
         unique_together = ['trip', 'start_time']
+
+
+class GTFSValidation(models.Model):
+    project = models.OneToOneField(Project, on_delete=models.CASCADE)
+    STATUS_QUEUED = 'queued'
+    STATUS_ERROR = 'error'
+    STATUS_FINISHED = 'finished'
+    STATUS_PROCESSING = 'processing'
+    STATUS_CANCELED = 'canceled'
+    status_choices = (
+        (STATUS_QUEUED, 'Queued'),
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_FINISHED, 'Finished'),
+        (STATUS_ERROR, 'Error'),
+        (STATUS_CANCELED, 'Canceled'),
+    )
+    status = models.CharField(max_length=20, choices=status_choices, default=None, null=True)
+    ran_at = models.DateTimeField(default=None, null=True)
+    message = models.TextField(default=None, null=True)
+    error_number = models.IntegerField(default=None, null=True)
+    warning_number = models.IntegerField(default=None, null=True)
+    duration = models.DurationField(default=None, null=True)
+    job_id = models.UUIDField(null=True)

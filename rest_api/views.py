@@ -7,14 +7,20 @@ import zipfile
 from django.db import transaction, connection
 from django.db.models import ProtectedError
 from django.http import HttpResponse
+from django_rq.queues import get_connection
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
+from rq import cancel_job
+from rq.command import send_kill_horse_command
+from rq.worker import Worker, WorkerStatus
 
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
-from rest_api.utils import log, create_foreign_key_hashmap, DAYS
+from rest_api.utils import log, create_foreign_key_hashmap
+from rqworkers.jobs import validate_gtfs
 
 
 class CSVDownloadMixin:
@@ -305,6 +311,52 @@ class ProjectViewSet(MyModelViewSet):
         response = HttpResponse(s.getvalue(), content_type="application/x-zip-compressed")
         response['Content-Disposition'] = 'attachment; filename={}.zip'.format(fname)
         return response
+
+    @action(detail=True, methods=['POST'])
+    def run_validation(self, request, public_id=None):
+        project_obj = self.get_object()
+
+        try:
+            project_obj.validation.status = GTFSValidation.STATUS_QUEUED
+            project_obj.validation.ran_at = None
+            project_obj.validation.error_message = None
+            project_obj.validation.error_number = None
+            project_obj.validation.warning_number = None
+            project_obj.validation.duration = None
+            project_obj.validation.job_id = None
+            project_obj.validation.save()
+        except GTFSValidation.DoesNotExist:
+            GTFSValidation.objects.create(project=project_obj)
+
+        # async task
+        job = validate_gtfs.delay(project_obj.pk)
+
+        GTFSValidation.objects.filter(project=project_obj).update(job_id=job.id)
+
+        return Response({}, status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['POST'])
+    def run_cancel_validation(self, request, public_id=None):
+        project_obj = self.get_object()
+
+        if project_obj.validation in [GTFSValidation.STATUS_ERROR, GTFSValidation.STATUS_FINISHED,
+                                      GTFSValidation.STATUS_CANCELED]:
+            raise ValidationError('Validation is not running or queued')
+
+        redis_conn = get_connection()
+        workers = Worker.all(redis_conn)
+        for worker in workers:
+            if worker.state == WorkerStatus.BUSY and \
+                    worker.get_current_job_id() == str(project_obj.validation.job_id):
+                send_kill_horse_command(redis_conn, worker.name)
+
+        # remove from queue
+        cancel_job(str(project_obj.validation.job_id), connection=redis_conn)
+
+        project_obj.validation.status = GTFSValidation.STATUS_CANCELED
+        project_obj.validation.save()
+
+        return Response({}, status.HTTP_200_OK)
 
 
 class ShapeViewSet(MyModelViewSet):
