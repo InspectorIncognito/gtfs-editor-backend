@@ -19,21 +19,24 @@ def gtfseditor_jobk(payload_data):
 def validate_gtfs(project_pk):
     """ run validation tools for a GTFS """
     start_time = timezone.now()
-    project_obj = Project.objects.select_related('gtfsvalidation').get(id=project_pk)
-    project_obj.validation.status = GTFSValidation.STATUS_PROCESSING
-    project_obj.validation.ran_at = timezone.now()
-    project_obj.validation.save()
+    project_obj = Project.objects.select_related('gtfsvalidation').get(pk=project_pk)
+    project_obj.gtfsvalidation.status = GTFSValidation.STATUS_PROCESSING
+    project_obj.gtfsvalidation.ran_at = timezone.now()
+    project_obj.gtfsvalidation.save()
 
     try:
         # work
+        import time
+        time.sleep(10)
 
-        project_obj.validation.status = GTFSValidation.STATUS_FINISHED
-        project_obj.validation.message = 'wololo'
-        project_obj.validation.error_number = 1
-        project_obj.validation.warning_number = 1
+        project_obj.gtfsvalidation.status = GTFSValidation.STATUS_FINISHED
+        project_obj.gtfsvalidation.message = 'wololo'
+        project_obj.gtfsvalidation.error_number = 1
+        project_obj.gtfsvalidation.warning_number = 1
     except Exception as e:
-        project_obj.validation.status = GTFSValidation.STATUS_ERROR
+        project_obj.gtfsvalidation.status = GTFSValidation.STATUS_ERROR
+        project_obj.gtfsvalidation.message = str(e)
         logger.error(e)
     finally:
-        project_obj.validation.duration = timezone.now() - start_time
-        project_obj.validation.save()
+        project_obj.gtfsvalidation.duration = timezone.now() - start_time
+        project_obj.gtfsvalidation.save()
