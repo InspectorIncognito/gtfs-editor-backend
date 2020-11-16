@@ -15,6 +15,7 @@ from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
 from rq import cancel_job
 from rq.command import send_kill_horse_command
+from rq.exceptions import NoSuchJobError
 from rq.worker import Worker, WorkerStatus
 
 from rest_api.renderers import BinaryRenderer
@@ -353,8 +354,11 @@ class ProjectViewSet(MyModelViewSet):
                         worker.get_current_job_id() == str(project_obj.gtfsvalidation.job_id):
                     send_kill_horse_command(redis_conn, worker.name)
 
-            # remove from queue
-            cancel_job(str(project_obj.gtfsvalidation.job_id), connection=redis_conn)
+            try:
+                # remove from queue
+                cancel_job(str(project_obj.gtfsvalidation.job_id), connection=redis_conn)
+            except NoSuchJobError:
+                pass
 
             project_obj.gtfsvalidation.status = GTFSValidation.STATUS_CANCELED
             project_obj.gtfsvalidation.save()
