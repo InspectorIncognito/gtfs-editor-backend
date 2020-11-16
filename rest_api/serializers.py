@@ -1,10 +1,9 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from rest_api.models import *
-from rest_framework import serializers
-from django.contrib.auth.models import User
 from rest_api import validators
+from rest_api.models import *
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -57,6 +56,7 @@ class FeedInfoSerializer(NestedModelSerializer):
 class StopSerializer(NestedModelSerializer):
     parent_station_id = serializers.CharField(source='parent_station.stop_id', allow_null=True, read_only=True)
     level_id = serializers.CharField(source='level.level_id', allow_null=True, read_only=True)
+
     class Meta:
         model = Stop
         fields = ['id',
@@ -141,6 +141,7 @@ class TransferSerializer(serializers.ModelSerializer):
 
 class AgencySerializer(NestedModelSerializer):
     agency_timezone = serializers.CharField(validators=[validators.timeZoneValidator])
+
     class Meta:
         model = Agency
         fields = ['id', 'agency_id', 'agency_name', 'agency_url', 'agency_timezone', 'agency_lang',
@@ -260,10 +261,16 @@ class FrequencySerializer(serializers.ModelSerializer):
         read_only = ['id']
 
 
+class GTFSValidationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GTFSValidation
+        fields = ['status', 'ran_at', 'message', 'error_number', 'warning_number', 'duration']
+
 
 class ProjectSerializer(serializers.ModelSerializer):
     feedinfo = FeedInfoSerializer(read_only=True)
+    gtfsvalidation = GTFSValidationSerializer()
 
     class Meta:
         model = Project
-        fields = ['project_id', 'name', 'feedinfo']
+        fields = ['project_id', 'name', 'feedinfo', 'gtfsvalidation']
