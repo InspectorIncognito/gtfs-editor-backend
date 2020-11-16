@@ -264,7 +264,7 @@ class FrequencySerializer(serializers.ModelSerializer):
 class GTFSValidationSerializer(serializers.ModelSerializer):
     class Meta:
         model = GTFSValidation
-        fields = ['status', 'ran_at', 'message', 'error_number', 'warning_number', 'duration', 'error_message']
+        fields = ['status', 'ran_at', 'message', 'error_number', 'warning_number', 'duration']
 
 
 class ProjectSerializer(serializers.ModelSerializer):

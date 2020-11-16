@@ -342,8 +342,8 @@ class ProjectViewSet(MyModelViewSet):
         project_obj = self.get_object()
 
         try:
-            if project_obj.gtfsvalidation in [GTFSValidation.STATUS_ERROR, GTFSValidation.STATUS_FINISHED,
-                                              GTFSValidation.STATUS_CANCELED]:
+            if project_obj.gtfsvalidation.status in [GTFSValidation.STATUS_ERROR, GTFSValidation.STATUS_FINISHED,
+                                                     GTFSValidation.STATUS_CANCELED]:
                 raise ValidationError('Validation is not running or queued')
 
             redis_conn = get_connection()
@@ -359,7 +359,7 @@ class ProjectViewSet(MyModelViewSet):
             project_obj.gtfsvalidation.status = GTFSValidation.STATUS_CANCELED
             project_obj.gtfsvalidation.save()
         except GTFSValidation.DoesNotExist:
-            raise ValidationError('validation has never been executed')
+            raise ValidationError('Validation has never been executed')
 
         return Response(GTFSValidationSerializer(project_obj.gtfsvalidation).data, status.HTTP_200_OK)
 

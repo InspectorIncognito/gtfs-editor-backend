@@ -1,9 +1,10 @@
 import datetime
 import json
+import uuid
+from unittest import mock
 
 from django.core.files import File
 from django.core.files.uploadedfile import SimpleUploadedFile
-
 from django.db import models
 from django.test import TestCase
 from django.urls import reverse
@@ -11,7 +12,7 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
-    ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule
+    ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule, GTFSValidation
 from rest_api.serializers import ProjectSerializer
 
 
@@ -321,6 +322,16 @@ class ProjectAPITest(BaseTestCase):
         url = reverse('project-detail', kwargs=dict(pk=pk))
         return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
 
+    def projects_run_gtfs_validation_action(self, client, pk, status_code=status.HTTP_201_CREATED):
+        url = reverse('project-run-gtfs-validation', kwargs=dict(pk=pk))
+        data = dict()
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+
+    def projects_cancel_gtfs_validation_action(self, client, pk, status_code=status.HTTP_200_OK):
+        url = reverse('project-cancel-gtfs-validation', kwargs=dict(pk=pk))
+        data = dict()
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+
     # tests
     def test_retrieve_project_list(self):
         with self.assertNumQueries(2):
@@ -361,6 +372,46 @@ class ProjectAPITest(BaseTestCase):
         db_data = ProjectSerializer(self.project).data
         self.assertDictEqual(json_response, db_data)
         self.assertEqual(db_data['name'], name)
+
+    def test_run_gtfs_validation(self):
+        with self.assertRaises(GTFSValidation.DoesNotExist):
+            self.project.gtfsvalidation
+
+        json_response = self.projects_run_gtfs_validation_action(self.client, self.project.pk)
+        print(json_response)
+        # TODO: improved test
+
+    def test_cancel_gtfs_validation_when_process_finished_correctly(self):
+        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_FINISHED)
+        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
+                                                                    status_code=status.HTTP_400_BAD_REQUEST)
+        self.assertListEqual(json_response, ['Validation is not running or queued'])
+
+    def test_cancel_gtfs_validation_when_process_finished_with_error(self):
+        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_ERROR)
+        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
+                                                                    status_code=status.HTTP_400_BAD_REQUEST)
+        self.assertListEqual(json_response, ['Validation is not running or queued'])
+
+    def test_cancel_gtfs_validation_when_process_was_canceled(self):
+        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_CANCELED)
+        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
+                                                                    status_code=status.HTTP_400_BAD_REQUEST)
+        self.assertListEqual(json_response, ['Validation is not running or queued'])
+
+    @mock.patch('rest_api.views.cancel_job')
+    def test_cancel_gtfs_validation(self, mock_cancel_job):
+        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_PROCESSING,
+                                      job_id=uuid.uuid4())
+
+        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk)
+        self.assertEqual(json_response['status'], GTFSValidation.STATUS_CANCELED)
+        mock_cancel_job.assert_called_once()
+
+    def test_cancel_gtfs_validation_when_validation_has_never_been_executed(self):
+        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
+                                                                    status_code=status.HTTP_400_BAD_REQUEST)
+        self.assertListEqual(json_response, ['Validation has never been executed'])
 
 
 class BaseTableTest(BaseTestCase):
@@ -453,9 +504,11 @@ class BasicTestSuiteMixin(object):
                     t = datetime.datetime.strptime(t, '%H:%M:%S').time()
                 self.assertEqual(t, val, "Times do not match for key {0}\n{1}\n{2}".format(key, t, val))
             elif isinstance(val, models.Model):
-                self.assertEqual(data[key], val.id, "Models do not match for key {0}\n{1}\n{2}".format(key, data[key], val.id))
+                self.assertEqual(data[key], val.id,
+                                 "Models do not match for key {0}\n{1}\n{2}".format(key, data[key], val.id))
             else:
-                self.assertEqual(data[key], val, "Values do not match for key {0}\n{1}\n{2}".format(key, data[key], val))
+                self.assertEqual(data[key], val,
+                                 "Values do not match for key {0}\n{1}\n{2}".format(key, data[key], val))
 
     # Tests the PUT method to update an object
     # Requires class' Meta to contain:
