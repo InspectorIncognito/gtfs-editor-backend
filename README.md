@@ -116,3 +116,8 @@ Stop command:
 ```
 docker-compose -f docker\docker-compose.yml down
 ```
+
+Sometimes you want to update frontend code without upgrade everything else, so in this cases you should call:
+```
+docker-compose -f docker\docker-compose.yml build --no-cache nginx
+```
