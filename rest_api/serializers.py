@@ -269,7 +269,7 @@ class GTFSValidationSerializer(serializers.ModelSerializer):
 
 class ProjectSerializer(serializers.ModelSerializer):
     feedinfo = FeedInfoSerializer(read_only=True)
-    gtfsvalidation = GTFSValidationSerializer()
+    gtfsvalidation = GTFSValidationSerializer(read_only=True)
 
     class Meta:
         model = Project
