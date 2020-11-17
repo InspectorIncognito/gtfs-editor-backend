@@ -344,7 +344,7 @@ class ProjectAPITest(BaseTestCase):
         fields = {
             'name': name
         }
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             json_response = self.projects_create(self.client, fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
