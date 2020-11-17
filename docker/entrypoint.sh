@@ -29,12 +29,6 @@ case "$1" in
     python manage.py migrate
     python manage.py collectstatic --no-input
 
-    # if variable is not empty string
-    if [ -n "$SU_DJANGO_USERNAME" ];
-    then
-      echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('$SU_DJANGO_USERNAME', 'a@b.com', '$SU_DJANGO_PASS') if not User.objects.filter(username='$SU_DJANGO_USERNAME').exists() else None;" | python manage.py shell
-    fi
-
     gunicorn --chdir gtfseditor --access-logfile - --bind :8000 gtfseditor.wsgi:application -t 1200
   ;;
   worker)

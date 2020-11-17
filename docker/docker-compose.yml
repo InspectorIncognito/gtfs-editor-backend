@@ -9,9 +9,6 @@ services:
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
-    environment:
-      - SU_DJANGO_USERNAME=transapp
-      - SU_DJANGO_PASS=transapp
     env_file:
       - ./docker_env
     depends_on:
