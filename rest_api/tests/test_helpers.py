@@ -527,6 +527,8 @@ class BasicTestSuiteMixin(object):
                 self.assertEqual(data[key], val.id,
                                  "Models do not match for key {0}\n{1}\n{2}".format(key, data[key], val.id))
             else:
+                if key.replace('_id', '') in data:
+                    continue
                 self.assertEqual(data[key], val,
                                  "Values do not match for key {0}\n{1}\n{2}".format(key, data[key], val))
 

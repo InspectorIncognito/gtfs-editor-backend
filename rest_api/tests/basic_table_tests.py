@@ -462,7 +462,7 @@ class ShapeTableTest(BaseTableTest):
         }
         id = self.get_id(shape_id)
         # 1 extra query to erase the shapepoints (cascade)
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             json_response = self.delete(self.project.project_id, id, self.client, dict())
         self.assertEqual(Shape.objects.filter(**data).count(), 0)
 
