@@ -11,7 +11,7 @@ def gtfs_update_to(instance, filename):
 
 class Project(models.Model):
     project_id = models.AutoField(primary_key=True)
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=50, unique=True)
     last_modification = models.DateTimeField(default=timezone.now, null=False)
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
     gtfs_file_updated_at = models.DateTimeField(null=True)
