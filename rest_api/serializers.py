@@ -273,4 +273,4 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['project_id', 'name', 'feedinfo', 'gtfsvalidation']
+        fields = ['project_id', 'name', 'feedinfo', 'gtfsvalidation', 'last_modification', 'gtfs_file_updated_at']

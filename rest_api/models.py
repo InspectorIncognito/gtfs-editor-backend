@@ -1,5 +1,7 @@
 import os
 
+from django.utils import timezone
+
 from rest_api.managers import *
 
 
@@ -10,7 +12,9 @@ def gtfs_update_to(instance, filename):
 class Project(models.Model):
     project_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
+    last_modification = models.DateTimeField(default=timezone.now, null=False)
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
+    gtfs_file_updated_at = models.DateTimeField(null=True)
 
     def __str__(self):
         return str(self.name)
