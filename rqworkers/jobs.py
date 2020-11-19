@@ -37,12 +37,13 @@ def validate_gtfs(project_pk):
         except IOError:
             pass
 
-        # call gtfs validator
-        # TODO: replace with gtfs path
-        gtfs_zip_filepath = os.path.join('media', str(project_pk), 'calama.zip')
+        if not project_obj.gtfs_file:
+            raise ValueError('GTFS file does not exist')
+
         arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-v1.3.1_cli.jar'),
-                     '-i', gtfs_zip_filepath,
+                     '-i', project_obj.gtfs_file.name,
                      '-o', os.path.join('tmp', str(project_pk))]
+        # call gtfs validator
         subprocess.call(arguments)
 
         error_number = 0
