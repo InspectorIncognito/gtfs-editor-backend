@@ -57,10 +57,3 @@ class TestValidateGTFS(BaseTestCase):
     def test_project_does_not_exist(self):
         with self.assertRaises(Project.DoesNotExist):
             validate_gtfs(1000)
-
-    def test_error_while_processing_gtfs(self):
-        validate_gtfs(self.project.pk)
-
-        self.project.refresh_from_db()
-        self.assertEqual(self.project.gtfsvalidation.status, GTFSValidation.STATUS_ERROR)
-        self.assertIsNotNone(self.project.gtfsvalidation.message)
