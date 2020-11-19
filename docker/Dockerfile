@@ -17,11 +17,11 @@ ENV PYTHONUNBUFFERED 1
 
 COPY --from=builder /install /usr/local
 
-RUN /bin/sh -c 'apk update && apk add --no-cache postgresql-dev'
+RUN /bin/sh -c 'apk update && apk add --no-cache openjdk11 postgresql-dev'
 
 WORKDIR /app
-RUN mkdir /app/staticfiles
-RUN mkdir /app/mediafiles
+RUN mkdir /app/staticfiles && \
+    mkdir /app/mediafiles
 
 # copy project files on /app folder
 COPY . .
