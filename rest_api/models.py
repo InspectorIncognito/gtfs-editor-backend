@@ -1,9 +1,16 @@
+import os
+
 from rest_api.managers import *
+
+
+def gtfs_update_to(instance, filename):
+    return os.path.join(str(instance.pk), filename)
 
 
 class Project(models.Model):
     project_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
+    gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
 
     def __str__(self):
         return str(self.name)

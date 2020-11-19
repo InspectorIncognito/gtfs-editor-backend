@@ -38,6 +38,7 @@ def validate_gtfs(project_pk):
             pass
 
         # call gtfs validator
+        # TODO: replace with gtfs path
         gtfs_zip_filepath = os.path.join('media', str(project_pk), 'calama.zip')
         arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-v1.3.1_cli.jar'),
                      '-i', gtfs_zip_filepath,
