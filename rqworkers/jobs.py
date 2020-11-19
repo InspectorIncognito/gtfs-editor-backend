@@ -1,4 +1,11 @@
+import csv
+import glob
+import json
 import logging
+import os
+import shutil
+import subprocess
+from io import StringIO
 
 from django.conf import settings
 from django.utils import timezone
@@ -25,14 +32,48 @@ def validate_gtfs(project_pk):
     project_obj.gtfsvalidation.save()
 
     try:
-        # work
-        import time
-        time.sleep(10)
+        try:
+            shutil.rmtree(os.path.join('tmp', str(project_pk)))
+        except IOError:
+            pass
+
+        # call gtfs validator
+        gtfs_zip_filepath = os.path.join('media', str(project_pk), 'calama.zip')
+        arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-v1.3.1_cli.jar'),
+                     '-i', gtfs_zip_filepath,
+                     '-o', os.path.join('tmp', str(project_pk))]
+        subprocess.call(arguments)
+
+        error_number = 0
+        warning_number = 0
+
+        in_memory_csv = StringIO()
+        spamwriter = csv.writer(in_memory_csv, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        header = ['filename', 'code', 'level', 'entity id', 'title', 'description']
+        spamwriter.writerow(header)
+
+        for filepath in glob.glob(os.path.join('tmp', str(project_pk), '*.json')):
+            with open(filepath) as file_obj:
+                json_file = json.load(file_obj)
+                for row in json_file['results'][1:]:
+                    if row['level'] == 'WARNING':
+                        warning_number += 1
+                    if row['level'] == 'ERROR':
+                        error_number += 1
+
+                    spamwriter.writerow([
+                        row['filename'],
+                        row['code'],
+                        row['level'],
+                        row['entityId'],
+                        row['title'],
+                        row['description']
+                    ])
 
         project_obj.gtfsvalidation.status = GTFSValidation.STATUS_FINISHED
-        project_obj.gtfsvalidation.message = 'wololo'
-        project_obj.gtfsvalidation.error_number = 1
-        project_obj.gtfsvalidation.warning_number = 1
+        project_obj.gtfsvalidation.message = in_memory_csv.getvalue()
+        project_obj.gtfsvalidation.error_number = error_number
+        project_obj.gtfsvalidation.warning_number = warning_number
     except Exception as e:
         project_obj.gtfsvalidation.status = GTFSValidation.STATUS_ERROR
         project_obj.gtfsvalidation.message = str(e)
@@ -40,3 +81,8 @@ def validate_gtfs(project_pk):
     finally:
         project_obj.gtfsvalidation.duration = timezone.now() - start_time
         project_obj.gtfsvalidation.save()
+
+        try:
+            shutil.rmtree('input')
+        except IOError:
+            pass
