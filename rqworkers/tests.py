@@ -6,7 +6,7 @@ from django.core.files.base import ContentFile
 
 from rest_api.models import GTFSValidation, Project
 from rest_api.tests.test_helpers import BaseTestCase
-from rqworkers.jobs import validate_gtfs
+from rqworkers.jobs import validate_gtfs, create_gtfs_file
 
 
 class TestValidateGTFS(BaseTestCase):
@@ -57,3 +57,26 @@ class TestValidateGTFS(BaseTestCase):
     def test_project_does_not_exist(self):
         with self.assertRaises(Project.DoesNotExist):
             validate_gtfs(1000)
+
+
+class TestCreateGTFSFile(BaseTestCase):
+
+    def setUp(self):
+        self.project_obj = self.create_data()[0]
+
+    def test_execution(self):
+        create_gtfs_file(self.project_obj.pk)
+
+        self.project_obj.refresh_from_db()
+        # delete test files
+        os.remove(self.project_obj.gtfs_file.path)
+        parent_path = os.path.sep.join(self.project_obj.gtfs_file.path.split(os.path.sep)[:-1])
+        if len(os.listdir(parent_path)) == 0:
+            os.rmdir(parent_path)
+
+    def test_project_name_does_not_exist(self):
+        with self.assertRaises(ValueError):
+            create_gtfs_file('wrong_project_pk')
+
+        with self.assertRaises(Project.DoesNotExist):
+            create_gtfs_file(-1)

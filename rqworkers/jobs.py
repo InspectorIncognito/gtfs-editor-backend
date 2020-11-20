@@ -8,6 +8,7 @@ import subprocess
 from io import StringIO
 
 from django.conf import settings
+from django.core.management import call_command
 from django.utils import timezone
 from django_rq import job
 
@@ -17,9 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 @job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)
-def gtfseditor_jobk(payload_data):
-    import time
-    time.sleep(15)
+def create_gtfs_file(project_pk):
+    start_time = timezone.now()
+
+    project_obj = Project.objects.get(pk=project_pk)
+    call_command('buildgtfs', project_obj.name)
+
+    duration = timezone.now() - start_time
+    logger.info('duration: {0}'.format(duration))
 
 
 @job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60)
