@@ -27,7 +27,8 @@ def create_gtfs_file(project_pk):
     try:
         call_command('buildgtfs', project_obj.name)
         project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
-    except ValueError:
+    except Exception as e:
+        logger.error(e)
         project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
     finally:
         project_obj.save()

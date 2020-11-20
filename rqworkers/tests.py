@@ -64,15 +64,22 @@ class TestCreateGTFSFile(BaseTestCase):
     def setUp(self):
         self.project_obj = self.create_data()[0]
 
-    def test_execution(self):
+    @mock.patch('rqworkers.jobs.call_command')
+    def test_execution(self, mock_call_command):
         create_gtfs_file(self.project_obj.pk)
 
         self.project_obj.refresh_from_db()
-        # delete test files
-        os.remove(self.project_obj.gtfs_file.path)
-        parent_path = os.path.sep.join(self.project_obj.gtfs_file.path.split(os.path.sep)[:-1])
-        if len(os.listdir(parent_path)) == 0:
-            os.rmdir(parent_path)
+        self.assertEqual(self.project_obj.gtfs_creation_status, Project.GTFS_CREATION_STATUS_FINISHED)
+        mock_call_command.assert_called_with('buildgtfs', self.project_obj.name)
+
+    @mock.patch('rqworkers.jobs.call_command')
+    def test_execution_raise_error(self, mock_call_command):
+        mock_call_command.side_effect = ValueError('error calling call_command')
+        create_gtfs_file(self.project_obj.pk)
+
+        self.project_obj.refresh_from_db()
+        self.assertEqual(self.project_obj.gtfs_creation_status, Project.GTFS_CREATION_STATUS_ERROR)
+        mock_call_command.assert_called_with('buildgtfs', self.project_obj.name)
 
     def test_project_name_does_not_exist(self):
         with self.assertRaises(ValueError):
