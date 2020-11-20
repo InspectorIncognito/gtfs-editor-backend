@@ -2,7 +2,6 @@ import csv
 import datetime
 import io
 import time
-import zipfile
 
 from django.db import transaction, connection
 from django.db.models import ProtectedError
@@ -21,7 +20,7 @@ from rq.worker import Worker, WorkerStatus
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
-from rqworkers.jobs import validate_gtfs
+from rqworkers.jobs import validate_gtfs, create_gtfs_file
 
 
 class CSVDownloadMixin:
@@ -278,40 +277,23 @@ class ProjectViewSet(MyModelViewSet):
 
     @action(methods=['get'], detail=True, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
-        project = Project.objects.filter(project_id=kwargs['pk'])[0]
-        fname = "GTFS-" + project.name
-        feedinfo = FeedInfo.objects.filter(project=project)
-        if feedinfo.count() > 0:
-            fname += "-" + feedinfo[0].feed_version
-        s = io.BytesIO()
-        files = {
-            'agency': AgencyViewSet,
-            'stops': StopViewSet,
-            'routes': RouteViewSet,
-            'trips': TripViewSet,
-            'calendar': CalendarViewSet,
-            'calendar_dates': CalendarDateViewSet,
-            'fare_attributes': FareAttributeViewSet,
-            'fare_rules': FareRuleViewSet,
-            'frequencies': FrequencyViewSet,
-            'transfers': TransferViewSet,
-            'pathways': PathwayViewSet,
-            'levels': LevelViewSet,
-            'feed_info': FeedInfoViewSet,
-            'shapes': ShapeViewSet,
-            'stop_times': StopTimeViewSet,
-        }
-        zf = zipfile.ZipFile(s, "w", zipfile.ZIP_DEFLATED, False)
-        for f in files:
-            out = io.StringIO()
-            view = files[f]
-            qs = view.get_qs({'project_pk': kwargs['pk']})
-            view.write_to_file(out, view.Meta, qs)
-            zf.writestr('{}.txt'.format(f), out.getvalue())
-        zf.close()
-        response = HttpResponse(s.getvalue(), content_type="application/x-zip-compressed")
-        response['Content-Disposition'] = 'attachment; filename={}.zip'.format(fname)
+        project_obj = self.get_object()
+        if not project_obj.gtfs_file:
+            raise ValidationError('Project has not been not created gtfs files yet')
+        response = HttpResponse(project_obj.gtfs_file, content_type="application/x-zip-compressed")
+        response['Content-Disposition'] = 'attachment; filename={}.zip'.format(project_obj.gtfs_file.name)
         return response
+
+    @action(detail=True, methods=['POST'])
+    def create_gtfs_file(self, request, pk=None):
+        project_obj = self.get_object()
+        if project_obj.gtfs_creation_status in [Project.GTFS_CREATION_STATUS_FINISHED,
+                                                Project.GTFS_CREATION_STATUS_ERROR, None]:
+            project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+            project_obj.save()
+            create_gtfs_file.delay(project_obj.pk)
+
+        return Response(ProjectSerializer(project_obj).data, status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['POST'])
     def run_gtfs_validation(self, request, pk=None):
