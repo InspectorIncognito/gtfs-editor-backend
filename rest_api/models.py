@@ -15,6 +15,19 @@ class Project(models.Model):
     last_modification = models.DateTimeField(default=timezone.now, null=False)
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
     gtfs_file_updated_at = models.DateTimeField(null=True)
+    GTFS_CREATION_STATUS_QUEUED = 'queued'
+    GTFS_CREATION_STATUS_PROCESSING = 'processing'
+    GTFS_CREATION_STATUS_FINISHED = 'finished'
+    GTFS_CREATION_STATUS_ERROR = 'error'
+    gtfs_creation_status_choices = (
+        (GTFS_CREATION_STATUS_QUEUED, 'Queued'),
+        (GTFS_CREATION_STATUS_PROCESSING, 'Processing'),
+        (GTFS_CREATION_STATUS_FINISHED, 'Finished'),
+        (GTFS_CREATION_STATUS_ERROR, 'Error'),
+    )
+    gtfs_creation_status = models.CharField(max_length=20, choices=gtfs_creation_status_choices, default=None,
+                                            null=True)
+    gtfs_creation_duration = models.DurationField(default=None, null=True)
 
     def __str__(self):
         return str(self.name)
