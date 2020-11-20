@@ -22,10 +22,17 @@ def create_gtfs_file(project_pk):
     start_time = timezone.now()
 
     project_obj = Project.objects.get(pk=project_pk)
-    call_command('buildgtfs', project_obj.name)
+    project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_PROCESSING
+    project_obj.save()
+    try:
+        call_command('buildgtfs', project_obj.name)
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
+    except ValueError:
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
+    finally:
+        project_obj.save()
 
-    duration = timezone.now() - start_time
-    logger.info('duration: {0}'.format(duration))
+        logger.info('duration: {0}'.format(timezone.now() - start_time))
 
 
 @job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60)
