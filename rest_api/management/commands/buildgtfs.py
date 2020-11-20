@@ -3,6 +3,7 @@ from io import BytesIO, StringIO
 
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
 from rest_api.models import Project, FeedInfo
 from rest_api.views import AgencyViewSet, StopViewSet, RouteViewSet, TripViewSet, CalendarViewSet, \
@@ -18,6 +19,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         project_name = options['project_name']
+        start_time = timezone.now()
+
         try:
             project_obj = Project.objects.select_related('feedinfo').get(name=project_name)
         except Project.DoesNotExist:
@@ -58,6 +61,8 @@ class Command(BaseCommand):
             zf.writestr('{}.txt'.format(gtfs_filename), out.getvalue())
         zf.close()
 
+        project_obj.gtfs_file_updated_at = timezone.now()
+        project_obj.gtfs_creation_duration = timezone.now() - start_time
         project_obj.gtfs_file.save(filename, ContentFile(s.getvalue()))
 
         self.stdout.write(self.style.SUCCESS('GTFS "{0}" was created successfully'.format(filename)))
