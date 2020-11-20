@@ -287,13 +287,15 @@ class ProjectViewSet(MyModelViewSet):
     @action(detail=True, methods=['POST'])
     def create_gtfs_file(self, request, pk=None):
         project_obj = self.get_object()
+        http_status = status.HTTP_200_OK
         if project_obj.gtfs_creation_status in [Project.GTFS_CREATION_STATUS_FINISHED,
                                                 Project.GTFS_CREATION_STATUS_ERROR, None]:
             project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
             project_obj.save()
             create_gtfs_file.delay(project_obj.pk)
+            http_status = status.HTTP_201_CREATED
 
-        return Response(ProjectSerializer(project_obj).data, status.HTTP_201_CREATED)
+        return Response(ProjectSerializer(project_obj).data, http_status)
 
     @action(detail=True, methods=['POST'])
     def run_gtfs_validation(self, request, pk=None):

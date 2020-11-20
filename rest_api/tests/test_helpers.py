@@ -333,6 +333,11 @@ class ProjectAPITest(BaseTestCase):
         data = dict()
         return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
 
+    def projects_create_gtfs_file_action(self, client, pk, status_code=status.HTTP_200_OK):
+        url = reverse('project-create-gtfs-file', kwargs=dict(pk=pk))
+        data = dict()
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+
     # tests
     def test_retrieve_project_list(self):
         with self.assertNumQueries(2):
@@ -344,7 +349,7 @@ class ProjectAPITest(BaseTestCase):
         fields = {
             'name': name
         }
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(4):
             json_response = self.projects_create(self.client, fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
@@ -363,7 +368,7 @@ class ProjectAPITest(BaseTestCase):
 
     def test_patch(self):
         # One to get one to update
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             name = "New Name"
             update_data = {
                 "name": name
@@ -432,6 +437,38 @@ class ProjectAPITest(BaseTestCase):
         json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
                                                                     status_code=status.HTTP_400_BAD_REQUEST)
         self.assertListEqual(json_response, ['Validation has never been executed'])
+
+    @mock.patch('rest_api.views.create_gtfs_file')
+    def test_create_gtfs_file_with_queued_status(self, mock_create_gtfs_file):
+        json_response = self.projects_create_gtfs_file_action(self.client, self.project.pk,
+                                                              status_code=status.HTTP_201_CREATED)
+        mock_create_gtfs_file.delay.assert_called_with(self.project.pk)
+        mock_create_gtfs_file.delay.assert_called_once()
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.gtfs_creation_status, Project.GTFS_CREATION_STATUS_QUEUED)
+        self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
+
+    def test_create_gtfs_file_with_finished_status(self):
+        json_response = self.projects_create_gtfs_file_action(self.client, self.project.pk,
+                                                              status_code=status.HTTP_201_CREATED)
+
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.gtfs_creation_status, Project.GTFS_CREATION_STATUS_FINISHED)
+        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
+
+    def test_create_gtfs_file_does_not_run_because_status(self):
+        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        self.project.save()
+        json_response = self.projects_create_gtfs_file_action(self.client, self.project.pk,
+                                                              status_code=status.HTTP_200_OK)
+        self.assertEqual(json_response['gtfs_creation_status'], Project.GTFS_CREATION_STATUS_QUEUED)
+
+        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_PROCESSING
+        self.project.save()
+        json_response = self.projects_create_gtfs_file_action(self.client, self.project.pk,
+                                                              status_code=status.HTTP_200_OK)
+        self.assertEqual(json_response['gtfs_creation_status'], Project.GTFS_CREATION_STATUS_PROCESSING)
 
 
 class BaseTableTest(BaseTestCase):
