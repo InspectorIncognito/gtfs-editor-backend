@@ -454,7 +454,11 @@ class ProjectAPITest(BaseTestCase):
 
         self.project.refresh_from_db()
         self.assertEqual(self.project.gtfs_creation_status, Project.GTFS_CREATION_STATUS_FINISHED)
+
+        # match fields
         self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        self.project.gtfs_creation_duration = None
+        self.project.gtfs_file_updated_at = None
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
 
     def test_create_gtfs_file_does_not_run_because_status(self):
