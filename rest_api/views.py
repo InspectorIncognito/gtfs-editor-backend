@@ -6,6 +6,7 @@ import time
 from django.db import transaction, connection
 from django.db.models import ProtectedError
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from django_rq.queues import get_connection
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -280,8 +281,9 @@ class ProjectViewSet(MyModelViewSet):
         project_obj = self.get_object()
         if not project_obj.gtfs_file:
             raise ValidationError('Project has not been not created gtfs files yet')
-        response = HttpResponse(project_obj.gtfs_file, content_type="application/x-zip-compressed")
-        response['Content-Disposition'] = 'attachment; filename={}.zip'.format(project_obj.gtfs_file.name)
+        response = redirect(project_obj.gtfs_file.url)
+        response['Content-Disposition'] = 'attachment; filename={}'.format(project_obj.gtfs_file.name)
+
         return response
 
     @action(detail=True, methods=['POST'])
