@@ -1,5 +1,7 @@
 import datetime
 import json
+import os
+import pathlib
 import uuid
 from unittest import mock
 
@@ -338,6 +340,11 @@ class ProjectAPITest(BaseTestCase):
         data = dict()
         return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
 
+    def projects_upload_gtfs_file_action(self, client, pk, zipfile_obj, status_code=status.HTTP_200_OK):
+        url = reverse('project-upload-gtfs-file', kwargs=dict(pk=pk))
+        data = dict(file=zipfile_obj)
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='multipart')
+
     # tests
     def test_retrieve_project_list(self):
         with self.assertNumQueries(2):
@@ -473,6 +480,15 @@ class ProjectAPITest(BaseTestCase):
         json_response = self.projects_create_gtfs_file_action(self.client, self.project.pk,
                                                               status_code=status.HTTP_200_OK)
         self.assertEqual(json_response['gtfs_creation_status'], Project.GTFS_CREATION_STATUS_PROCESSING)
+
+    @mock.patch('rest_api.views.upload_gtfs_file')
+    def test_upload_gtfs_file(self, mock_upload_gtfs_file):
+        current_dir = pathlib.Path(__file__).parent.absolute()
+        with open(os.path.join(current_dir, '..', '..', 'rqworkers', 'tests', 'cat.jpg'), 'rb') as fp:
+            json_response = self.projects_upload_gtfs_file_action(self.client, self.project.pk, fp)
+
+        mock_upload_gtfs_file.delay.assert_called_once()
+        self.assertDictEqual(json_response, {})
 
 
 class BaseTableTest(BaseTestCase):
