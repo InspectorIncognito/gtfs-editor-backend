@@ -163,6 +163,9 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': config('LOG_PATH'),
         },
+        'console': {
+            'class': 'rq.utils.ColorizingStreamHandler',
+        }
     },
     'loggers': {
         'django': {
@@ -170,6 +173,16 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'rqworkers': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True
+        }
     },
 }
 
