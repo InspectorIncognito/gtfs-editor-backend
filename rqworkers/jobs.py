@@ -5,16 +5,70 @@ import logging
 import os
 import shutil
 import subprocess
+import zipfile
 from io import StringIO
 
 from django.conf import settings
 from django.core.management import call_command
+from django.db import transaction, IntegrityError
 from django.utils import timezone
 from django_rq import job
+from rest_framework.exceptions import ParseError, ValidationError
 
 from rest_api.models import Project, GTFSValidation
 
 logger = logging.getLogger(__name__)
+
+
+@job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)
+def upload_gtfs_file(project_pk, zip_file):
+    # to avoid circular references
+    from rest_api.views import AgencyViewSet, StopViewSet, RouteViewSet, TripViewSet, CalendarViewSet, \
+        CalendarDateViewSet, \
+        FareRuleViewSet, FareAttributeViewSet, FrequencyViewSet, TransferViewSet, PathwayViewSet, LevelViewSet, \
+        FeedInfoViewSet, ShapeViewSet, StopTimeViewSet
+    uploaders = {
+        'agency.txt': AgencyViewSet,
+        'stops.txt': StopViewSet,
+        'routes.txt': RouteViewSet,
+        'trips.txt': TripViewSet,
+        'calendar.txt': CalendarViewSet,
+        'calendar_dates.txt': CalendarDateViewSet,
+        'fare_attributes.txt': FareAttributeViewSet,
+        'fare_rules.txt': FareRuleViewSet,
+        'frequencies.txt': FrequencyViewSet,
+        'transfers.txt': TransferViewSet,
+        'pathways.txt': PathwayViewSet,
+        'levels.txt': LevelViewSet,
+        'feed_info.txt': FeedInfoViewSet,
+        'shapes.txt': ShapeViewSet,
+        'stop_times.txt': StopTimeViewSet,
+    }
+    try:
+        with zipfile.ZipFile(zip_file, 'r') as zip_file_obj:
+            try:
+                with transaction.atomic():
+                    # file order matters
+                    for uploader_filename in ['agency.txt', 'stops.txt', 'routes.txt', 'shapes.txt', 'trips.txt',
+                                              'stop_times.txt', 'calendar.txt', 'calendar_dates.txt', 'fare_rules.txt',
+                                              'fare_attributes.txt', 'frequencies.txt', 'transfers.txt', 'pathways.txt',
+                                              'levels.txt', 'feed_info.txt']:
+                        uploader = uploaders[uploader_filename]
+                        try:
+                            with zip_file_obj.open(uploader_filename, 'r') as file_obj:
+                                uploader()._perform_upload(file_obj, project_pk)
+                        except KeyError:
+                            if uploader_filename in ['agency.txt', 'stops.txt', 'routes.txt', 'trips.txt',
+                                                     'stop_times.txt', 'calendar.txt', 'shapes.txt', 'feed_info.txt']:
+                                logger.error('file "{0}" is mandatory'.format(uploader_filename))
+                                raise ValidationError('{0} file is mandatory'.format(uploader_filename))
+                            else:
+                                logger.info('file "{0}" does not exist in zip file'.format(uploader_filename))
+            except IntegrityError as e:
+                logger.error('error while zip file was loading: {0}'.format(e))
+                transaction.rollback()
+    except zipfile.BadZipFile:
+        raise ParseError('File is not a zip file')
 
 
 @job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)

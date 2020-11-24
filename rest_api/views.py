@@ -21,7 +21,7 @@ from rq.worker import Worker, WorkerStatus
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
-from rqworkers.jobs import validate_gtfs, create_gtfs_file
+from rqworkers.jobs import validate_gtfs, create_gtfs_file, upload_gtfs_file
 
 
 class CSVDownloadMixin:
@@ -103,7 +103,7 @@ class CSVUploadMixin:
     csv_header/csv_fields: if csv_fields is present it will be used, otherwise csv_header will be used.
       This is used to define the parameters to update in the bulk_update operation."""
 
-    def update_or_create_chunk(self, meta, chunk, project_pk, id_set):
+    def update_or_create_chunk(self, chunk, project_pk, id_set, meta):
         foreign_key_maps = dict()
         preprocess_funcs = getattr(meta, 'upload_preprocess', dict())
         foreign_key_mappings = getattr(meta, 'foreign_key_mappings', dict())
@@ -186,25 +186,32 @@ class CSVUploadMixin:
         if 'file' not in request.FILES:
             return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES['file']
-        # First we check the required attributes are present
+
         try:
-            meta = self.Meta()
-            model = meta.model
-            chunk_size = getattr(meta, 'CHUNK_SIZE', 1000)
-            use_internal_id = getattr(meta, 'use_internal_id', True)
+            self._perform_upload(file, kwargs['project_pk'])
         except AttributeError as err:
             print(err)
             return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
+
+        return HttpResponse(content_type='text/plain')
+
+    def _perform_upload(self, file, project_pk):
+        # First we check the required attributes are present
+        meta = self.Meta()
+        model = meta.model
+        chunk_size = getattr(meta, 'CHUNK_SIZE', 1000)
+        use_internal_id = getattr(meta, 'use_internal_id', True)
+
         # We measure some parameters for logging
         q1 = len(connection.queries)
         if not use_internal_id:
             # if the table doesn't use an internal id we can clear the table and refill it
-            model.objects.filter_by_project(kwargs['project_pk']).delete()
+            model.objects.filter_by_project(project_pk).delete()
         t = time.time()
         t1 = t
         chunk_num = 1
-        # wrap the file so the csv module can process it
+
         with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
             # Each row will become a dict with the column names as the keys
             reader = csv.DictReader(text_file)
@@ -222,14 +229,14 @@ class CSVUploadMixin:
                 if len(chunk) >= chunk_size:
                     log("Chunk Number", chunk_num)
                     chunk_num += 1
-                    self.update_or_create_chunk(meta, chunk, kwargs['project_pk'], id_set)
+                    self.update_or_create_chunk(chunk, project_pk, id_set, meta)
                     t2 = time.time()
                     log("Total Time", t2 - t1)
                     t1 = t2
                     chunk = list()
             # the remaining values are processed
             log("Chunk Number", chunk_num)
-            self.update_or_create_chunk(meta, chunk, kwargs['project_pk'], id_set)
+            self.update_or_create_chunk(chunk, project_pk, id_set, meta)
             t2 = time.time()
             log("total", t2 - t)
             t = t2
@@ -238,8 +245,7 @@ class CSVUploadMixin:
         # if we were using internal ids then we delete the ones we didn't update or create.
         if use_internal_id:
             filter_dict = {model.objects.get_internal_id_name() + '__in': id_set}
-            model.objects.filter_by_project(kwargs['project_pk']).exclude(**filter_dict).delete()
-        return HttpResponse(content_type='text/plain')
+            model.objects.filter_by_project(project_pk).exclude(**filter_dict).delete()
 
 
 # This class bundles up the CSVUploadMixin and CSVDownloadMixin,
@@ -276,7 +282,7 @@ class ProjectViewSet(MyModelViewSet):
     queryset = Project.objects.select_related('feedinfo', 'gtfsvalidation').all().order_by('name')
     serializer_class = ProjectSerializer
 
-    @action(methods=['get'], detail=True, renderer_classes=(BinaryRenderer,))
+    @action(methods=['GET'], detail=True, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
         project_obj = self.get_object()
         if not project_obj.gtfs_file:
@@ -285,6 +291,15 @@ class ProjectViewSet(MyModelViewSet):
         response['Content-Disposition'] = 'attachment; filename={}'.format(project_obj.gtfs_file.name)
 
         return response
+
+    @action(methods=['POST'], detail=True)
+    def upload_gtfs_file(self, *args, **kwargs):
+        project_obj = self.get_object()
+        zip_file = self.request.FILES['file']
+
+        upload_gtfs_file.delay(project_obj.pk, zip_file)
+        # TODO: add status to upload process like validation or build
+        return Response({}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['POST'])
     def create_gtfs_file(self, request, pk=None):
@@ -386,7 +401,8 @@ class ShapeViewSet(MyModelViewSet):
         self.write_to_file(response, self.Meta, qs)
         return response
 
-    def update_or_create_chunk(self, chunk, project_pk, shape_id_set):
+    def update_or_create_chunk(self, chunk, project_pk, shape_id_set, meta=None):
+        # meta params is necessary to be compliance with UploadMixin interface
         shape_qs = Shape.objects.filter_by_project(project_pk)
         shape_ids = set(map(lambda row: row['shape_id'], chunk))
         for shape_id in shape_ids:
@@ -410,7 +426,12 @@ class ShapeViewSet(MyModelViewSet):
         if 'file' not in request.FILES:
             return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES['file']
-        ShapePoint.objects.filter_by_project(kwargs['project_pk']).delete()
+        self._perform_upload(file, kwargs['project_pk'])
+
+        return HttpResponse(content_type='text/plain')
+
+    def _perform_upload(self, file, project_pk):
+        ShapePoint.objects.filter_by_project(project_pk).delete()
         with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
             # This gives us an ordered dictionary with the rows
             reader = csv.DictReader(text_file)
@@ -420,14 +441,12 @@ class ShapeViewSet(MyModelViewSet):
             for entry in reader:
                 chunk.append(entry)
                 if len(chunk) >= self.CHUNK_SIZE:
-                    self.update_or_create_chunk(chunk, kwargs['project_pk'], shape_id_set)
+                    self.update_or_create_chunk(chunk, project_pk, shape_id_set)
                     chunk = list()
-            self.update_or_create_chunk(chunk, kwargs['project_pk'], shape_id_set)
+            self.update_or_create_chunk(chunk, project_pk, shape_id_set)
 
-        to_delete = Shape.objects.filter(project_id=kwargs['project_pk']).exclude(shape_id__in=shape_id_set)
+        to_delete = Shape.objects.filter(project_id=project_pk).exclude(shape_id__in=shape_id_set)
         to_delete.delete()
-
-        return HttpResponse(content_type='text/plain')
 
     def retrieve(self, request, project_pk=None, pk=None):
         instance = self.get_object()
@@ -575,7 +594,8 @@ class StopViewSet(CSVHandlerMixin,
             {
                 'csv_key': 'parent_station',
                 'model': Stop,
-                'model_key': 'stop_id'
+                'model_key': 'stop_id',
+                'internal_key': 'parent_station'
             },
             {
                 'csv_key': 'level_id',
@@ -616,6 +636,7 @@ class PathwayViewSet(CSVHandlerMixin,
         filter_params = ['pathway_id']
         csv_field_mappings = {'from_stop': 'from_stop__stop_id',
                               'to_stop': 'to_stop__stop_id'}
+        use_internal_id = False
         foreign_key_mappings = [
             {
                 'csv_key': 'from_stop',
@@ -897,7 +918,8 @@ class StopTimeViewSet(CSVHandlerMixin,
         return StopTime.objects.select_related('trip', 'stop').filter(trip__project=kwargs['project_pk']).order_by(
             'trip', 'stop_sequence')
 
-    def update_or_create_chunk(self, chunk, project_pk, id_set):
+    def update_or_create_chunk(self, chunk, project_pk, id_set, meta=None):
+        # meta params is necessary to be compliance with UploadMixin interface
         trip_ids = set(map(lambda entry: entry['trip_id'], chunk))
         stop_ids = set(map(lambda entry: entry['stop_id'], chunk))
         trip_id_map = dict()
@@ -919,11 +941,16 @@ class StopTimeViewSet(CSVHandlerMixin,
     @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
     @transaction.atomic()
     def upload(self, request, *args, **kwargs):
-        q1 = len(connection.queries)
         if 'file' not in request.FILES:
             return HttpResponse('Error: No file found', status=status.HTTP_400_BAD_REQUEST)
         file = request.FILES['file']
-        StopTime.objects.filter_by_project(kwargs['project_pk']).delete()
+        self._perform_upload(file, kwargs['project_pk'])
+
+        return HttpResponse(content_type='text/plain')
+
+    def _perform_upload(self, file, project_pk):
+        q1 = len(connection.queries)
+        StopTime.objects.filter_by_project(project_pk).delete()
         t = time.time()
         chunk_num = 1
         with io.TextIOWrapper(file, encoding='utf-8-sig') as text_file:
@@ -940,18 +967,17 @@ class StopTimeViewSet(CSVHandlerMixin,
                 if len(chunk) >= self.CHUNK_SIZE:
                     log("Chunk Number", chunk_num)
                     chunk_num += 1
-                    self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
+                    self.update_or_create_chunk(chunk, project_pk, id_set)
                     t2 = time.time()
                     log("Total Time", t2 - t)
                     t = t2
                     chunk = list()
             log("Chunk Number", chunk_num)
-            self.update_or_create_chunk(chunk, kwargs['project_pk'], id_set)
+            self.update_or_create_chunk(chunk, project_pk, id_set)
             t2 = time.time()
             log("total", t2 - t)
         q2 = len(connection.queries)
         log("Operation completed performing", q2 - q1, "queries")
-        return HttpResponse(content_type='text/plain')
 
 
 class FrequencyViewSet(CSVHandlerMixin,
