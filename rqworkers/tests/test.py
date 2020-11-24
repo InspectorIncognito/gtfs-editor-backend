@@ -1,12 +1,16 @@
 import json
 import os
+import pathlib
 from unittest import mock
 
 from django.core.files.base import ContentFile
+from django.test import TransactionTestCase
+from rest_framework.exceptions import ParseError, ValidationError
 
-from rest_api.models import GTFSValidation, Project
+from rest_api.models import Agency, Stop, Route, Trip, Calendar, CalendarDate, FareAttribute, FareRule, \
+    Frequency, Transfer, Pathway, Level, FeedInfo, ShapePoint, StopTime, GTFSValidation, Project, Shape
 from rest_api.tests.test_helpers import BaseTestCase
-from rqworkers.jobs import validate_gtfs, create_gtfs_file
+from rqworkers.jobs import validate_gtfs, create_gtfs_file, upload_gtfs_file
 
 
 class TestValidateGTFS(BaseTestCase):
@@ -87,3 +91,61 @@ class TestCreateGTFSFile(BaseTestCase):
 
         with self.assertRaises(Project.DoesNotExist):
             create_gtfs_file(-1)
+
+
+class UploadGTFSFileJob(TransactionTestCase):
+
+    def setUp(self):
+        self.project_obj = Project.objects.create(name='project')
+
+    def test_upload_non_zip_file(self):
+        previous_last_modification = self.project_obj.last_modification
+
+        with self.assertRaises(ParseError, msg='File is not a zip file'):
+            with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'cat.jpg')) as file_obj:
+                upload_gtfs_file(self.project_obj.pk, file_obj)
+
+        self.project_obj.refresh_from_db()
+        self.assertEqual(self.project_obj.last_modification, previous_last_modification)
+
+    def test_upload_gtfs_file(self):
+        previous_last_modification = self.project_obj.last_modification
+        with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
+            upload_gtfs_file(self.project_obj.pk, file_obj)
+
+        self.project_obj.refresh_from_db()
+        self.assertNotEqual(self.project_obj.last_modification, previous_last_modification)
+
+        self.assertEqual(Agency.objects.count(), 1)
+        self.assertEqual(Stop.objects.count(), 477)
+        self.assertEqual(Route.objects.count(), 11)
+        self.assertEqual(Trip.objects.count(), 1483)
+        self.assertEqual(Calendar.objects.count(), 3)
+        self.assertEqual(CalendarDate.objects.count(), 0)
+        self.assertEqual(FareAttribute.objects.count(), 0)
+        self.assertEqual(FareRule.objects.count(), 0)
+        self.assertEqual(Frequency.objects.count(), 0)
+        self.assertEqual(Transfer.objects.count(), 0)
+        self.assertEqual(Pathway.objects.count(), 0)
+        self.assertEqual(Level.objects.count(), 0)
+        self.assertEqual(FeedInfo.objects.count(), 1)
+        self.assertEqual(Shape.objects.count(), 28)
+        self.assertEqual(ShapePoint.objects.count(), 4537)
+        self.assertEqual(StopTime.objects.count(), 71755)
+
+    def test_file_is_mandatory(self):
+        previous_last_modification = self.project_obj.last_modification
+        with self.assertRaises(ValidationError, msg='agency.txt file is mandatory'):
+            with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'wrong_gtfs.zip'), 'rb') as file_obj:
+                upload_gtfs_file(self.project_obj.pk, file_obj)
+
+        self.project_obj.refresh_from_db()
+        self.assertEqual(self.project_obj.last_modification, previous_last_modification)
+
+    def test_integrity_error(self):
+        agency_obj = Agency.objects.create(project=self.project_obj, agency_id=1, agency_name='name')
+        Route.objects.create(agency=agency_obj, route_id='route_id', route_type=1)
+
+        with self.assertRaises(ParseError):
+            with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
+                upload_gtfs_file(self.project_obj.pk, file_obj)

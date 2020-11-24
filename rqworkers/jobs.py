@@ -68,6 +68,7 @@ def upload_gtfs_file(project_pk, zip_file):
             except IntegrityError as e:
                 logger.error('error while zip file was loading: {0}'.format(e))
                 transaction.rollback()
+                raise ParseError(e)
     except zipfile.BadZipFile:
         raise ParseError('File is not a zip file')
 
