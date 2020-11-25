@@ -6,6 +6,7 @@ import uuid
 from unittest import mock
 
 from django.core.files import File
+from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import models
 from django.test import TestCase
@@ -345,6 +346,12 @@ class ProjectAPITest(BaseTestCase):
         data = dict(file=zipfile_obj)
         return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='multipart')
 
+    def projects_download_action(self, client, pk, status_code=status.HTTP_200_OK, json_process=True):
+        url = reverse('project-download', kwargs=dict(pk=pk))
+        data = dict()
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, json_process=json_process,
+                                  format='json')
+
     # tests
     def test_retrieve_project_list(self):
         with self.assertNumQueries(2):
@@ -489,6 +496,22 @@ class ProjectAPITest(BaseTestCase):
 
         mock_upload_gtfs_file.delay.assert_called_once()
         self.assertDictEqual(json_response, {})
+
+    def test_download_gtfs_file_but_file_does_not_exist(self):
+        json_response = self.projects_download_action(self.client, self.project.pk,
+                                                      status_code=status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(json_response[0], 'Project does not have gtfs file')
+
+    def test_download_gtfs_file_without_problem(self):
+        self.project.gtfs_file.save('test_file', ContentFile('content'))
+        response = self.projects_download_action(self.client, self.project.pk,
+                                                 status_code=status.HTTP_302_FOUND, json_process=False)
+
+        self.assertEqual(response.url, self.project.gtfs_file.url)
+        parent_path = os.path.sep.join(self.project.gtfs_file.path.split(os.path.sep)[:-1])
+        self.project.gtfs_file.delete()
+        if len(os.listdir(parent_path)) == 0:
+            os.rmdir(parent_path)
 
 
 class BaseTableTest(BaseTestCase):

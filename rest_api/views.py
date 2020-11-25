@@ -282,11 +282,11 @@ class ProjectViewSet(MyModelViewSet):
     queryset = Project.objects.select_related('feedinfo', 'gtfsvalidation').all().order_by('name')
     serializer_class = ProjectSerializer
 
-    @action(methods=['GET'], detail=True, renderer_classes=(BinaryRenderer,))
+    @action(methods=['GET'], detail=True)
     def download(self, *args, **kwargs):
         project_obj = self.get_object()
         if not project_obj.gtfs_file:
-            raise ValidationError('Project has not been not created gtfs files yet')
+            raise ValidationError('Project does not have gtfs file')
         response = redirect(project_obj.gtfs_file.url)
         response['Content-Disposition'] = 'attachment; filename={}'.format(project_obj.gtfs_file.name)
 
