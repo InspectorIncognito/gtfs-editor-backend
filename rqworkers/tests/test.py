@@ -53,8 +53,8 @@ class TestValidateGTFS(BaseTestCase):
         self.assertEqual(self.project_obj.gtfsvalidation.message, expected_message)
 
         # delete test files
-        os.remove(self.project_obj.gtfs_file.path)
         parent_path = os.path.sep.join(self.project_obj.gtfs_file.path.split(os.path.sep)[:-1])
+        self.project_obj.gtfs_file.delete()
         if len(os.listdir(parent_path)) == 0:
             os.rmdir(parent_path)
 
