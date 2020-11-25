@@ -637,6 +637,7 @@ class PathwayViewSet(CSVHandlerMixin,
         csv_field_mappings = {'from_stop': 'from_stop__stop_id',
                               'to_stop': 'to_stop__stop_id'}
         use_internal_id = False
+        include_project_id = False
         foreign_key_mappings = [
             {
                 'csv_key': 'from_stop',
