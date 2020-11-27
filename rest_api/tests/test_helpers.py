@@ -377,7 +377,7 @@ class ProjectAPITest(BaseTestCase):
         # Number of queries is erratic because of the cascade behavior
         name = "Empty Project"
         id = Project.objects.filter(name=name)[0].project_id
-        json_response = self.projects_delete(self.client, id)
+        self.projects_delete(self.client, id)
         self.assertEqual(Project.objects.filter(project_id=id).count(), 0)
 
     def test_patch(self):
@@ -474,6 +474,11 @@ class ProjectAPITest(BaseTestCase):
         self.project.gtfs_creation_duration = None
         self.project.gtfs_file_updated_at = None
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
+
+        parent_path = os.path.sep.join(self.project.gtfs_file.path.split(os.path.sep)[:-1])
+        self.project.gtfs_file.delete()
+        if len(os.listdir(parent_path)) == 0:
+            os.rmdir(parent_path)
 
     def test_create_gtfs_file_does_not_run_because_status(self):
         self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
