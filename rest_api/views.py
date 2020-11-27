@@ -193,6 +193,9 @@ class CSVUploadMixin:
             print(err)
             return HttpResponse('Error: endpoint not correctly implemented, check Meta class.\n{0}'.format(str(err)),
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
+        except KeyError as err:
+            return HttpResponse('Error: invalid foreign key {0}'.format(str(err)),
+                                status=status.HTTP_400_BAD_REQUEST)
 
         return HttpResponse(content_type='text/plain')
 
@@ -229,6 +232,7 @@ class CSVUploadMixin:
                 if len(chunk) >= chunk_size:
                     log("Chunk Number", chunk_num)
                     chunk_num += 1
+
                     self.update_or_create_chunk(chunk, project_pk, id_set, meta)
                     t2 = time.time()
                     log("Total Time", t2 - t1)
