@@ -118,7 +118,7 @@ class DetailedShapeSerializer(NestedModelSerializer):
         read_only = ['id']
 
     def get_points(self, obj):
-        pts = ShapePointSerializer(obj.points.all(), many=True)
+        pts = ShapePointSerializer(obj.points.all().order_by('shape_pt_sequence'), many=True)
         return pts.data
 
 
