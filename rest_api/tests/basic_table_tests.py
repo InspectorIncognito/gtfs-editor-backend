@@ -440,7 +440,7 @@ class ShapeTableTest(BaseTableTest):
                                     shape_id=shape_id)[0].id
 
     def test_list(self):
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(2):
             json_response = self.list(self.project.project_id, self.client, dict())
         self.assertEqual(len(json_response), 2)
 
@@ -462,19 +462,40 @@ class ShapeTableTest(BaseTableTest):
         }
         id = self.get_id(shape_id)
         # 1 extra query to erase the shapepoints (cascade)
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(5):
             json_response = self.delete(self.project.project_id, id, self.client, dict())
         self.assertEqual(Shape.objects.filter(**data).count(), 0)
 
     def test_put(self):
         shape_id = 'shape_1'
         data = {
-            'shape_id': shape_id
+            'shape_id': shape_id,
+            'points': [
+                {
+                    "shape_pt_sequence": 1,
+                    "shape_pt_lat": 0,
+                    "shape_pt_lon": 0
+                },
+                {
+                    "shape_pt_sequence": 2,
+                    "shape_pt_lat": 0,
+                    "shape_pt_lon": 1
+                },
+                {
+                    "shape_pt_sequence": 3,
+                    "shape_pt_lat": 1,
+                    "shape_pt_lon": 1
+                },
+                {
+                    "shape_pt_sequence": 4,
+                    "shape_pt_lat": 2,
+                    "shape_pt_lon": 2
+                }
+            ]
         }
         id = self.get_id(shape_id)
         json_response = self.put(self.project.project_id, id, self.client, data)
         data['id'] = json_response['id']
-        data['points'] = json_response['points']
         self.assertDictEqual(data, json_response)
 
     def test_patch(self):
@@ -489,11 +510,31 @@ class ShapeTableTest(BaseTableTest):
         shape_id = 'shape_create'
         data = {
             'shape_id': shape_id,
-            'points': [[0,0], [1,1]]
+            'points': [
+                {
+                    "shape_pt_sequence": 1,
+                    "shape_pt_lat": 0,
+                    "shape_pt_lon": 0
+                },
+                {
+                    "shape_pt_sequence": 2,
+                    "shape_pt_lat": 0,
+                    "shape_pt_lon": 1
+                },
+                {
+                    "shape_pt_sequence": 3,
+                    "shape_pt_lat": 1,
+                    "shape_pt_lon": 1
+                },
+                {
+                    "shape_pt_sequence": 4,
+                    "shape_pt_lat": 2,
+                    "shape_pt_lon": 2
+                }
+            ]
         }
         json_response = self.create(self.project.project_id, self.client, data)
         data['id'] = json_response['id']
-        data['points'] = []
         self.assertDictEqual(data, json_response)
 
     def test_delete_invalid(self):

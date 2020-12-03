@@ -139,17 +139,18 @@ class DetailedShapeSerializer(NestedModelSerializer):
         return shape
 
     def update(self, instance, validated_data):
-        points = validated_data['points']
-        del validated_data['points']
+        if 'points' in validated_data:
+            points = validated_data['points']
+            del validated_data['points']
+            shape_points = list()
+            for point in points:
+                shape_points.append(ShapePoint(shape=instance, **point))
+            ShapePoint.objects.filter(shape=instance).delete()
+            ShapePoint.objects.bulk_create(shape_points)
         try:
             super().update(instance, validated_data)
         except IntegrityError as err:
             raise serializers.ValidationError("IntegrityError in updating")
-        shape_points = list()
-        for point in points:
-            shape_points.append(ShapePoint(shape=instance, **point))
-        ShapePoint.objects.filter(shape=instance).delete()
-        ShapePoint.objects.bulk_create(shape_points)
         return instance
 
 
