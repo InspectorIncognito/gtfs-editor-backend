@@ -474,7 +474,7 @@ class ShapeTableTest(BaseTableTest):
         id = self.get_id(shape_id)
         json_response = self.put(self.project.project_id, id, self.client, data)
         data['id'] = json_response['id']
-        data['point_count'] = json_response['point_count']
+        data['points'] = json_response['points']
         self.assertDictEqual(data, json_response)
 
     def test_patch(self):
@@ -488,11 +488,12 @@ class ShapeTableTest(BaseTableTest):
     def test_create(self):
         shape_id = 'shape_create'
         data = {
-            'shape_id': shape_id
+            'shape_id': shape_id,
+            'points': [[0,0], [1,1]]
         }
         json_response = self.create(self.project.project_id, self.client, data)
         data['id'] = json_response['id']
-        data['point_count'] = json_response['point_count']
+        data['points'] = []
         self.assertDictEqual(data, json_response)
 
     def test_delete_invalid(self):

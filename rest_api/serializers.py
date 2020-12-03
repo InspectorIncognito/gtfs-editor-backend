@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.db import IntegrityError
 from rest_framework import serializers
 
 from rest_api import validators
@@ -109,17 +110,47 @@ class ShapeSerializer(NestedModelSerializer):
         return obj.points.count()
 
 
+class SimpleSPSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShapePoint
+        fields = ['shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon']
+        ordering = ['shape_pt_sequence']
+
+
 class DetailedShapeSerializer(NestedModelSerializer):
-    points = serializers.SerializerMethodField()
+    points = SimpleSPSerializer(many=True)
 
     class Meta:
         model = Shape
         fields = ['id', 'shape_id', 'points']
         read_only = ['id']
 
-    def get_points(self, obj):
-        pts = ShapePointSerializer(obj.points.all().order_by('shape_pt_sequence'), many=True)
-        return pts.data
+    def create(self, validated_data):
+        data = {'shape_id': validated_data['shape_id']}
+        try:
+            shape = super().create(data)
+        except IntegrityError as err:
+            raise serializers.ValidationError("shape with shape_id '{0}' already exists".format(data['shape_id']))
+        points = validated_data['points']
+        shape_points = list()
+        for point in points:
+            shape_points.append(ShapePoint(shape=shape, **point))
+        ShapePoint.objects.bulk_create(shape_points)
+        return shape
+
+    def update(self, instance, validated_data):
+        points = validated_data['points']
+        del validated_data['points']
+        try:
+            super().update(instance, validated_data)
+        except IntegrityError as err:
+            raise serializers.ValidationError("IntegrityError in updating")
+        shape_points = list()
+        for point in points:
+            shape_points.append(ShapePoint(shape=instance, **point))
+        ShapePoint.objects.filter(shape=instance).delete()
+        ShapePoint.objects.bulk_create(shape_points)
+        return instance
 
 
 class ShapePointSerializer(serializers.ModelSerializer):

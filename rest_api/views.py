@@ -4,7 +4,7 @@ import io
 import time
 
 from django.db import transaction, connection
-from django.db.models import ProtectedError
+from django.db.models import ProtectedError, Prefetch
 from django.http import HttpResponse
 from django.shortcuts import redirect
 from django_rq.queues import get_connection
@@ -374,7 +374,6 @@ class ProjectViewSet(MyModelViewSet):
 
 
 class ShapeViewSet(MyModelViewSet):
-    serializer_class = ShapeSerializer
     CHUNK_SIZE = 10000
 
     def get_queryset(self):
@@ -382,7 +381,9 @@ class ShapeViewSet(MyModelViewSet):
 
     @staticmethod
     def get_qs(kwargs):
-        return Shape.objects.filter(project__project_id=kwargs['project_pk']).order_by('shape_id')
+        return Shape.objects\
+            .prefetch_related(Prefetch('points', queryset=ShapePoint.objects.order_by('shape_pt_sequence')))\
+            .filter(project__project_id=kwargs['project_pk']).order_by('shape_id')
 
     class Meta:
         search_fields = ['shape_id']
@@ -452,11 +453,6 @@ class ShapeViewSet(MyModelViewSet):
         to_delete = Shape.objects.filter(project_id=project_pk).exclude(shape_id__in=shape_id_set)
         to_delete.delete()
 
-    def retrieve(self, request, project_pk=None, pk=None):
-        instance = self.get_object()
-        serializer = DetailedShapeSerializer(instance)
-        return Response(serializer.data)
-
     @action(methods=['get'], detail=False)
     def ids(self, request, *args, **kwargs):
         shapes = self.get_queryset()
@@ -468,6 +464,11 @@ class ShapeViewSet(MyModelViewSet):
         for k, v in shapes.values_list(*values):
             resp[k] = v
         return Response(resp)
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ShapeSerializer
+        return DetailedShapeSerializer
 
 
 class UserViewSet(MyModelViewSet):
