@@ -1,12 +1,29 @@
 import os
 
 from django.utils import timezone
+from shapely.geometry import MultiPoint
 
 from rest_api.managers import *
 
 
 def gtfs_update_to(instance, filename):
     return os.path.join(str(instance.pk), filename)
+
+
+def get_empty_envelope():
+    return {
+        'type': "FeatureCollection",
+        'features': [
+            {
+                'type': 'Feature',
+                'properties': {},
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': []
+                }
+            }
+        ]
+    }
 
 
 class Project(models.Model):
@@ -28,6 +45,26 @@ class Project(models.Model):
     gtfs_creation_status = models.CharField(max_length=20, choices=gtfs_creation_status_choices, default=None,
                                             null=True)
     gtfs_creation_duration = models.DurationField(default=None, null=True)
+    envelope = models.JSONField(default=get_empty_envelope)
+
+    def get_envelope(self):
+        stop_points = list(Stop.objects.filter(project=self).values_list('stop_lon', 'stop_lat'))
+        shape_points = list(ShapePoint.objects.filter(shape__project=self).values_list('shape_pt_lon', 'shape_pt_lat'))
+        envelope_obj = MultiPoint(stop_points + shape_points).envelope
+
+        geojson = {
+            'type': "FeatureCollection",
+            'features': [{
+                'type': 'Feature',
+                'properties': {},
+                'geometry': {
+                    'type': 'Polygon',
+                    'coordinates': list(envelope_obj.exterior.coords)
+                }
+            }]
+        }
+
+        return geojson
 
     def __str__(self):
         return str(self.name)
