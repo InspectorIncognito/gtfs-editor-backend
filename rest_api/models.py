@@ -47,12 +47,17 @@ class Project(models.Model):
         shape_points = list(ShapePoint.objects.filter(shape__project=self).values_list('shape_pt_lon', 'shape_pt_lat'))
         envelope_obj = MultiPoint(stop_points + shape_points).envelope
 
+        try:
+            coordinates = [list(envelope_obj.exterior.coords)]
+        except AttributeError:
+            coordinates = []
+
         geojson = {
             'type': 'Feature',
             'properties': {},
             'geometry': {
                 'type': 'Polygon',
-                'coordinates': [list(envelope_obj.exterior.coords)]
+                'coordinates': coordinates
             }
         }
 
