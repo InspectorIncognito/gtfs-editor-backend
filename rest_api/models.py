@@ -50,7 +50,7 @@ class Project(models.Model):
         try:
             coordinates = [list(envelope_obj.exterior.coords)]
         except AttributeError:
-            coordinates = []
+            coordinates = [[]]
 
         geojson = {
             'type': 'Feature',
