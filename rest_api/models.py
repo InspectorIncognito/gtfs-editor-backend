@@ -12,17 +12,12 @@ def gtfs_update_to(instance, filename):
 
 def get_empty_envelope():
     return {
-        'type': "FeatureCollection",
-        'features': [
-            {
-                'type': 'Feature',
-                'properties': {},
-                'geometry': {
-                    'type': 'Polygon',
-                    'coordinates': []
-                }
-            }
-        ]
+        'type': 'Feature',
+        'properties': {},
+        'geometry': {
+            'type': 'Polygon',
+            'coordinates': [[]]
+        }
     }
 
 
@@ -53,15 +48,12 @@ class Project(models.Model):
         envelope_obj = MultiPoint(stop_points + shape_points).envelope
 
         geojson = {
-            'type': "FeatureCollection",
-            'features': [{
-                'type': 'Feature',
-                'properties': {},
-                'geometry': {
-                    'type': 'Polygon',
-                    'coordinates': list(envelope_obj.exterior.coords)
-                }
-            }]
+            'type': 'Feature',
+            'properties': {},
+            'geometry': {
+                'type': 'Polygon',
+                'coordinates': [list(envelope_obj.exterior.coords)]
+            }
         }
 
         return geojson
