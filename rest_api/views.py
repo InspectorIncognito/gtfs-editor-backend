@@ -381,8 +381,8 @@ class ShapeViewSet(MyModelViewSet):
 
     @staticmethod
     def get_qs(kwargs):
-        return Shape.objects\
-            .prefetch_related(Prefetch('points', queryset=ShapePoint.objects.order_by('shape_pt_sequence')))\
+        return Shape.objects \
+            .prefetch_related(Prefetch('points', queryset=ShapePoint.objects.order_by('shape_pt_sequence'))) \
             .filter(project__project_id=kwargs['project_pk']).order_by('shape_id')
 
     class Meta:
@@ -843,6 +843,7 @@ class FareRuleViewSet(CSVHandlerMixin,
         return FareRule.objects.filter(fare_attribute__project=kwargs['project_pk']).order_by('route')
 
 
+
 class TripViewSet(CSVHandlerMixin,
                   MyModelViewSet):
     serializer_class = TripSerializer
@@ -886,7 +887,8 @@ class TripViewSet(CSVHandlerMixin,
 
     @staticmethod
     def get_qs(kwargs):
-        return Trip.objects.filter(project=kwargs['project_pk']).order_by('trip_id')
+        return Trip.objects.filter(project=kwargs['project_pk']).order_by('trip_id') \
+            .prefetch_related(Prefetch('stop_times', queryset=StopTime.objects.order_by('stop_sequence')))
 
 
 class StopTimeViewSet(CSVHandlerMixin,

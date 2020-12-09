@@ -1,5 +1,5 @@
 from django.contrib.auth.models import User
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from rest_framework import serializers
 
 from rest_api import validators
@@ -114,7 +114,7 @@ class SimpleSPSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShapePoint
         fields = ['shape_pt_sequence', 'shape_pt_lat', 'shape_pt_lon']
-        ordering = ['shape_pt_sequence']
+        ordering = ['+shape_pt_sequence']
 
 
 class DetailedShapeSerializer(NestedModelSerializer):
@@ -213,9 +213,32 @@ class FareRuleSerializer(serializers.ModelSerializer):
         read_only = ['id']
 
 
+class SimpleStopTimeSerializer(serializers.ModelSerializer):
+    stop_id = serializers.CharField(source='stop.stop_id', read_only=True)
+
+    class Meta:
+        model = StopTime
+        fields = ['id',
+                  'stop',
+                  'stop_id',
+                  'stop_sequence',
+                  'arrival_time',
+                  'departure_time',
+                  'stop_headsign',
+                  'pickup_type',
+                  'drop_off_type',
+                  'continuous_pickup',
+                  'continuous_dropoff',
+                  'shape_dist_traveled',
+                  'timepoint']
+        read_only = ['id']
+        ordering = ['stop_sequence']
+
+
 class TripSerializer(NestedModelSerializer):
     route_id = serializers.CharField(source='route.route_id', read_only=True)
     shape_id = serializers.CharField(source='shape.shape_id', read_only=True)
+    stop_times = SimpleStopTimeSerializer(many=True, required=False)
 
     class Meta:
         model = Trip
@@ -225,6 +248,7 @@ class TripSerializer(NestedModelSerializer):
                   'route_id',
                   'shape',
                   'shape_id',
+                  'stop_times',
                   'service_id',
                   'trip_headsign',
                   'direction_id',
@@ -233,6 +257,34 @@ class TripSerializer(NestedModelSerializer):
                   'wheelchair_accessible',
                   'bikes_allowed']
         read_only = ['id']
+
+    def simplify_data(self, data):
+        d = {k: v for (k, v) in data.items() if k != 'stop_times'}
+        print(d)
+        return d
+
+    def create(self, validated_data):
+        try:
+            with transaction.atomic():
+                instance = super().create(self.simplify_data(validated_data))
+                if 'stop_times' in validated_data:
+                    stop_times = map(lambda st: StopTime(trip=instance, **st), validated_data['stop_times'])
+                    StopTime.objects.bulk_create(stop_times)
+                return instance
+        except Exception as error:
+            print(error)
+
+    def update(self, instance, validated_data):
+        try:
+            with transaction.atomic():
+                instance = super().update(instance, self.simplify_data(validated_data))
+                if 'stop_times' in validated_data:
+                    print(instance.stop_times)
+                    stop_times = map(lambda st: StopTime(trip=instance, **st), validated_data['stop_times'])
+                    StopTime.objects.bulk_create(stop_times)
+                return instance
+        except Exception as error:
+            print(error)
 
     # def update(self, instance, validated_data):
     #     route = validated_data.pop('route')

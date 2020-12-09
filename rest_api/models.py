@@ -296,7 +296,7 @@ class Trip(models.Model):
 
 
 class StopTime(models.Model):
-    trip = models.ForeignKey(Trip, on_delete=models.PROTECT)
+    trip = models.ForeignKey(Trip, on_delete=models.PROTECT, related_name='stop_times')
     stop = models.ForeignKey(Stop, on_delete=models.PROTECT)
     stop_sequence = models.IntegerField()
     arrival_time = models.TimeField(null=True, blank=True)
