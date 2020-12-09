@@ -88,6 +88,7 @@ def create_gtfs_file(project_pk):
         logger.error(e)
         project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
     finally:
+        project_obj.envelope = project_obj.get_envelope()
         project_obj.save()
 
         logger.info('duration: {0}'.format(timezone.now() - start_time))
