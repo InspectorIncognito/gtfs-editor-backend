@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from rest_api import validators
 from rest_api.models import *
@@ -259,9 +260,7 @@ class TripSerializer(NestedModelSerializer):
         read_only = ['id']
 
     def simplify_data(self, data):
-        d = {k: v for (k, v) in data.items() if k != 'stop_times'}
-        print(d)
-        return d
+        return {k: v for (k, v) in data.items() if k != 'stop_times'}
 
     def create(self, validated_data):
         try:
@@ -271,20 +270,20 @@ class TripSerializer(NestedModelSerializer):
                     stop_times = map(lambda st: StopTime(trip=instance, **st), validated_data['stop_times'])
                     StopTime.objects.bulk_create(stop_times)
                 return instance
-        except Exception as error:
-            print(error)
+        except IntegrityError as error:
+            raise ValidationError(error)
 
     def update(self, instance, validated_data):
         try:
             with transaction.atomic():
                 instance = super().update(instance, self.simplify_data(validated_data))
                 if 'stop_times' in validated_data:
-                    print(instance.stop_times)
+                    StopTime.objects.filter(trip=instance).delete()
                     stop_times = map(lambda st: StopTime(trip=instance, **st), validated_data['stop_times'])
                     StopTime.objects.bulk_create(stop_times)
                 return instance
-        except Exception as error:
-            print(error)
+        except IntegrityError as error:
+            raise ValidationError(error)
 
     # def update(self, instance, validated_data):
     #     route = validated_data.pop('route')
