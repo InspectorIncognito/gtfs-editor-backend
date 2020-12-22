@@ -75,11 +75,10 @@ class MyModelViewSet(viewsets.ModelViewSet):
         try:
             return super().destroy(*args, **kwargs)
         except ProtectedError as e:
-            pass
-        return Response({
-            'message': 'Error: cannot destroy field due to FK constraint'
-        }, status=status.HTTP_400_BAD_REQUEST,
-            content_type="application/json")
+            return Response({
+                'message': 'Error: entity is being used in another table and thus could not be deleted.'
+            }, status=status.HTTP_400_BAD_REQUEST,
+                content_type="application/json")
 
 
 class CSVUploadMixin:

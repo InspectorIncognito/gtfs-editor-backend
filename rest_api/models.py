@@ -352,7 +352,7 @@ class StopTime(models.Model):
                     str(self.stop_sequence))
 
     class Meta:
-        unique_together = ['trip', 'stop', 'stop_sequence']
+        unique_together = ['trip', 'stop_sequence']
 
 
 class Frequency(models.Model):
