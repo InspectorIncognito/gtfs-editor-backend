@@ -12,3 +12,4 @@ django-cors-headers==3.5.0
 djangorestframework-datatables==0.5.2
 pytz~=2020.4
 shapely==1.7.1
+gunicorn==20.0.4
