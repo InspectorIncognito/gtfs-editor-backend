@@ -24,6 +24,9 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     command: worker
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
     env_file:
       - ./docker_env
     depends_on:

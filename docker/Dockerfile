@@ -21,8 +21,7 @@ COPY --from=builder /install /usr/local
 RUN /bin/sh -c 'apk update && apk add --no-cache openjdk11 postgresql-dev geos'
 
 WORKDIR /app
-RUN mkdir ./staticfiles && \
-    mkdir ./mediafiles && \
+RUN mkdir ./static && \
     mkdir ./media
 
 # copy project files on /app folder
