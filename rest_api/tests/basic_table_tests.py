@@ -393,7 +393,7 @@ class StopTimesTableTest(BaseTableTest, BasicTestSuiteMixin):
 
         # create params
         create_data = {
-            'stop_sequence': 2
+            'stop_sequence': 12
         }
 
         # delete params
@@ -429,6 +429,7 @@ class StopTimesTableTest(BaseTableTest, BasicTestSuiteMixin):
 
     def test_create(self):
         self.enrich_data(self.Meta.create_data)
+        print(self.Meta.create_data)
         super().test_create()
 
 
