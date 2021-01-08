@@ -358,3 +358,6 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['project_id', 'name', 'feedinfo', 'gtfsvalidation', 'last_modification', 'gtfs_file_updated_at',
                   'gtfs_creation_status', 'gtfs_creation_duration', 'envelope']
+
+class ServiceSerializer(serializers.Serializer):
+    pass

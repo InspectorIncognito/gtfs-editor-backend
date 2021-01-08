@@ -4,15 +4,19 @@ import io
 import time
 
 from django.db import transaction, connection
-from django.db.models import ProtectedError, Prefetch
+from django.db.models import ProtectedError, Prefetch, Value, TextField
 from django.http import HttpResponse
 from django.shortcuts import redirect
+from django.views import View
+from django.views.generic import ListView
 from django_rq.queues import get_connection
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, mixins
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import ListAPIView
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet, ViewSet
 from rq import cancel_job
 from rq.command import send_kill_horse_command
 from rq.exceptions import NoSuchJobError
@@ -842,7 +846,6 @@ class FareRuleViewSet(CSVHandlerMixin,
         return FareRule.objects.filter(fare_attribute__project=kwargs['project_pk']).order_by('route')
 
 
-
 class TripViewSet(CSVHandlerMixin,
                   MyModelViewSet):
     serializer_class = TripSerializer
@@ -1017,3 +1020,38 @@ class FrequencyViewSet(CSVHandlerMixin,
     @staticmethod
     def get_qs(kwargs):
         return Frequency.objects.filter(trip__project=kwargs['project_pk']).order_by('trip__trip_id')
+
+
+class ServiceViewSet(ViewSet):
+
+    def get_services(self, project_pk):
+        kwargs = self.kwargs
+        calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
+            type=Value('Calendar', output_field=TextField()))
+        calendar_dates = CalendarDate.objects.filter(project=project_pk, exception_type=1).values('service_id').annotate(
+            type=Value('CalendarDate', output_field=TextField()))
+        calendars = list(calendars)
+        service_ids = set(map(lambda calendar: calendar['service_id'], calendars))
+        calendar_dates = list(filter(lambda cd: cd['service_id'] not in service_ids, calendar_dates))
+        services = calendars + calendar_dates
+        services.sort(key=lambda service: service["service_id"])
+        return services
+
+    def list(self, request, project_pk):
+        services = self.get_services(project_pk)
+        return Response(self.simulate_pagination(services))
+
+    def simulate_pagination(self, services):
+        return {
+            "pagination": {
+                "current_page": 1,
+                "next_page_url": None,
+                "prev_page_url": None,
+                "total": len(services),
+                "per_page": len(services),
+                "last_page": 1,
+                "from": 1,
+                "to": len(services)
+            },
+            "results": services
+        }
