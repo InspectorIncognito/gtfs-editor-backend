@@ -104,20 +104,20 @@ docker push 992591977826.dkr.ecr.sa-east-1.amazonaws.com/nginx-gtfseditor:latest
 
 Build commad:
 ```
-docker-compose -f docker\docker-compose.yml build
+docker-compose -p gtfs-editor -f docker\docker-compose.yml build
 ```
 
 Run command:
 ```
-docker-compose -f docker\docker-compose.yml up
+docker-compose -p gtfs-editor -f docker\docker-compose.yml up
 ```
 
 Stop command:
 ```
-docker-compose -f docker\docker-compose.yml down
+docker-compose -p gtfs-editor -f docker\docker-compose.yml down
 ```
 
 Sometimes you want to update frontend code without upgrade everything else, so in this cases you should call:
 ```
-docker-compose -f docker\docker-compose.yml build --no-cache nginx
+docker-compose -p gtfs-editor -f docker\docker-compose.yml build --no-cache nginx
 ```
