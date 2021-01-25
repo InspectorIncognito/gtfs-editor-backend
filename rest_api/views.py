@@ -32,6 +32,9 @@ class CSVDownloadMixin:
     """Classes using this mixin require a Meta class that contains the following attributes
     csv_header: list containing the names of the CSV rows
     csv_filename: name of the CSV file, does not require the extension
+    csv_fields: optional parameter used when header doesn't match internal attribute names
+    csv_field_mappings: optional parameter, dictionary where each key is an attribute of the model representing a
+        foreign key and the value indicates how to obtain the representation of said model
     In addition the class requires a filter_by_project method that returns all objects
     that belong to the project with the primary key entered"""
 

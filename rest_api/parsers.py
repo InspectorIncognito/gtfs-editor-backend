@@ -15,7 +15,7 @@ class ResultsSetPagination(PageNumberPagination):
 
     def paginate_queryset(self, queryset, request, view=None):
         if 'no_page' in request.query_params:
-            return None
+             return None
         return super().paginate_queryset(queryset, request, view)
 
     def get_paginated_response(self, data):
