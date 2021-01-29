@@ -1031,7 +1031,8 @@ class ServiceViewSet(ViewSet):
         kwargs = self.kwargs
         calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
-        calendar_dates = CalendarDate.objects.filter(project=project_pk, exception_type=1).values('service_id').annotate(
+        calendar_dates = CalendarDate.objects.filter(project=project_pk, exception_type=1).values(
+            'service_id').annotate(
             type=Value('CalendarDate', output_field=TextField()))
         calendars = list(calendars)
         service_ids = set(map(lambda calendar: calendar['service_id'], calendars))
@@ -1058,3 +1059,32 @@ class ServiceViewSet(ViewSet):
             },
             "results": services
         }
+
+
+class TablesViewSet(ViewSet):
+    def list(self, request, project_pk):
+        tables = {
+            'agency': AgencyViewSet,
+            'stops': StopViewSet,
+            'routes': RouteViewSet,
+            'trips': TripViewSet,
+            'calendar': CalendarViewSet,
+            'calendar_dates': CalendarDateViewSet,
+            'fare_attributes': FareAttributeViewSet,
+            'fare_rules': FareRuleViewSet,
+            'frequencies': FrequencyViewSet,
+            'transfers': TransferViewSet,
+            'pathways': PathwayViewSet,
+            'levels': LevelViewSet,
+            'feed_info': FeedInfoViewSet,
+            'shapes': ShapeViewSet,
+            'stop_times': StopTimeViewSet,
+        }
+        response_data = {table: self.get_count(view, project_pk) for (table, view) in tables.items()}
+        return Response(response_data)
+
+    def get_count(self, view, project_pk):
+        qs = view.get_qs({'project_pk': project_pk})
+        return {
+            'entries': qs.count()
+                }

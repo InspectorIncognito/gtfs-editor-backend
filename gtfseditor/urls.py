@@ -41,7 +41,9 @@ project_router.register(r'farerules', api_views.FareRuleViewSet, basename='proje
 project_router.register(r'trips', api_views.TripViewSet, basename='project-trips')
 project_router.register(r'stoptimes', api_views.StopTimeViewSet, basename='project-stoptimes')
 project_router.register(r'frequencies', api_views.FrequencyViewSet, basename='project-frequencies')
+
 project_router.register(r'services', api_views.ServiceViewSet, basename='project-services')
+project_router.register(r'tables', api_views.TablesViewSet, basename='project-tables')
 
 urlpatterns = [
     path(r'admin/', admin.site.urls),
