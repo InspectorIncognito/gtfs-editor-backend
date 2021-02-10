@@ -51,7 +51,8 @@ class FeedInfoSerializer(NestedModelSerializer):
     class Meta:
         model = FeedInfo
         fields = ['id', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang',
-                  'feed_start_date', 'feed_end_date', 'feed_version', 'feed_id']
+                  'feed_start_date', 'feed_end_date', 'feed_version',
+                  'feed_contact_email', 'feed_contact_url', 'feed_id']
         read_only = ['id']
 
 
@@ -358,6 +359,7 @@ class ProjectSerializer(serializers.ModelSerializer):
         model = Project
         fields = ['project_id', 'name', 'feedinfo', 'gtfsvalidation', 'last_modification', 'gtfs_file_updated_at',
                   'gtfs_creation_status', 'gtfs_creation_duration', 'envelope']
+
 
 class ServiceSerializer(serializers.Serializer):
     pass

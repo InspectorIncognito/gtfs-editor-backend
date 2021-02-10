@@ -104,6 +104,8 @@ class BaseTestCase(TestCase):
                                     feed_start_date="2020-01-01",
                                     feed_end_date="2020-12-31",
                                     feed_version="1.2.2",
+                                    feed_contact_url='http://google.cl',
+                                    feed_contact_email='a@b.com',
                                     feed_id="Test Feed {0}".format(proj))
 
             agencies = []

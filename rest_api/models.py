@@ -144,6 +144,8 @@ class FeedInfo(models.Model):
     feed_start_date = models.DateField()
     feed_end_date = models.DateField()
     feed_version = models.CharField(max_length=50)
+    feed_contact_email = models.EmailField(null=True)
+    feed_contact_url = models.URLField(null=True)
     feed_id = models.CharField(max_length=50)
     objects = FilterManager()
 
