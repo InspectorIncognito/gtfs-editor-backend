@@ -48,6 +48,9 @@ class CalendarDateSerializer(NestedModelSerializer):
 
 
 class FeedInfoSerializer(NestedModelSerializer):
+    feed_contact_email = serializers.EmailField(allow_blank=True, allow_null=True)
+    feed_contact_url = serializers.URLField(allow_blank=True, allow_null=True)
+
     class Meta:
         model = FeedInfo
         fields = ['id', 'feed_publisher_name', 'feed_publisher_url', 'feed_lang',
