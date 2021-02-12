@@ -8,24 +8,25 @@ from django.test import TransactionTestCase
 from rest_framework.exceptions import ParseError, ValidationError
 
 from rest_api.models import Agency, Stop, Route, Trip, Calendar, CalendarDate, FareAttribute, FareRule, \
-    Frequency, Transfer, Pathway, Level, FeedInfo, ShapePoint, StopTime, GTFSValidation, Project, Shape
+    Frequency, Transfer, Pathway, Level, FeedInfo, ShapePoint, StopTime, Project, Shape
 from rest_api.tests.test_helpers import BaseTestCase
-from rqworkers.jobs import validate_gtfs, create_gtfs_file, upload_gtfs_file
+from rqworkers.jobs import validate_gtfs, upload_gtfs_file, build_and_validate_gtfs_file
 
 
 class TestValidateGTFS(BaseTestCase):
 
     def setUp(self):
         self.project_obj = self.create_data()[0]
-        GTFSValidation.objects.create(project=self.project_obj, status=GTFSValidation.STATUS_QUEUED)
 
     def test_project_does_not_have_gtfs_file(self):
-        validate_gtfs(self.project_obj.pk)
+        with self.assertRaisesMessage(ValueError, 'GTFS file does not exist'):
+            validate_gtfs(self.project_obj)
 
         self.project_obj.refresh_from_db()
-        self.assertEqual(self.project_obj.gtfsvalidation.status, GTFSValidation.STATUS_ERROR)
-        self.assertEqual(self.project_obj.gtfsvalidation.message, 'GTFS file does not exist')
-        self.assertIsNotNone(self.project_obj.gtfsvalidation.duration)
+        self.assertIsNone(self.project_obj.gtfs_validation_error_number)
+        self.assertIsNone(self.project_obj.gtfs_validation_warning_number)
+        self.assertEqual(self.project_obj.gtfs_validation_message, 'GTFS file does not exist')
+        self.assertIsNotNone(self.project_obj.gtfs_validation_duration)
 
     @mock.patch('rqworkers.jobs.subprocess')
     @mock.patch('rqworkers.jobs.glob')
@@ -42,15 +43,14 @@ class TestValidateGTFS(BaseTestCase):
 
         mock_glob.glob.return_value = ['fake_filepath']
 
-        validate_gtfs(self.project_obj.pk)
+        validate_gtfs(self.project_obj)
 
         mock_subprocess.call.assert_called_once()
         self.project_obj.refresh_from_db()
-        self.assertEqual(self.project_obj.gtfsvalidation.status, GTFSValidation.STATUS_FINISHED)
         expected_message = 'filename,code,level,entity id,title,description' + os.linesep + \
                            'a.txt,1,WARNING,no id,problem,there is a problem' + os.linesep + \
                            'b.txt,2,ERROR,no id,problem,there is a problem' + os.linesep
-        self.assertEqual(self.project_obj.gtfsvalidation.message, expected_message)
+        self.assertEqual(self.project_obj.gtfs_validation_message, expected_message)
 
         # delete test files
         parent_path = os.path.sep.join(self.project_obj.gtfs_file.path.split(os.path.sep)[:-1])
@@ -58,39 +58,40 @@ class TestValidateGTFS(BaseTestCase):
         if len(os.listdir(parent_path)) == 0:
             os.rmdir(parent_path)
 
-    def test_project_does_not_exist(self):
-        with self.assertRaises(Project.DoesNotExist):
-            validate_gtfs(1000)
 
-
-class TestCreateGTFSFile(BaseTestCase):
+@mock.patch('rqworkers.jobs.validate_gtfs')
+class TestBuildAndValidateGTFSFile(BaseTestCase):
 
     def setUp(self):
         self.project_obj = self.create_data()[0]
 
     @mock.patch('rqworkers.jobs.call_command')
-    def test_execution(self, mock_call_command):
-        create_gtfs_file(self.project_obj.pk)
+    def test_execution(self, mock_call_command, mock_validate_gtfs):
+        build_and_validate_gtfs_file(self.project_obj.pk)
 
         self.project_obj.refresh_from_db()
         self.assertEqual(self.project_obj.gtfs_creation_status, Project.GTFS_CREATION_STATUS_FINISHED)
         mock_call_command.assert_called_with('buildgtfs', self.project_obj.name)
+        mock_validate_gtfs.assert_called_with(self.project_obj)
 
     @mock.patch('rqworkers.jobs.call_command')
-    def test_execution_raise_error(self, mock_call_command):
+    def test_execution_raise_error(self, mock_call_command, mock_validate_gtfs):
         mock_call_command.side_effect = ValueError('error calling call_command')
-        create_gtfs_file(self.project_obj.pk)
+        build_and_validate_gtfs_file(self.project_obj.pk)
 
         self.project_obj.refresh_from_db()
         self.assertEqual(self.project_obj.gtfs_creation_status, Project.GTFS_CREATION_STATUS_ERROR)
         mock_call_command.assert_called_with('buildgtfs', self.project_obj.name)
+        mock_validate_gtfs.assert_not_called()
 
-    def test_project_name_does_not_exist(self):
+    def test_project_name_does_not_exist(self, mock_validate_gtfs):
         with self.assertRaises(ValueError):
-            create_gtfs_file('wrong_project_pk')
+            build_and_validate_gtfs_file('wrong_project_pk')
 
         with self.assertRaises(Project.DoesNotExist):
-            create_gtfs_file(-1)
+            build_and_validate_gtfs_file(-1)
+
+        mock_validate_gtfs.assert_not_called()
 
 
 class UploadGTFSFileJob(TransactionTestCase):

@@ -76,8 +76,6 @@ def upload_gtfs_file(project_pk, zip_file):
 def validate_gtfs(project_obj):
     """ run validation tools for a GTFS """
     start_time = timezone.now()
-    project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_VALIDATING
-    project_obj.save()
 
     try:
         try:
@@ -121,14 +119,13 @@ def validate_gtfs(project_obj):
                         row['description']
                     ])
 
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
         project_obj.gtfs_validation_message = in_memory_csv.getvalue()
         project_obj.gtfs_validation_error_number = error_number
         project_obj.gtfs_validation_warning_number = warning_number
     except Exception as e:
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
         project_obj.gtfs_validation_message = str(e)
         logger.error(e)
+        raise e
     finally:
         project_obj.gtfs_validation_duration = timezone.now() - start_time
         project_obj.save()
@@ -148,9 +145,14 @@ def build_and_validate_gtfs_file(project_pk):
     project_obj.save()
     try:
         call_command('buildgtfs', project_obj.name)
+        project_obj.refresh_from_db()
         project_obj.gtfs_creation_duration = timezone.now() - start_time
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_VALIDATING
         project_obj.save()
+
         validate_gtfs(project_obj)
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
+        project_obj.save()
     except Exception as e:
         logger.error(e)
         project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR

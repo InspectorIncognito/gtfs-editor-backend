@@ -335,7 +335,7 @@ class ProjectViewSet(MyModelViewSet):
                                                 Project.GTFS_CREATION_STATUS_ERROR,
                                                 Project.GTFS_CREATION_STATUS_CANCELED,
                                                 Project.GTFS_CREATION_STATUS_FINISHED]:
-            raise ValidationError('Validation is not running or queued')
+            raise ValidationError('Process is not running or queued')
 
         redis_conn = get_connection()
         workers = Worker.all(redis_conn)
