@@ -28,18 +28,27 @@ class Project(models.Model):
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
     gtfs_file_updated_at = models.DateTimeField(null=True)
     GTFS_CREATION_STATUS_QUEUED = 'queued'
-    GTFS_CREATION_STATUS_PROCESSING = 'processing'
+    GTFS_CREATION_STATUS_BUILDING = 'building'
+    GTFS_CREATION_STATUS_VALIDATING = 'validating'
     GTFS_CREATION_STATUS_FINISHED = 'finished'
     GTFS_CREATION_STATUS_ERROR = 'error'
+    GTFS_CREATION_STATUS_CANCELED = 'canceled'
     gtfs_creation_status_choices = (
         (GTFS_CREATION_STATUS_QUEUED, 'Queued'),
-        (GTFS_CREATION_STATUS_PROCESSING, 'Processing'),
+        (GTFS_CREATION_STATUS_BUILDING, 'Building'),
+        (GTFS_CREATION_STATUS_VALIDATING, 'Validating'),
         (GTFS_CREATION_STATUS_FINISHED, 'Finished'),
         (GTFS_CREATION_STATUS_ERROR, 'Error'),
+        (GTFS_CREATION_STATUS_CANCELED, 'Canceled')
     )
     gtfs_creation_status = models.CharField(max_length=20, choices=gtfs_creation_status_choices, default=None,
                                             null=True)
     gtfs_creation_duration = models.DurationField(default=None, null=True)
+    gtfs_validation_message = models.TextField(default=None, null=True)
+    gtfs_validation_error_number = models.IntegerField(default=None, null=True)
+    gtfs_validation_warning_number = models.IntegerField(default=None, null=True)
+    gtfs_validation_duration = models.DurationField(default=None, null=True)
+    building_and_validation_job_id = models.UUIDField(null=True)
     envelope = models.JSONField(default=get_empty_envelope)
 
     def get_envelope(self):
@@ -368,26 +377,3 @@ class Frequency(models.Model):
 
     class Meta:
         unique_together = ['trip', 'start_time']
-
-
-class GTFSValidation(models.Model):
-    project = models.OneToOneField(Project, on_delete=models.CASCADE)
-    STATUS_QUEUED = 'queued'
-    STATUS_ERROR = 'error'
-    STATUS_FINISHED = 'finished'
-    STATUS_PROCESSING = 'processing'
-    STATUS_CANCELED = 'canceled'
-    status_choices = (
-        (STATUS_QUEUED, 'Queued'),
-        (STATUS_PROCESSING, 'Processing'),
-        (STATUS_FINISHED, 'Finished'),
-        (STATUS_ERROR, 'Error'),
-        (STATUS_CANCELED, 'Canceled'),
-    )
-    status = models.CharField(max_length=20, choices=status_choices, default=None, null=True)
-    ran_at = models.DateTimeField(default=None, null=True)
-    message = models.TextField(default=None, null=True)
-    error_number = models.IntegerField(default=None, null=True)
-    warning_number = models.IntegerField(default=None, null=True)
-    duration = models.DurationField(default=None, null=True)
-    job_id = models.UUIDField(null=True)

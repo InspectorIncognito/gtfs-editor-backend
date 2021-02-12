@@ -2,7 +2,6 @@ import datetime
 import json
 import os
 import pathlib
-import uuid
 from unittest import mock
 
 from django.core.files import File
@@ -13,10 +12,9 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-from rq.exceptions import NoSuchJobError
 
 from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
-    ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule, GTFSValidation
+    ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule
 from rest_api.serializers import ProjectSerializer
 
 
@@ -365,7 +363,7 @@ class ProjectAPITest(BaseTestCase):
         fields = {
             'name': name
         }
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             json_response = self.projects_create(self.client, fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
@@ -394,65 +392,6 @@ class ProjectAPITest(BaseTestCase):
         db_data = ProjectSerializer(self.project).data
         self.assertDictEqual(json_response, db_data)
         self.assertEqual(db_data['name'], name)
-
-    @mock.patch('rest_api.views.validate_gtfs')
-    def test_run_gtfs_validation_first_time(self, mock_validate_gtfs):
-        self.assertEqual(GTFSValidation.objects.count(), 0)
-
-        type(mock_validate_gtfs.delay.return_value).id = uuid.uuid4()
-
-        json_response = self.projects_run_gtfs_validation_action(self.client, self.project.pk)
-        self.assertEqual(json_response['status'], GTFSValidation.STATUS_QUEUED)
-
-    @mock.patch('rest_api.views.validate_gtfs')
-    def test_run_gtfs_validation_twice(self, mock_validate_gtfs):
-        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_FINISHED)
-        type(mock_validate_gtfs.delay.return_value).id = uuid.uuid4()
-
-        json_response = self.projects_run_gtfs_validation_action(self.client, self.project.pk)
-        self.assertEqual(json_response['status'], GTFSValidation.STATUS_QUEUED)
-
-    def test_cancel_gtfs_validation_when_process_finished_correctly(self):
-        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_FINISHED)
-        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
-                                                                    status_code=status.HTTP_400_BAD_REQUEST)
-        self.assertListEqual(json_response, ['Validation is not running or queued'])
-
-    def test_cancel_gtfs_validation_when_process_finished_with_error(self):
-        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_ERROR)
-        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
-                                                                    status_code=status.HTTP_400_BAD_REQUEST)
-        self.assertListEqual(json_response, ['Validation is not running or queued'])
-
-    def test_cancel_gtfs_validation_when_process_was_canceled(self):
-        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_CANCELED)
-        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
-                                                                    status_code=status.HTTP_400_BAD_REQUEST)
-        self.assertListEqual(json_response, ['Validation is not running or queued'])
-
-    @mock.patch('rest_api.views.cancel_job')
-    def test_cancel_gtfs_validation_but_job_id_does_not_exist(self, mock_cancel_job):
-        job_id = uuid.uuid4()
-        mock_cancel_job.side_effect = NoSuchJobError
-        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_PROCESSING, job_id=job_id)
-        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
-                                                                    status_code=status.HTTP_200_OK)
-
-        self.assertEqual(json_response['status'], GTFSValidation.STATUS_CANCELED)
-
-    @mock.patch('rest_api.views.cancel_job')
-    def test_cancel_gtfs_validation(self, mock_cancel_job):
-        GTFSValidation.objects.create(project=self.project, status=GTFSValidation.STATUS_PROCESSING,
-                                      job_id=uuid.uuid4())
-
-        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk)
-        self.assertEqual(json_response['status'], GTFSValidation.STATUS_CANCELED)
-        mock_cancel_job.assert_called_once()
-
-    def test_cancel_gtfs_validation_when_validation_has_never_been_executed(self):
-        json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
-                                                                    status_code=status.HTTP_400_BAD_REQUEST)
-        self.assertListEqual(json_response, ['Validation has never been executed'])
 
     @mock.patch('rest_api.views.create_gtfs_file')
     def test_create_gtfs_file_with_queued_status(self, mock_create_gtfs_file):

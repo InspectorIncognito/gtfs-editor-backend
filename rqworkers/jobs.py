@@ -15,7 +15,7 @@ from django.utils import timezone
 from django_rq import job
 from rest_framework.exceptions import ParseError, ValidationError
 
-from rest_api.models import Project, GTFSValidation
+from rest_api.models import Project
 
 logger = logging.getLogger(__name__)
 
@@ -73,39 +73,15 @@ def upload_gtfs_file(project_pk, zip_file):
         raise ParseError('File is not a zip file')
 
 
-@job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)
-def create_gtfs_file(project_pk):
-    start_time = timezone.now()
-
-    project_obj = Project.objects.get(pk=project_pk)
-    project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_PROCESSING
-    project_obj.save()
-    try:
-        call_command('buildgtfs', project_obj.name)
-        project_obj.refresh_from_db()
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
-    except Exception as e:
-        logger.error(e)
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
-    finally:
-        project_obj.envelope = project_obj.get_envelope()
-        project_obj.save()
-
-        logger.info('duration: {0}'.format(timezone.now() - start_time))
-
-
-@job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60)
-def validate_gtfs(project_pk):
+def validate_gtfs(project_obj):
     """ run validation tools for a GTFS """
     start_time = timezone.now()
-    project_obj = Project.objects.select_related('gtfsvalidation').get(pk=project_pk)
-    project_obj.gtfsvalidation.status = GTFSValidation.STATUS_PROCESSING
-    project_obj.gtfsvalidation.ran_at = timezone.now()
-    project_obj.gtfsvalidation.save()
+    project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_VALIDATING
+    project_obj.save()
 
     try:
         try:
-            shutil.rmtree(os.path.join('tmp', str(project_pk)))
+            shutil.rmtree(os.path.join('tmp', str(project_obj.pk)))
         except IOError:
             pass
 
@@ -114,7 +90,7 @@ def validate_gtfs(project_pk):
 
         arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-v1.4.0_cli.jar'),
                      '-i', project_obj.gtfs_file.path,
-                     '-o', os.path.join('tmp', str(project_pk)),
+                     '-o', os.path.join('tmp', str(project_obj.pk)),
                      '--abort_on_error', 'false']
         # call gtfs validator
         subprocess.call(arguments)
@@ -127,7 +103,7 @@ def validate_gtfs(project_pk):
         header = ['filename', 'code', 'level', 'entity id', 'title', 'description']
         spamwriter.writerow(header)
 
-        for filepath in glob.glob(os.path.join('tmp', str(project_pk), '*.json')):
+        for filepath in glob.glob(os.path.join('tmp', str(project_obj.pk), '*.json')):
             with open(filepath) as file_obj:
                 json_file = json.load(file_obj)
                 for row in json_file['results'][1:]:
@@ -145,19 +121,41 @@ def validate_gtfs(project_pk):
                         row['description']
                     ])
 
-        project_obj.gtfsvalidation.status = GTFSValidation.STATUS_FINISHED
-        project_obj.gtfsvalidation.message = in_memory_csv.getvalue()
-        project_obj.gtfsvalidation.error_number = error_number
-        project_obj.gtfsvalidation.warning_number = warning_number
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
+        project_obj.gtfs_validation_message = in_memory_csv.getvalue()
+        project_obj.gtfs_validation_error_number = error_number
+        project_obj.gtfs_validation_warning_number = warning_number
     except Exception as e:
-        project_obj.gtfsvalidation.status = GTFSValidation.STATUS_ERROR
-        project_obj.gtfsvalidation.message = str(e)
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
+        project_obj.gtfs_validation_message = str(e)
         logger.error(e)
     finally:
-        project_obj.gtfsvalidation.duration = timezone.now() - start_time
-        project_obj.gtfsvalidation.save()
+        project_obj.gtfs_validation_duration = timezone.now() - start_time
+        project_obj.save()
 
         try:
             shutil.rmtree('input')
         except IOError:
             pass
+
+
+@job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)
+def build_and_validate_gtfs_file(project_pk):
+    start_time = timezone.now()
+
+    project_obj = Project.objects.get(pk=project_pk)
+    project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_BUILDING
+    project_obj.save()
+    try:
+        call_command('buildgtfs', project_obj.name)
+        project_obj.gtfs_creation_duration = timezone.now() - start_time
+        project_obj.save()
+        validate_gtfs(project_obj)
+    except Exception as e:
+        logger.error(e)
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
+    finally:
+        project_obj.envelope = project_obj.get_envelope()
+        project_obj.save()
+
+        logger.info('duration: {0}'.format(timezone.now() - start_time))

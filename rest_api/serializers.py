@@ -348,21 +348,12 @@ class FrequencySerializer(serializers.ModelSerializer):
         read_only = ['id']
 
 
-class GTFSValidationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = GTFSValidation
-        fields = ['status', 'ran_at', 'message', 'error_number', 'warning_number', 'duration']
-
-
 class ProjectSerializer(serializers.ModelSerializer):
     feedinfo = FeedInfoSerializer(read_only=True)
-    gtfsvalidation = GTFSValidationSerializer(read_only=True)
 
     class Meta:
         model = Project
-        fields = ['project_id', 'name', 'feedinfo', 'gtfsvalidation', 'last_modification', 'gtfs_file_updated_at',
-                  'gtfs_creation_status', 'gtfs_creation_duration', 'envelope']
-
-
-class ServiceSerializer(serializers.Serializer):
-    pass
+        fields = ['project_id', 'name', 'feedinfo', 'last_modification', 'gtfs_file_updated_at',
+                  'gtfs_creation_status', 'gtfs_creation_duration', 'gtfs_validation_message',
+                  'gtfs_validation_error_number', 'gtfs_validation_warning_number', 'gtfs_validation_duration',
+                  'envelope']

@@ -3,20 +3,16 @@ import datetime
 import io
 import time
 
-from django.db import transaction, connection
+from django.db import connection
 from django.db.models import ProtectedError, Prefetch, Value, TextField
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django.views import View
-from django.views.generic import ListView
 from django_rq.queues import get_connection
-from rest_framework import viewsets, status, mixins
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
-from rest_framework.generics import ListAPIView
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ViewSet
+from rest_framework.viewsets import ViewSet
 from rq import cancel_job
 from rq.command import send_kill_horse_command
 from rq.exceptions import NoSuchJobError
@@ -25,7 +21,7 @@ from rq.worker import Worker, WorkerStatus
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
-from rqworkers.jobs import validate_gtfs, create_gtfs_file, upload_gtfs_file
+from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file
 
 
 class CSVDownloadMixin:
@@ -289,7 +285,7 @@ class ProjectViewSet(MyModelViewSet):
     """
     API endpoint that allows projects to be viewed or edited.
     """
-    queryset = Project.objects.select_related('feedinfo', 'gtfsvalidation').all().order_by('name')
+    queryset = Project.objects.select_related('feedinfo').all().order_by('name')
     serializer_class = ProjectSerializer
 
     @action(methods=['GET'], detail=True)
@@ -312,71 +308,52 @@ class ProjectViewSet(MyModelViewSet):
         return Response({}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['POST'])
-    def create_gtfs_file(self, request, pk=None):
+    def build_and_validate_gtfs_file(self, request, pk=None):
         project_obj = self.get_object()
         http_status = status.HTTP_200_OK
         if project_obj.gtfs_creation_status in [Project.GTFS_CREATION_STATUS_FINISHED,
-                                                Project.GTFS_CREATION_STATUS_ERROR, None]:
+                                                Project.GTFS_CREATION_STATUS_ERROR,
+                                                Project.GTFS_CREATION_STATUS_CANCELED,
+                                                None]:
             project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+            project_obj.gtfs_validation_message = None
+            project_obj.gtfs_validation_error_number = None
+            project_obj.gtfs_validation_warning_number = None
+            project_obj.gtfs_validation_duration = None
+            project_obj.building_and_validation_job_id = None
             project_obj.save()
-            create_gtfs_file.delay(project_obj.pk)
+            build_and_validate_gtfs_file.delay(project_obj.pk)
             http_status = status.HTTP_201_CREATED
 
         return Response(ProjectSerializer(project_obj).data, http_status)
 
     @action(detail=True, methods=['POST'])
-    def run_gtfs_validation(self, request, pk=None):
+    def cancel_build_and_validate_gtfs_file(self, request, pk=None):
         project_obj = self.get_object()
 
-        try:
-            project_obj.gtfsvalidation.status = GTFSValidation.STATUS_QUEUED
-            project_obj.gtfsvalidation.ran_at = None
-            project_obj.gtfsvalidation.error_message = None
-            project_obj.gtfsvalidation.error_number = None
-            project_obj.gtfsvalidation.warning_number = None
-            project_obj.gtfsvalidation.duration = None
-            project_obj.gtfsvalidation.job_id = None
-            project_obj.gtfsvalidation.save()
-            gtfs_validation_obj = project_obj.gtfsvalidation
-        except GTFSValidation.DoesNotExist:
-            gtfs_validation_obj = GTFSValidation.objects.create(project=project_obj,
-                                                                status=GTFSValidation.STATUS_QUEUED)
+        if project_obj.gtfs_creation_status in [None,
+                                                Project.GTFS_CREATION_STATUS_ERROR,
+                                                Project.GTFS_CREATION_STATUS_CANCELED,
+                                                Project.GTFS_CREATION_STATUS_FINISHED]:
+            raise ValidationError('Validation is not running or queued')
 
-        # async task
-        job = validate_gtfs.delay(project_obj.pk)
-
-        GTFSValidation.objects.filter(project=project_obj).update(job_id=job.id)
-
-        return Response(GTFSValidationSerializer(gtfs_validation_obj).data, status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=['POST'])
-    def cancel_gtfs_validation(self, request, pk=None):
-        project_obj = self.get_object()
+        redis_conn = get_connection()
+        workers = Worker.all(redis_conn)
+        for worker in workers:
+            if worker.state == WorkerStatus.BUSY and \
+                    worker.get_current_job_id() == str(project_obj.building_and_validation_job_id):
+                send_kill_horse_command(redis_conn, worker.name)
 
         try:
-            if project_obj.gtfsvalidation.status in [GTFSValidation.STATUS_ERROR, GTFSValidation.STATUS_FINISHED,
-                                                     GTFSValidation.STATUS_CANCELED]:
-                raise ValidationError('Validation is not running or queued')
+            # remove from queue
+            cancel_job(str(project_obj.building_and_validation_job_id), connection=redis_conn)
+        except NoSuchJobError:
+            pass
 
-            redis_conn = get_connection()
-            workers = Worker.all(redis_conn)
-            for worker in workers:
-                if worker.state == WorkerStatus.BUSY and \
-                        worker.get_current_job_id() == str(project_obj.gtfsvalidation.job_id):
-                    send_kill_horse_command(redis_conn, worker.name)
+        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_CANCELED
+        project_obj.save()
 
-            try:
-                # remove from queue
-                cancel_job(str(project_obj.gtfsvalidation.job_id), connection=redis_conn)
-            except NoSuchJobError:
-                pass
-
-            project_obj.gtfsvalidation.status = GTFSValidation.STATUS_CANCELED
-            project_obj.gtfsvalidation.save()
-        except GTFSValidation.DoesNotExist:
-            raise ValidationError('Validation has never been executed')
-
-        return Response(GTFSValidationSerializer(project_obj.gtfsvalidation).data, status.HTTP_200_OK)
+        return Response(ProjectSerializer(project_obj).data, status.HTTP_200_OK)
 
 
 class ShapeViewSet(MyModelViewSet):
@@ -1087,4 +1064,4 @@ class TablesViewSet(ViewSet):
         qs = view.get_qs({'project_pk': project_pk})
         return {
             'entries': qs.count()
-                }
+        }
