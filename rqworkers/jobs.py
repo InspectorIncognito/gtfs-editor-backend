@@ -141,21 +141,21 @@ def build_and_validate_gtfs_file(project_pk):
     start_time = timezone.now()
 
     project_obj = Project.objects.get(pk=project_pk)
-    project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_BUILDING
+    project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING
     project_obj.save()
     try:
         call_command('buildgtfs', project_obj.name)
         project_obj.refresh_from_db()
-        project_obj.gtfs_creation_duration = timezone.now() - start_time
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_VALIDATING
+        project_obj.gtfs_building_duration = timezone.now() - start_time
+        project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_VALIDATING
         project_obj.save()
 
         validate_gtfs(project_obj)
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_FINISHED
+        project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED
         project_obj.save()
     except Exception as e:
         logger.error(e)
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_ERROR
+        project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR
     finally:
         project_obj.envelope = project_obj.get_envelope()
         project_obj.save()

@@ -31,7 +31,7 @@ class TestBuildGTFS(BaseTestCase):
         call_command(self.command_name, self.project_obj.name)
 
         self.project_obj.refresh_from_db()
-        self.assertIsNotNone(self.project_obj.gtfs_creation_duration)
+        self.assertIsNotNone(self.project_obj.gtfs_building_duration)
         self.assertIsNotNone(self.project_obj.gtfs_file_updated_at)
         self.assertIsNotNone(self.project_obj.gtfs_file)
 
@@ -41,6 +41,6 @@ class TestBuildGTFS(BaseTestCase):
         call_command(self.command_name, self.project_obj.name)
 
         self.project_obj.refresh_from_db()
-        self.assertIsNotNone(self.project_obj.gtfs_creation_duration)
+        self.assertIsNotNone(self.project_obj.gtfs_building_duration)
         self.assertIsNotNone(self.project_obj.gtfs_file_updated_at)
         self.assertIsNotNone(self.project_obj.gtfs_file)

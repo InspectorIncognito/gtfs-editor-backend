@@ -70,7 +70,8 @@ class TestBuildAndValidateGTFSFile(BaseTestCase):
         build_and_validate_gtfs_file(self.project_obj.pk)
 
         self.project_obj.refresh_from_db()
-        self.assertEqual(self.project_obj.gtfs_creation_status, Project.GTFS_CREATION_STATUS_FINISHED)
+        self.assertEqual(self.project_obj.gtfs_building_and_validation_status,
+                         Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED)
         mock_call_command.assert_called_with('buildgtfs', self.project_obj.name)
         mock_validate_gtfs.assert_called_with(self.project_obj)
 
@@ -80,7 +81,8 @@ class TestBuildAndValidateGTFSFile(BaseTestCase):
         build_and_validate_gtfs_file(self.project_obj.pk)
 
         self.project_obj.refresh_from_db()
-        self.assertEqual(self.project_obj.gtfs_creation_status, Project.GTFS_CREATION_STATUS_ERROR)
+        self.assertEqual(self.project_obj.gtfs_building_and_validation_status,
+                         Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR)
         mock_call_command.assert_called_with('buildgtfs', self.project_obj.name)
         mock_validate_gtfs.assert_not_called()
 

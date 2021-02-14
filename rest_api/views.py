@@ -311,11 +311,11 @@ class ProjectViewSet(MyModelViewSet):
     def build_and_validate_gtfs_file(self, request, pk=None):
         project_obj = self.get_object()
         http_status = status.HTTP_200_OK
-        if project_obj.gtfs_creation_status in [Project.GTFS_CREATION_STATUS_FINISHED,
-                                                Project.GTFS_CREATION_STATUS_ERROR,
-                                                Project.GTFS_CREATION_STATUS_CANCELED,
-                                                None]:
-            project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        if project_obj.gtfs_building_and_validation_status in [Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED,
+                                                               Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR,
+                                                               Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED,
+                                                               None]:
+            project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED
             project_obj.gtfs_validation_message = None
             project_obj.gtfs_validation_error_number = None
             project_obj.gtfs_validation_warning_number = None
@@ -331,10 +331,10 @@ class ProjectViewSet(MyModelViewSet):
     def cancel_build_and_validate_gtfs_file(self, request, pk=None):
         project_obj = self.get_object()
 
-        if project_obj.gtfs_creation_status in [None,
-                                                Project.GTFS_CREATION_STATUS_ERROR,
-                                                Project.GTFS_CREATION_STATUS_CANCELED,
-                                                Project.GTFS_CREATION_STATUS_FINISHED]:
+        if project_obj.gtfs_building_and_validation_status in [None,
+                                                               Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR,
+                                                               Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED,
+                                                               Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED]:
             raise ValidationError('Process is not running or queued')
 
         redis_conn = get_connection()
@@ -350,7 +350,7 @@ class ProjectViewSet(MyModelViewSet):
         except NoSuchJobError:
             pass
 
-        project_obj.gtfs_creation_status = Project.GTFS_CREATION_STATUS_CANCELED
+        project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED
         project_obj.save()
 
         return Response(ProjectSerializer(project_obj).data, status.HTTP_200_OK)

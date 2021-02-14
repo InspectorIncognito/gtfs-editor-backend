@@ -62,7 +62,8 @@ class Command(BaseCommand):
         zf.close()
 
         project_obj.gtfs_file_updated_at = timezone.now()
-        project_obj.gtfs_creation_duration = timezone.now() - start_time
+        project_obj.gtfs_building_duration = timezone.now() - start_time
         project_obj.gtfs_file.save(filename, ContentFile(s.getvalue()))
 
-        self.stdout.write(self.style.SUCCESS('GTFS "{0}" was created successfully'.format(filename)))
+        self.stdout.write(self.style.SUCCESS(
+            'GTFS "{0}" was created successfully in {1} seconds'.format(filename, project_obj.gtfs_building_duration)))

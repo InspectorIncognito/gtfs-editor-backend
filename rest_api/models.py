@@ -27,23 +27,24 @@ class Project(models.Model):
     last_modification = models.DateTimeField(default=timezone.now, null=False)
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
     gtfs_file_updated_at = models.DateTimeField(null=True)
-    GTFS_CREATION_STATUS_QUEUED = 'queued'
-    GTFS_CREATION_STATUS_BUILDING = 'building'
-    GTFS_CREATION_STATUS_VALIDATING = 'validating'
-    GTFS_CREATION_STATUS_FINISHED = 'finished'
-    GTFS_CREATION_STATUS_ERROR = 'error'
-    GTFS_CREATION_STATUS_CANCELED = 'canceled'
-    gtfs_creation_status_choices = (
-        (GTFS_CREATION_STATUS_QUEUED, 'Queued'),
-        (GTFS_CREATION_STATUS_BUILDING, 'Building'),
-        (GTFS_CREATION_STATUS_VALIDATING, 'Validating'),
-        (GTFS_CREATION_STATUS_FINISHED, 'Finished'),
-        (GTFS_CREATION_STATUS_ERROR, 'Error'),
-        (GTFS_CREATION_STATUS_CANCELED, 'Canceled')
+    GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED = 'queued'
+    GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING = 'building'
+    GTFS_BUILDING_AND_VALIDATION_STATUS_VALIDATING = 'validating'
+    GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED = 'finished'
+    GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR = 'error'
+    GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED = 'canceled'
+    gtfs_building_and_validation_status_choices = (
+        (GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED, 'Queued'),
+        (GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING, 'Building'),
+        (GTFS_BUILDING_AND_VALIDATION_STATUS_VALIDATING, 'Validating'),
+        (GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED, 'Finished'),
+        (GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR, 'Error'),
+        (GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED, 'Canceled')
     )
-    gtfs_creation_status = models.CharField(max_length=20, choices=gtfs_creation_status_choices, default=None,
-                                            null=True)
-    gtfs_creation_duration = models.DurationField(default=None, null=True)
+    gtfs_building_and_validation_status = models.CharField(max_length=20,
+                                                           choices=gtfs_building_and_validation_status_choices,
+                                                           default=None, null=True)
+    gtfs_building_duration = models.DurationField(default=None, null=True)
     gtfs_validation_message = models.TextField(default=None, null=True)
     gtfs_validation_error_number = models.IntegerField(default=None, null=True)
     gtfs_validation_warning_number = models.IntegerField(default=None, null=True)

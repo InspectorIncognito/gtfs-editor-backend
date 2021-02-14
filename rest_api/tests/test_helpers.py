@@ -5,7 +5,6 @@ import pathlib
 import uuid
 from unittest import mock
 
-from rq.exceptions import NoSuchJobError
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -14,8 +13,9 @@ from django.test import TestCase
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
-
+from rq.exceptions import NoSuchJobError
 from rq.worker import WorkerStatus
+
 from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
     ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule
 from rest_api.serializers import ProjectSerializer
@@ -397,10 +397,10 @@ class ProjectAPITest(BaseTestCase):
         self.assertEqual(db_data['name'], name)
 
     def test_cancel_build_and_validation_gtfs_file_action_but_process_is_not_running(self):
-        for build_and_validation_status in [None, Project.GTFS_CREATION_STATUS_ERROR,
-                                            Project.GTFS_CREATION_STATUS_CANCELED,
-                                            Project.GTFS_CREATION_STATUS_FINISHED]:
-            self.project.gtfs_creation_status = build_and_validation_status
+        for build_and_validation_status in [None, Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR,
+                                            Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED,
+                                            Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED]:
+            self.project.gtfs_building_and_validation_status = build_and_validation_status
             json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
                                                                         status_code=status.HTTP_400_BAD_REQUEST)
             self.assertEqual(json_response[0], 'Process is not running or queued')
@@ -413,7 +413,7 @@ class ProjectAPITest(BaseTestCase):
                                                                                   mock_worker, mock_cancel_job,
                                                                                   mock_send_kill_horse_command):
         self.project.building_and_validation_job_id = uuid.uuid4()
-        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED
         self.project.save()
         mock_worker.all.return_value = []
         mock_cancel_job.side_effect = NoSuchJobError
@@ -433,7 +433,7 @@ class ProjectAPITest(BaseTestCase):
     def cancel_build_and_validation_gtfs_file_action(self, mock_get_connection, mock_worker, mock_cancel_job,
                                                      mock_send_kill_horse_command):
         self.project.building_and_validation_job_id = uuid.uuid4()
-        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED
         self.project.save()
         worker_instance = mock.MagicMock()
         type(worker_instance).state = WorkerStatus.BUSY
@@ -457,36 +457,40 @@ class ProjectAPITest(BaseTestCase):
         mock_build_and_validate_gtfs_file.delay.assert_called_with(self.project.pk)
         mock_build_and_validate_gtfs_file.delay.assert_called_once()
         self.project.refresh_from_db()
-        self.assertEqual(self.project.gtfs_creation_status, Project.GTFS_CREATION_STATUS_QUEUED)
+        self.assertEqual(self.project.gtfs_building_and_validation_status,
+                         Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED)
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
 
     @mock.patch('rest_api.views.build_and_validate_gtfs_file')
     def test_create_gtfs_file_with_running_status(self, mock_build_and_validate_gtfs_file):
-        for build_and_validation_status in [Project.GTFS_CREATION_STATUS_BUILDING, Project.GTFS_CREATION_STATUS_QUEUED,
-                                            Project.GTFS_CREATION_STATUS_VALIDATING]:
-            self.project.gtfs_creation_status = build_and_validation_status
+        for build_and_validation_status in [Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING,
+                                            Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED,
+                                            Project.GTFS_BUILDING_AND_VALIDATION_STATUS_VALIDATING]:
+            self.project.gtfs_building_and_validation_status = build_and_validation_status
             self.project.save()
             json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                               status_code=status.HTTP_200_OK)
 
             self.project.refresh_from_db()
-            self.assertEqual(self.project.gtfs_creation_status, build_and_validation_status)
+            self.assertEqual(self.project.gtfs_building_and_validation_status, build_and_validation_status)
             self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
 
         mock_build_and_validate_gtfs_file.delay.assert_not_called()
 
     def test_create_gtfs_file_does_not_run_because_status(self):
-        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_QUEUED
+        self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED
         self.project.save()
         json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_200_OK)
-        self.assertEqual(json_response['gtfs_creation_status'], Project.GTFS_CREATION_STATUS_QUEUED)
+        self.assertEqual(json_response['gtfs_building_and_validation_status'],
+                         Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED)
 
-        self.project.gtfs_creation_status = Project.GTFS_CREATION_STATUS_BUILDING
+        self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING
         self.project.save()
         json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_200_OK)
-        self.assertEqual(json_response['gtfs_creation_status'], Project.GTFS_CREATION_STATUS_BUILDING)
+        self.assertEqual(json_response['gtfs_building_and_validation_status'],
+                         Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING)
 
     @mock.patch('rest_api.views.upload_gtfs_file')
     def test_upload_gtfs_file(self, mock_upload_gtfs_file):
