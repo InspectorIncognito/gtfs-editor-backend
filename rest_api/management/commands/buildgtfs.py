@@ -36,29 +36,30 @@ class Command(BaseCommand):
         s = BytesIO()
 
         files = {
-            'agency': AgencyViewSet,
-            'stops': StopViewSet,
-            'routes': RouteViewSet,
-            'trips': TripViewSet,
-            'calendar': CalendarViewSet,
-            'calendar_dates': CalendarDateViewSet,
-            'fare_attributes': FareAttributeViewSet,
-            'fare_rules': FareRuleViewSet,
-            'frequencies': FrequencyViewSet,
-            'transfers': TransferViewSet,
-            'pathways': PathwayViewSet,
-            'levels': LevelViewSet,
-            'feed_info': FeedInfoViewSet,
-            'shapes': ShapeViewSet,
-            'stop_times': StopTimeViewSet,
+            'agency': dict(viewset=AgencyViewSet, required=True),
+            'stops': dict(viewset=StopViewSet, required=True),
+            'routes': dict(viewset=RouteViewSet, required=True),
+            'trips': dict(viewset=TripViewSet, required=True),
+            'stop_times': dict(viewset=StopTimeViewSet, required=True),
+            'calendar': dict(viewset=CalendarViewSet, required=True),
+            'calendar_dates': dict(viewset=CalendarDateViewSet, required=False),
+            'fare_attributes': dict(viewset=FareAttributeViewSet, required=False),
+            'fare_rules': dict(viewset=FareRuleViewSet, required=False),
+            'shapes': dict(viewset=ShapeViewSet, required=True),
+            'frequencies': dict(viewset=FrequencyViewSet, required=False),
+            'transfers': dict(viewset=TransferViewSet, required=False),
+            'pathways': dict(viewset=PathwayViewSet, required=False),
+            'levels': dict(viewset=LevelViewSet, required=False),
+            'feed_info': dict(viewset=FeedInfoViewSet, required=True),
         }
         zf = zipfile.ZipFile(s, "w", zipfile.ZIP_DEFLATED, False)
         for gtfs_filename in files:
             out = StringIO()
-            view = files[gtfs_filename]
+            view = files[gtfs_filename]['viewset']
             qs = view.get_qs({'project_pk': project_obj.pk})
-            view.write_to_file(out, view.Meta, qs)
-            zf.writestr('{}.txt'.format(gtfs_filename), out.getvalue())
+            row_number = view.write_to_file(out, view.Meta, qs)
+            if row_number > 0 or files[gtfs_filename]['required']:
+                zf.writestr('{}.txt'.format(gtfs_filename), out.getvalue())
         zf.close()
 
         project_obj.gtfs_file_updated_at = timezone.now()

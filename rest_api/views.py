@@ -47,6 +47,7 @@ class CSVDownloadMixin:
             csv_fields[csv_fields.index(k)] = csv_field_mappings[k]
         # First we write the header
         writer.writerow(header)
+        row_number = 0
         for obj in qs.values(*csv_fields):
             # We transform the types that need transforming, for instance the booleans
             # into 0-1 and the dates get formatted
@@ -55,6 +56,9 @@ class CSVDownloadMixin:
             for k in csv_fields:
                 row.append(obj[k])
             writer.writerow(row)
+            row_number += 1
+
+        return row_number
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
@@ -377,9 +381,12 @@ class ShapeViewSet(MyModelViewSet):
         writer = csv.writer(out)
         shape_set = qs
         writer.writerow(['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'])
+        row_number = 0
         for shape in shape_set:
             for sp in shape.points.all().order_by('shape_pt_sequence'):
                 writer.writerow([sp.shape.shape_id, sp.shape_pt_lat, sp.shape_pt_lon, sp.shape_pt_sequence])
+                row_number += 1
+        return row_number
 
     @action(methods=['get'], detail=False, renderer_classes=(BinaryRenderer,))
     def download(self, *args, **kwargs):
