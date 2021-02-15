@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import uuid
+from io import StringIO
 from unittest import mock
 
 from django.core.files import File
@@ -329,10 +330,9 @@ class ProjectAPITest(BaseTestCase):
         url = reverse('project-detail', kwargs=dict(pk=pk))
         return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
 
-    def projects_run_gtfs_validation_action(self, client, pk, status_code=status.HTTP_201_CREATED):
-        url = reverse('project-run-gtfs-validation', kwargs=dict(pk=pk))
-        data = dict()
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+    def projects_create_project_from_gtfs_action(self, client, data, status_code=status.HTTP_201_CREATED):
+        url = reverse('project-create-project-from-gtfs')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='multipart')
 
     def projects_cancel_gtfs_validation_action(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-cancel-build-and-validate-gtfs-file', kwargs=dict(pk=pk))
@@ -407,6 +407,16 @@ class ProjectAPITest(BaseTestCase):
         db_data = ProjectSerializer(self.project).data
         self.assertDictEqual(json_response, db_data)
         self.assertEqual(db_data['name'], name)
+
+    @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
+    def test_projects_create_project_from_gtfs_action(self, mock_upload_gtfs):
+        zip_content = 'zip file'
+        data = dict(name='project_name', file=StringIO(zip_content))
+        json_response = self.projects_create_project_from_gtfs_action(self.client, data,
+                                                                      status_code=status.HTTP_201_CREATED)
+        new_project_obj = Project.objects.order_by('-last_modification').first()
+        self.assertDictEqual(json_response, ProjectSerializer(new_project_obj).data)
+        mock_upload_gtfs.delay.assert_called_once()
 
     def test_cancel_build_and_validation_gtfs_file_action_but_process_is_not_running(self):
         for build_and_validation_status in [None, Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR,

@@ -21,7 +21,7 @@ from rq.worker import Worker, WorkerStatus
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
-from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file
+from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file, upload_gtfs_file_when_project_is_created
 
 
 class CSVDownloadMixin:
@@ -301,6 +301,16 @@ class ProjectViewSet(MyModelViewSet):
         response['Content-Disposition'] = 'attachment; filename={}'.format(project_obj.gtfs_file.name)
 
         return response
+
+    @action(methods=['POST'], detail=False)
+    def create_project_from_gtfs(self, *args, **kwargs):
+        serializer = self.get_serializer(data=self.request.data)
+        serializer.is_valid(raise_exception=True)
+        project_obj = serializer.save()
+        zip_file = self.request.FILES['file']
+
+        upload_gtfs_file_when_project_is_created.delay(project_obj.pk, zip_file)
+        return Response(ProjectSerializer(project_obj).data, status.HTTP_201_CREATED)
 
     @action(methods=['POST'], detail=True)
     def upload_gtfs_file(self, *args, **kwargs):
