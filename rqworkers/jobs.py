@@ -73,6 +73,17 @@ def upload_gtfs_file(project_pk, zip_file):
         raise ParseError('File is not a zip file')
 
 
+@job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)
+def upload_gtfs_file_when_project_is_created(project_pk, zip_file):
+    try:
+        upload_gtfs_file(project_pk, zip_file)
+        Project.objects.filter(pk=project_pk).update(creation_status=Project.CREATION_STATUS_FROM_GTFS,
+                                                     last_modification=timezone.now())
+    except Exception as e:
+        Project.objects.filter(pk=project_pk).update(loading_gtfs_error_message=str(e),
+                                                     creation_status=Project.CREATION_STATUS_ERROR_LOADING_GTFS)
+
+
 def validate_gtfs(project_obj):
     """ run validation tools for a GTFS """
     start_time = timezone.now()

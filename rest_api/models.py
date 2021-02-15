@@ -24,6 +24,18 @@ def get_empty_envelope():
 class Project(models.Model):
     project_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50, unique=True)
+    CREATION_STATUS_EMPTY = 'empty'
+    CREATION_STATUS_LOADING_GTFS = 'loading_gtfs'
+    CREATION_STATUS_ERROR_LOADING_GTFS = 'error_loading_gtfs'
+    CREATION_STATUS_FROM_GTFS = 'from_gtfs'
+    creation_status_choices = (
+        (CREATION_STATUS_EMPTY, 'Empty'),
+        (CREATION_STATUS_LOADING_GTFS, 'Loading GTFS'),
+        (CREATION_STATUS_FROM_GTFS, 'From GTFS')
+    )
+    creation_status = models.CharField(max_length=20, default=CREATION_STATUS_EMPTY, choices=creation_status_choices,
+                                       null=False)
+    loading_gtfs_error_message = models.CharField(max_length=100, default=None, null=True)
     last_modification = models.DateTimeField(default=timezone.now, null=False)
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
     gtfs_file_updated_at = models.DateTimeField(null=True)

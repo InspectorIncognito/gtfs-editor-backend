@@ -356,4 +356,4 @@ class ProjectSerializer(serializers.ModelSerializer):
         fields = ['project_id', 'name', 'feedinfo', 'last_modification', 'gtfs_file_updated_at',
                   'gtfs_building_and_validation_status', 'gtfs_building_duration', 'gtfs_validation_message',
                   'gtfs_validation_error_number', 'gtfs_validation_warning_number', 'gtfs_validation_duration',
-                  'envelope']
+                  'envelope', 'creation_status', 'loading_gtfs_error_message']

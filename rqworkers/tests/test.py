@@ -10,7 +10,8 @@ from rest_framework.exceptions import ParseError, ValidationError
 from rest_api.models import Agency, Stop, Route, Trip, Calendar, CalendarDate, FareAttribute, FareRule, \
     Frequency, Transfer, Pathway, Level, FeedInfo, ShapePoint, StopTime, Project, Shape
 from rest_api.tests.test_helpers import BaseTestCase
-from rqworkers.jobs import validate_gtfs, upload_gtfs_file, build_and_validate_gtfs_file
+from rqworkers.jobs import validate_gtfs, upload_gtfs_file, build_and_validate_gtfs_file, \
+    upload_gtfs_file_when_project_is_created
 
 
 class TestValidateGTFS(BaseTestCase):
@@ -152,3 +153,33 @@ class UploadGTFSFileJob(TransactionTestCase):
         with self.assertRaises(ParseError):
             with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
                 upload_gtfs_file(self.project_obj.pk, file_obj)
+
+
+class TestUploadGTFSWhenProjectIsCreated(BaseTestCase):
+
+    def setUp(self):
+        self.project_obj = Project.objects.create(name='project', creation_status=Project.CREATION_STATUS_LOADING_GTFS)
+
+    @mock.patch('rqworkers.jobs.upload_gtfs_file')
+    def test_upload_gtfs(self, mock_upload_gtfs_file):
+        zip_data = 'data'
+        upload_gtfs_file_when_project_is_created(self.project_obj.pk, zip_data)
+
+        mock_upload_gtfs_file.assert_called_with(self.project_obj.pk, zip_data)
+        mock_upload_gtfs_file.assert_called_once()
+        self.project_obj.refresh_from_db()
+        self.assertEqual(self.project_obj.creation_status, Project.CREATION_STATUS_FROM_GTFS)
+        self.assertEqual(self.project_obj.loading_gtfs_error_message, None)
+
+    @mock.patch('rqworkers.jobs.upload_gtfs_file')
+    def test_upload_gtfs_but_error_is_raise(self, mock_upload_gtfs_file):
+        error_message = 'something goes wrong'
+        mock_upload_gtfs_file.side_effect = ValueError(error_message)
+        zip_data = 'data'
+        upload_gtfs_file_when_project_is_created(self.project_obj.pk, zip_data)
+
+        mock_upload_gtfs_file.assert_called_with(self.project_obj.pk, zip_data)
+        mock_upload_gtfs_file.assert_called_once()
+        self.project_obj.refresh_from_db()
+        self.assertEqual(self.project_obj.creation_status, Project.CREATION_STATUS_ERROR_LOADING_GTFS)
+        self.assertEqual(self.project_obj.loading_gtfs_error_message, error_message)
