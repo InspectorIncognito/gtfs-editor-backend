@@ -350,10 +350,15 @@ class FrequencySerializer(serializers.ModelSerializer):
 
 class ProjectSerializer(serializers.ModelSerializer):
     feedinfo = FeedInfoSerializer(read_only=True)
+    gtfs_validation = serializers.SerializerMethodField('get_gtfs_validation')
+
+    def get_gtfs_validation(self, obj):
+        result = dict(error_number=obj.gtfs_validation_error_number, message=obj.gtfs_validation_message,
+                      warning_number=obj.gtfs_validation_warning_number, duration=obj.gtfs_validation_duration)
+        return result
 
     class Meta:
         model = Project
         fields = ['project_id', 'name', 'feedinfo', 'last_modification', 'gtfs_file_updated_at',
-                  'gtfs_building_and_validation_status', 'gtfs_building_duration', 'gtfs_validation_message',
-                  'gtfs_validation_error_number', 'gtfs_validation_warning_number', 'gtfs_validation_duration',
-                  'envelope', 'creation_status', 'loading_gtfs_error_message']
+                  'gtfs_building_and_validation_status', 'gtfs_building_duration', 'envelope', 'creation_status',
+                  'loading_gtfs_error_message', 'gtfs_validation']

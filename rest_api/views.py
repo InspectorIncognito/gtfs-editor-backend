@@ -1074,7 +1074,12 @@ class TablesViewSet(ViewSet):
             'shapes': ShapeViewSet,
             'stop_times': StopTimeViewSet,
         }
-        response_data = {table: self.get_count(view, project_pk) for (table, view) in tables.items()}
+        response_data = dict()
+        project_obj = Project.objects.get(pk=project_pk)
+        for (table, view) in tables.items():
+            response_data[table] = self.get_count(view, project_pk)
+            response_data[table]['error_number'] = getattr(project_obj, '{0}_error_number'.format(table))
+            response_data[table]['warning_number'] = getattr(project_obj, '{0}_warning_number'.format(table))
         return Response(response_data)
 
     def get_count(self, view, project_pk):
