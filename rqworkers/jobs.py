@@ -9,6 +9,7 @@ import zipfile
 from io import StringIO
 
 from django.conf import settings
+from django.core.exceptions import FieldDoesNotExist
 from django.core.management import call_command
 from django.db import transaction, IntegrityError
 from django.utils import timezone
@@ -118,8 +119,20 @@ def validate_gtfs(project_obj):
                 for row in json_file['results'][1:]:
                     if row['level'] == 'WARNING':
                         warning_number += 1
+                        try:
+                            field_name = '{0}_warning_number'.format(row['filename'].replace('.txt', ''))
+                            project_obj._meta.get_field(field_name)
+                            setattr(project_obj, field_name, getattr(project_obj, field_name))
+                        except FieldDoesNotExist:
+                            pass
                     if row['level'] == 'ERROR':
                         error_number += 1
+                        try:
+                            field_name = '{0}_error_number'.format(row['filename'].replace('.txt', ''))
+                            project_obj._meta.get_field(field_name)
+                            setattr(project_obj, field_name, getattr(project_obj, field_name))
+                        except FieldDoesNotExist:
+                            pass
 
                     spamwriter.writerow([
                         row['filename'],
