@@ -38,6 +38,10 @@ class TestValidateGTFS(BaseTestCase):
              "entityId": "no id", "title": "problem", "description": "there is a problem"},
             {"filename": "b.txt", "code": "2", "level": "ERROR",
              "entityId": "no id", "title": "problem", "description": "there is a problem"},
+            {"filename": "agency.txt", "code": "2", "level": "ERROR",
+             "entityId": "no id", "title": "problem", "description": "there is a problem"},
+            {"filename": "stop_times.txt", "code": "2", "level": "WARNING",
+             "entityId": "no id", "title": "problem", "description": "there is a problem"},
         ]})))
     def test_execution(self, mock_glob, mock_subprocess):
         self.project_obj.gtfs_file.save(self.project_obj.name, ContentFile('fake zip file'))
@@ -50,8 +54,14 @@ class TestValidateGTFS(BaseTestCase):
         self.project_obj.refresh_from_db()
         expected_message = 'filename,code,level,entity id,title,description' + os.linesep + \
                            'a.txt,1,WARNING,no id,problem,there is a problem' + os.linesep + \
-                           'b.txt,2,ERROR,no id,problem,there is a problem' + os.linesep
+                           'b.txt,2,ERROR,no id,problem,there is a problem' + os.linesep + \
+                           'agency.txt,2,ERROR,no id,problem,there is a problem' + os.linesep + \
+                           'stop_times.txt,2,WARNING,no id,problem,there is a problem' + os.linesep
         self.assertEqual(self.project_obj.gtfs_validation_message, expected_message)
+        self.assertEqual(self.project_obj.gtfs_validation_error_number, 2)
+        self.assertEqual(self.project_obj.gtfs_validation_warning_number, 2)
+        self.assertEqual(self.project_obj.agency_error_number, 1)
+        self.assertEqual(self.project_obj.stop_times_warning_number, 1)
 
         # delete test files
         parent_path = os.path.sep.join(self.project_obj.gtfs_file.path.split(os.path.sep)[:-1])

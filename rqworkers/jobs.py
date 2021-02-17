@@ -120,17 +120,19 @@ def validate_gtfs(project_obj):
                     if row['level'] == 'WARNING':
                         warning_number += 1
                         try:
-                            field_name = '{0}_warning_number'.format(row['filename'].replace('.txt', ''))
-                            project_obj._meta.get_field(field_name)
-                            setattr(project_obj, field_name, getattr(project_obj, field_name))
+                            if row['filename'] is not None:
+                                field_name = '{0}_warning_number'.format(row['filename'].replace('.txt', ''))
+                                project_obj._meta.get_field(field_name)
+                                setattr(project_obj, field_name, getattr(project_obj, field_name) + 1)
                         except FieldDoesNotExist:
                             pass
                     if row['level'] == 'ERROR':
                         error_number += 1
                         try:
-                            field_name = '{0}_error_number'.format(row['filename'].replace('.txt', ''))
-                            project_obj._meta.get_field(field_name)
-                            setattr(project_obj, field_name, getattr(project_obj, field_name))
+                            if row['filename'] is not None:
+                                field_name = '{0}_error_number'.format(row['filename'].replace('.txt', ''))
+                                project_obj._meta.get_field(field_name)
+                                setattr(project_obj, field_name, getattr(project_obj, field_name) + 1)
                         except FieldDoesNotExist:
                             pass
 
