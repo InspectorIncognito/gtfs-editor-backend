@@ -113,6 +113,37 @@ def validate_gtfs(project_obj):
         header = ['filename', 'code', 'level', 'entity id', 'title', 'description']
         spamwriter.writerow(header)
 
+        project_obj.agency_error_number = 0
+        project_obj.stops_error_number = 0
+        project_obj.routes_error_number = 0
+        project_obj.trips_error_number = 0
+        project_obj.stop_times_error_number = 0
+        project_obj.calendar_error_number = 0
+        project_obj.calendar_dates_error_number = 0
+        project_obj.fare_attributes_error_number = 0
+        project_obj.fare_rules_error_number = 0
+        project_obj.shapes_error_number = 0
+        project_obj.frequencies_error_number = 0
+        project_obj.transfers_error_number = 0
+        project_obj.pathways_error_number = 0
+        project_obj.levels_error_number = 0
+        project_obj.feed_info_error_number = 0
+        project_obj.agency_warning_number = 0
+        project_obj.stops_warning_number = 0
+        project_obj.routes_warning_number = 0
+        project_obj.trips_warning_number = 0
+        project_obj.stop_times_warning_number = 0
+        project_obj.calendar_warning_number = 0
+        project_obj.calendar_dates_warning_number = 0
+        project_obj.fare_attributes_warning_number = 0
+        project_obj.fare_rules_warning_number = 0
+        project_obj.shapes_warning_number = 0
+        project_obj.frequencies_warning_number = 0
+        project_obj.transfers_warning_number = 0
+        project_obj.pathways_warning_number = 0
+        project_obj.levels_warning_number = 0
+        project_obj.feed_info_warning_number = 0
+
         for filepath in glob.glob(os.path.join('tmp', str(project_obj.pk), '*.json')):
             with open(filepath) as file_obj:
                 json_file = json.load(file_obj)
