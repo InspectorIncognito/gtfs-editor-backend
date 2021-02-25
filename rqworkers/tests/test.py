@@ -116,8 +116,8 @@ class UploadGTFSFileJob(TransactionTestCase):
         previous_last_modification = self.project_obj.last_modification
 
         with self.assertRaises(ParseError, msg='File is not a zip file'):
-            with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'cat.jpg')) as file_obj:
-                upload_gtfs_file(self.project_obj.pk, file_obj)
+            with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'cat.jpg'), 'rb') as file_obj:
+                upload_gtfs_file(self.project_obj.pk, file_obj.read())
 
         self.project_obj.refresh_from_db()
         self.assertEqual(self.project_obj.last_modification, previous_last_modification)
@@ -125,7 +125,7 @@ class UploadGTFSFileJob(TransactionTestCase):
     def test_upload_gtfs_file(self):
         previous_last_modification = self.project_obj.last_modification
         with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
-            upload_gtfs_file(self.project_obj.pk, file_obj)
+            upload_gtfs_file(self.project_obj.pk, file_obj.read())
 
         self.project_obj.refresh_from_db()
         self.assertNotEqual(self.project_obj.last_modification, previous_last_modification)
@@ -151,7 +151,7 @@ class UploadGTFSFileJob(TransactionTestCase):
         previous_last_modification = self.project_obj.last_modification
         with self.assertRaises(ValidationError, msg='agency.txt file is mandatory'):
             with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'wrong_gtfs.zip'), 'rb') as file_obj:
-                upload_gtfs_file(self.project_obj.pk, file_obj)
+                upload_gtfs_file(self.project_obj.pk, file_obj.read())
 
         self.project_obj.refresh_from_db()
         self.assertEqual(self.project_obj.last_modification, previous_last_modification)
@@ -162,7 +162,7 @@ class UploadGTFSFileJob(TransactionTestCase):
 
         with self.assertRaises(ParseError):
             with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
-                upload_gtfs_file(self.project_obj.pk, file_obj)
+                upload_gtfs_file(self.project_obj.pk, file_obj.read())
 
 
 class TestUploadGTFSWhenProjectIsCreated(BaseTestCase):

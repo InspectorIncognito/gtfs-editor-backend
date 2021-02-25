@@ -10,6 +10,7 @@ from io import StringIO
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
+from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import transaction, IntegrityError
 from django.utils import timezone
@@ -46,7 +47,7 @@ def upload_gtfs_file(project_pk, zip_file):
         'stop_times.txt': StopTimeViewSet,
     }
     try:
-        with zipfile.ZipFile(zip_file, 'r') as zip_file_obj:
+        with zipfile.ZipFile(ContentFile(zip_file), 'r') as zip_file_obj:
             try:
                 with transaction.atomic():
                     # file order matters
