@@ -411,12 +411,13 @@ class ProjectAPITest(BaseTestCase):
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action(self, mock_upload_gtfs):
         zip_content = 'zip file'
-        data = dict(name='project_name', file=StringIO(zip_content))
+        file_obj = StringIO(zip_content)
+        data = dict(name='project_name', file=file_obj)
         json_response = self.projects_create_project_from_gtfs_action(self.client, data,
                                                                       status_code=status.HTTP_201_CREATED)
         new_project_obj = Project.objects.order_by('-last_modification').first()
         self.assertDictEqual(json_response, ProjectSerializer(new_project_obj).data)
-        mock_upload_gtfs.delay.assert_called_once()
+        mock_upload_gtfs.delay.assert_called_with(new_project_obj.pk, zip_content.encode('utf-8'))
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action_without_gtfs_file(self, mock_upload_gtfs):

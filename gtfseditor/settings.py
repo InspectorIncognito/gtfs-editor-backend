@@ -232,3 +232,7 @@ if TESTING:
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
 CORS_ALLOW_HEADERS = ('content-disposition', 'accept-encoding',
                       'content-type', 'accept', 'origin', 'authorization')
+
+FILE_UPLOAD_HANDLERS = (
+    'django.core.files.uploadhandler.TemporaryFileUploadHandler',
+)

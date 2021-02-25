@@ -308,11 +308,12 @@ class ProjectViewSet(MyModelViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             zip_file = self.request.FILES['file']
+            gtfs_content = zip_file.open().read()
         except KeyError:
             raise ValidationError('Zip file with GTFS format is required')
 
         project_obj = serializer.save()
-        upload_gtfs_file_when_project_is_created.delay(project_obj.pk, zip_file)
+        upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
         return Response(ProjectSerializer(project_obj).data, status.HTTP_201_CREATED)
 
     @action(methods=['POST'], detail=True)
