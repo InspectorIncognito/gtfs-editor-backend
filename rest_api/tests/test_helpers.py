@@ -418,6 +418,16 @@ class ProjectAPITest(BaseTestCase):
         self.assertDictEqual(json_response, ProjectSerializer(new_project_obj).data)
         mock_upload_gtfs.delay.assert_called_once()
 
+    @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
+    def test_projects_create_project_from_gtfs_action_without_gtfs_file(self, mock_upload_gtfs):
+        project_name = 'project_name'
+        data = dict(name=project_name)
+        json_response = self.projects_create_project_from_gtfs_action(self.client, data,
+                                                                      status_code=status.HTTP_400_BAD_REQUEST)
+        self.assertRaises(Project.DoesNotExist, lambda: Project.objects.get(name=project_name))
+        self.assertListEqual(json_response, ['Zip file with GTFS format is required'])
+        mock_upload_gtfs.delay.assert_not_called()
+
     def test_cancel_build_and_validation_gtfs_file_action_but_process_is_not_running(self):
         for build_and_validation_status in [None, Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR,
                                             Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED,

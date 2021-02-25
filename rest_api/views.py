@@ -306,9 +306,12 @@ class ProjectViewSet(MyModelViewSet):
     def create_project_from_gtfs(self, *args, **kwargs):
         serializer = self.get_serializer(data=self.request.data)
         serializer.is_valid(raise_exception=True)
-        project_obj = serializer.save()
-        zip_file = self.request.FILES['file']
+        try:
+            zip_file = self.request.FILES['file']
+        except KeyError:
+            raise ValidationError('Zip file with GTFS format is required')
 
+        project_obj = serializer.save()
         upload_gtfs_file_when_project_is_created.delay(project_obj.pk, zip_file)
         return Response(ProjectSerializer(project_obj).data, status.HTTP_201_CREATED)
 
