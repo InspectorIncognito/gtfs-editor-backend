@@ -172,7 +172,7 @@ class CalendarDate(models.Model):
 
 
 class FeedInfo(models.Model):
-    project = models.OneToOneField(Project, on_delete=models.PROTECT)
+    project = models.OneToOneField(Project, on_delete=models.CASCADE)
     feed_publisher_name = models.CharField(max_length=50)
     feed_publisher_url = models.URLField()
     feed_lang = models.CharField(max_length=10)
