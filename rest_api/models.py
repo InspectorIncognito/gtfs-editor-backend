@@ -216,8 +216,8 @@ class Stop(models.Model):
 
 class Pathway(models.Model):
     pathway_id = models.CharField(max_length=50)
-    from_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="stop_from")
-    to_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="stop_to")
+    from_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, related_name="stop_from")
+    to_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, related_name="stop_to")
     pathway_mode = models.IntegerField()
     is_bidirectional = models.BooleanField()
     # length = models.FloatField(null=True)
@@ -261,8 +261,8 @@ class ShapePoint(models.Model):
 
 
 class Transfer(models.Model):
-    from_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="from_stop")
-    to_stop = models.ForeignKey(Stop, on_delete=models.PROTECT, related_name="to_stop")
+    from_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, related_name="from_stop")
+    to_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, related_name="to_stop")
     type = models.IntegerField()
     min_transfer_time = models.IntegerField(null=True, blank=True)
 
@@ -295,7 +295,7 @@ class Agency(models.Model):
 
 
 class Route(models.Model):
-    agency = models.ForeignKey(Agency, on_delete=models.PROTECT)
+    agency = models.ForeignKey(Agency, on_delete=models.CASCADE)
     route_id = models.CharField(max_length=50)
     route_short_name = models.CharField(max_length=50, null=True, blank=True)
     route_long_name = models.CharField(max_length=200, null=True, blank=True)
@@ -321,7 +321,7 @@ class FareAttribute(models.Model):
     payment_method = models.IntegerField()
     transfers = models.IntegerField(null=True, blank=True)
     transfer_duration = models.IntegerField()
-    agency = models.ForeignKey(Agency, on_delete=models.PROTECT)
+    agency = models.ForeignKey(Agency, on_delete=models.CASCADE)
 
     objects = InternalIDFilterManager('fare_id')
 
@@ -333,7 +333,7 @@ class FareAttribute(models.Model):
 
 
 class FareRule(models.Model):
-    fare_attribute = models.ForeignKey(FareAttribute, on_delete=models.PROTECT)
+    fare_attribute = models.ForeignKey(FareAttribute, on_delete=models.CASCADE)
     route = models.ForeignKey(Route, on_delete=models.SET_NULL, null=True, blank=True)
     origin_id = models.CharField(max_length=200, null=True, blank=True)
     destination_id = models.CharField(max_length=200, null=True, blank=True)
@@ -347,8 +347,8 @@ class FareRule(models.Model):
 class Trip(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     trip_id = models.CharField(max_length=50)
-    route = models.ForeignKey(Route, on_delete=models.PROTECT)
-    shape = models.ForeignKey(Shape, on_delete=models.PROTECT, null=True, blank=True)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE)
+    shape = models.ForeignKey(Shape, on_delete=models.CASCADE, null=True, blank=True)
     service_id = models.CharField(max_length=50)
     trip_headsign = models.CharField(max_length=100, null=True, blank=True)
     direction_id = models.BooleanField(null=True, blank=True)
@@ -367,8 +367,8 @@ class Trip(models.Model):
 
 
 class StopTime(models.Model):
-    trip = models.ForeignKey(Trip, on_delete=models.PROTECT, related_name='stop_times')
-    stop = models.ForeignKey(Stop, on_delete=models.PROTECT)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='stop_times')
+    stop = models.ForeignKey(Stop, on_delete=models.CASCADE)
     stop_sequence = models.IntegerField()
     arrival_time = models.DurationField(null=True, blank=True)
     departure_time = models.DurationField(null=True, blank=True)
@@ -393,7 +393,7 @@ class StopTime(models.Model):
 
 
 class Frequency(models.Model):
-    trip = models.ForeignKey(Trip, on_delete=models.PROTECT)
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE)
     start_time = models.TimeField()
     end_time = models.TimeField()
     headway_secs = models.PositiveIntegerField()
