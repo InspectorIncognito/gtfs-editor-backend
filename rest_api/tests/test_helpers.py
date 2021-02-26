@@ -526,14 +526,15 @@ class ProjectAPITest(BaseTestCase):
         self.assertEqual(json_response['gtfs_building_and_validation_status'],
                          Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING)
 
-    @mock.patch('rest_api.views.upload_gtfs_file')
-    def test_upload_gtfs_file(self, mock_upload_gtfs_file):
+    @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
+    def test_upload_gtfs_file(self, mock_upload_gtfs_file_when_project_is_created):
         current_dir = pathlib.Path(__file__).parent.absolute()
         with open(os.path.join(current_dir, '..', '..', 'rqworkers', 'tests', 'cat.jpg'), 'rb') as fp:
             json_response = self.projects_upload_gtfs_file_action(self.client, self.project.pk, fp)
 
-        mock_upload_gtfs_file.delay.assert_called_once()
-        self.assertDictEqual(json_response, {})
+        mock_upload_gtfs_file_when_project_is_created.delay.assert_called_once()
+        self.project.refresh_from_db()
+        self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
 
     def test_download_gtfs_file_but_file_does_not_exist(self):
         json_response = self.projects_download_action(self.client, self.project.pk,
