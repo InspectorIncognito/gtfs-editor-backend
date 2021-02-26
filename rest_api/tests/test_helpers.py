@@ -417,6 +417,7 @@ class ProjectAPITest(BaseTestCase):
                                                                       status_code=status.HTTP_201_CREATED)
         new_project_obj = Project.objects.order_by('-last_modification').first()
         self.assertDictEqual(json_response, ProjectSerializer(new_project_obj).data)
+        self.assertEqual(new_project_obj.creation_status, Project.CREATION_STATUS_LOADING_GTFS)
         mock_upload_gtfs.delay.assert_called_with(new_project_obj.pk, zip_content.encode('utf-8'))
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')

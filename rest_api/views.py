@@ -304,7 +304,8 @@ class ProjectViewSet(MyModelViewSet):
 
     @action(methods=['POST'], detail=False)
     def create_project_from_gtfs(self, *args, **kwargs):
-        serializer = self.get_serializer(data=self.request.data)
+        data = dict(creation_status=Project.CREATION_STATUS_LOADING_GTFS, name=self.request.data['name'])
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         try:
             zip_file = self.request.FILES['file']
