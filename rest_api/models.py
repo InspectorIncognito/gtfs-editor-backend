@@ -121,27 +121,8 @@ class Project(models.Model):
         return str(self.name)
 
 
-# TODO update publishing model when publishing methods are decided on
-class PublishingURL(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
-    name = models.CharField(max_length=50)
-    url = models.URLField()
-
-    def __str__(self):
-        return str(self.name)
-
-    class Meta:
-        unique_together = ['project', 'name']
-
-
-class Publication(models.Model):
-    publishing_location = models.ForeignKey(PublishingURL, on_delete=models.PROTECT)
-    status = models.IntegerField()
-    message = models.CharField(max_length=200)
-
-
 class Calendar(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     service_id = models.CharField(max_length=50)
     monday = models.BooleanField()
     tuesday = models.BooleanField()
@@ -163,7 +144,7 @@ class Calendar(models.Model):
 
 
 class Level(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     level_id = models.CharField(max_length=50)
     level_index = models.FloatField()
     level_name = models.CharField(max_length=50)
@@ -177,7 +158,7 @@ class Level(models.Model):
 
 
 class CalendarDate(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     service_id = models.CharField(max_length=50)
     date = models.DateField()
     exception_type = models.IntegerField()
@@ -208,7 +189,7 @@ class FeedInfo(models.Model):
 
 
 class Stop(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     stop_id = models.CharField(max_length=50)
     stop_code = models.CharField(max_length=50, null=True, blank=True)
     stop_name = models.CharField(max_length=200)
@@ -254,7 +235,7 @@ class Pathway(models.Model):
 
 
 class Shape(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     shape_id = models.CharField(max_length=50)
     objects = InternalIDFilterManager('shape_id')
 
@@ -295,7 +276,7 @@ class Transfer(models.Model):
 
 
 class Agency(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     agency_id = models.CharField(max_length=50)
     agency_name = models.CharField(max_length=50)
     agency_url = models.URLField()
@@ -333,7 +314,7 @@ class Route(models.Model):
 
 
 class FareAttribute(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     fare_id = models.CharField(max_length=50)
     price = models.FloatField()
     currency_type = models.CharField(max_length=10)
@@ -364,7 +345,7 @@ class FareRule(models.Model):
 
 
 class Trip(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.PROTECT)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
     trip_id = models.CharField(max_length=50)
     route = models.ForeignKey(Route, on_delete=models.PROTECT)
     shape = models.ForeignKey(Shape, on_delete=models.PROTECT, null=True, blank=True)
