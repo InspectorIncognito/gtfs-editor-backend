@@ -355,8 +355,9 @@ class Trip(models.Model):
     direction_id = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(1)])
     trip_short_name = models.CharField(max_length=50, null=True, blank=True)
     block_id = models.CharField(max_length=50, null=True, blank=True)
-    wheelchair_accessible = models.IntegerField(null=True, blank=True)
-    bikes_allowed = models.IntegerField(null=True, blank=True)
+    wheelchair_accessible = models.IntegerField(null=True, blank=True,
+                                                validators=[MinValueValidator(0), MaxValueValidator(2)])
+    bikes_allowed = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(2)])
 
     objects = InternalIDFilterManager('trip_id')
 
