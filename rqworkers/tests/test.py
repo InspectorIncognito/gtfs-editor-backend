@@ -156,13 +156,17 @@ class UploadGTFSFileJob(TransactionTestCase):
         self.project_obj.refresh_from_db()
         self.assertEqual(self.project_obj.last_modification, previous_last_modification)
 
-    def test_integrity_error(self):
+    def test_override_gtfs_data(self):
         agency_obj = Agency.objects.create(project=self.project_obj, agency_id=1, agency_name='name')
-        Route.objects.create(agency=agency_obj, route_id='route_id', route_type=1)
+        route_obj = Route.objects.create(agency=agency_obj, route_id='route_id', route_type=1)
 
-        with self.assertRaises(ParseError):
-            with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
-                upload_gtfs_file(self.project_obj.pk, file_obj.read())
+        with open(os.path.join(pathlib.Path(__file__).parent.absolute(), 'gtfs.zip'), 'rb') as file_obj:
+            upload_gtfs_file(self.project_obj.pk, file_obj.read())
+
+        self.assertEqual(Agency.objects.count(), 1)
+        self.assertEqual(Route.objects.count(), 11)
+        self.assertRaises(Agency.DoesNotExist, lambda: Agency.objects.get(agency_id=agency_obj.agency_id))
+        self.assertRaises(Route.DoesNotExist, lambda: Route.objects.get(route_id=route_obj.route_id))
 
 
 class TestUploadGTFSWhenProjectIsCreated(BaseTestCase):
