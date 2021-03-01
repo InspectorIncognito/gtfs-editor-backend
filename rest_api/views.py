@@ -128,6 +128,10 @@ class CSVUploadMixin:
             if 'internal_key' not in fk:
                 fk['internal_key'] = fk['model_key']
         for row in chunk:
+            # if column is not present in csv_header is deleted
+            for attr in row.copy():
+                if attr not in self.Meta.csv_header:
+                    del row[attr]
             # First we replace the foreign keys
             for fk in foreign_key_mappings:
                 k = fk['csv_key']
