@@ -7,21 +7,17 @@ from django.db import connection
 from django.db.models import ProtectedError, Prefetch, Value, TextField
 from django.http import HttpResponse
 from django.shortcuts import redirect
-from django_rq.queues import get_connection
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
-from rq import cancel_job
-from rq.command import send_kill_horse_command
-from rq.exceptions import NoSuchJobError
-from rq.worker import Worker, WorkerStatus
 
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
 from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file_when_project_is_created
+from rqworkers.utils import delete_job
 
 
 class CSVDownloadMixin:
@@ -365,23 +361,17 @@ class ProjectViewSet(MyModelViewSet):
                                                                Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED]:
             raise ValidationError('Process is not running or queued')
 
-        redis_conn = get_connection()
-        workers = Worker.all(redis_conn)
-        for worker in workers:
-            if worker.state == WorkerStatus.BUSY and \
-                    worker.get_current_job_id() == str(project_obj.building_and_validation_job_id):
-                send_kill_horse_command(redis_conn, worker.name)
-
-        try:
-            # remove from queue
-            cancel_job(str(project_obj.building_and_validation_job_id), connection=redis_conn)
-        except NoSuchJobError:
-            pass
+        delete_job(project_obj.building_and_validation_job_id)
 
         project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED
         project_obj.save()
 
         return Response(ProjectSerializer(project_obj).data, status.HTTP_200_OK)
+
+    def perform_destroy(self, instance):
+        delete_job(instance.loading_gtfs_job_id)
+        delete_job(instance.building_and_validation_job_id)
+        instance.delete()
 
 
 class ShapeViewSet(MyModelViewSet):
