@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import zipfile
 from io import StringIO
+from time import sleep
 
 from django.conf import settings
 from django.core.exceptions import FieldDoesNotExist
@@ -78,6 +79,11 @@ def upload_gtfs_file(project_pk, zip_file):
 @job(settings.GTFSEDITOR_QUEUE_NAME, timeout=60 * 60 * 12)
 def upload_gtfs_file_when_project_is_created(project_pk, zip_file):
     try:
+        # wait for job id
+        sleep(2)
+        if Project.objects.filter(pk=project_pk, loading_gtfs_job_id__isnull=True).exists():
+            raise ValueError('job id was not assigned')
+
         upload_gtfs_file(project_pk, zip_file)
         Project.objects.filter(pk=project_pk).update(creation_status=Project.CREATION_STATUS_FROM_GTFS,
                                                      last_modification=timezone.now())
@@ -199,6 +205,13 @@ def build_and_validate_gtfs_file(project_pk):
     start_time = timezone.now()
 
     project_obj = Project.objects.get(pk=project_pk)
+
+    # wait for job id
+    sleep(2)
+    project_obj.refresh_from_db()
+    if project_obj.building_and_validation_job_id is None:
+        raise ValueError('job id was not assigned')
+
     project_obj.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING
     project_obj.save()
     try:

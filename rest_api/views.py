@@ -318,7 +318,9 @@ class ProjectViewSet(MyModelViewSet):
             raise ValidationError('Zip file with GTFS format is required')
 
         project_obj = serializer.save()
-        upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
+        job = upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
+        Project.objects.filter(pk=project_obj.pk).update(loading_gtfs_job_id=job.id)
+
         return Response(ProjectSerializer(project_obj).data, status.HTTP_201_CREATED)
 
     @action(methods=['POST'], detail=True)
@@ -347,7 +349,8 @@ class ProjectViewSet(MyModelViewSet):
             project_obj.gtfs_validation_duration = None
             project_obj.building_and_validation_job_id = None
             project_obj.save()
-            build_and_validate_gtfs_file.delay(project_obj.pk)
+            job = build_and_validate_gtfs_file.delay(project_obj.pk)
+            Project.objects.filter(pk=project_obj.pk).update(building_and_validation_job_id=job.id)
             http_status = status.HTTP_201_CREATED
 
         return Response(ProjectSerializer(project_obj).data, http_status)

@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import uuid
 from unittest import mock
 
 from django.core.files.base import ContentFile
@@ -78,6 +79,9 @@ class TestBuildAndValidateGTFSFile(BaseTestCase):
 
     @mock.patch('rqworkers.jobs.call_command')
     def test_execution(self, mock_call_command, mock_validate_gtfs):
+        self.project_obj.building_and_validation_job_id = uuid.uuid4()
+        self.project_obj.save()
+
         build_and_validate_gtfs_file(self.project_obj.pk)
 
         self.project_obj.refresh_from_db()
@@ -88,6 +92,9 @@ class TestBuildAndValidateGTFSFile(BaseTestCase):
 
     @mock.patch('rqworkers.jobs.call_command')
     def test_execution_raise_error(self, mock_call_command, mock_validate_gtfs):
+        self.project_obj.building_and_validation_job_id = uuid.uuid4()
+        self.project_obj.save()
+
         mock_call_command.side_effect = ValueError('error calling call_command')
         build_and_validate_gtfs_file(self.project_obj.pk)
 
@@ -173,6 +180,8 @@ class TestUploadGTFSWhenProjectIsCreated(BaseTestCase):
 
     def setUp(self):
         self.project_obj = Project.objects.create(name='project', creation_status=Project.CREATION_STATUS_LOADING_GTFS)
+        self.project_obj.loading_gtfs_job_id = uuid.uuid4()
+        self.project_obj.save()
 
     @mock.patch('rqworkers.jobs.upload_gtfs_file')
     def test_upload_gtfs(self, mock_upload_gtfs_file):

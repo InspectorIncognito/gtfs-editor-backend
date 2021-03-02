@@ -410,12 +410,15 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action(self, mock_upload_gtfs):
+        job_id = uuid.uuid4()
+        type(mock_upload_gtfs.delay.return_value).id = job_id
         zip_content = 'zip file'
         file_obj = StringIO(zip_content)
         data = dict(name='project_name', file=file_obj)
         json_response = self.projects_create_project_from_gtfs_action(self.client, data,
                                                                       status_code=status.HTTP_201_CREATED)
         new_project_obj = Project.objects.order_by('-last_modification').first()
+        self.assertEqual(new_project_obj.loading_gtfs_job_id, job_id)
         self.assertDictEqual(json_response, ProjectSerializer(new_project_obj).data)
         self.assertEqual(new_project_obj.creation_status, Project.CREATION_STATUS_LOADING_GTFS)
         mock_upload_gtfs.delay.assert_called_with(new_project_obj.pk, zip_content.encode('utf-8'))
@@ -486,11 +489,14 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.build_and_validate_gtfs_file')
     def test_create_gtfs_file_with_queued_status(self, mock_build_and_validate_gtfs_file):
+        job_id = uuid.uuid4()
+        type(mock_build_and_validate_gtfs_file.delay.return_value).id = job_id
         json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_201_CREATED)
         mock_build_and_validate_gtfs_file.delay.assert_called_with(self.project.pk)
         mock_build_and_validate_gtfs_file.delay.assert_called_once()
         self.project.refresh_from_db()
+        self.assertEqual(self.project.building_and_validation_job_id, job_id)
         self.assertEqual(self.project.gtfs_building_and_validation_status,
                          Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED)
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
