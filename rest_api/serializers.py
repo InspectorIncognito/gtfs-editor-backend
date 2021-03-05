@@ -25,6 +25,35 @@ class NestedModelSerializer(serializers.ModelSerializer):
 
 
 class CalendarSerializer(NestedModelSerializer):
+    monday = serializers.NullBooleanField(required=False)
+    tuesday = serializers.NullBooleanField(required=False)
+    wednesday = serializers.NullBooleanField(required=False)
+    thursday = serializers.NullBooleanField(required=False)
+    friday = serializers.NullBooleanField(required=False)
+    saturday = serializers.NullBooleanField(required=False)
+    sunday = serializers.NullBooleanField(required=False)
+
+    def validate_monday(self, value):
+        return False if value is None else value
+
+    def validate_tuesday(self, value):
+        return False if value is None else value
+
+    def validate_wednesday(self, value):
+        return False if value is None else value
+
+    def validate_thursday(self, value):
+        return False if value is None else value
+
+    def validate_friday(self, value):
+        return False if value is None else value
+
+    def validate_saturday(self, value):
+        return False if value is None else value
+
+    def validate_sunday(self, value):
+        return False if value is None else value
+
     class Meta:
         model = Calendar
         fields = ['id', 'service_id', 'monday', 'tuesday',
