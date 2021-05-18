@@ -59,7 +59,7 @@ class Project(models.Model):
                                                            choices=gtfs_building_and_validation_status_choices,
                                                            default=None, null=True)
     gtfs_building_duration = models.DurationField(default=None, null=True)
-    gtfs_validation_message = models.TextField(default=None, null=True)
+    gtfs_validation_message = models.TextField(default='', null=False)
     gtfs_validation_error_number = models.IntegerField(default=None, null=True)
     gtfs_validation_warning_number = models.IntegerField(default=None, null=True)
     gtfs_validation_duration = models.DurationField(default=None, null=True)
