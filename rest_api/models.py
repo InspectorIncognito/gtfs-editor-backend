@@ -251,6 +251,7 @@ class Shape(models.Model):
 class ShapePoint(models.Model):
     shape = models.ForeignKey(Shape, on_delete=models.CASCADE, related_name='points')
     shape_pt_sequence = models.IntegerField()
+    shape_dist_traveled = models.FloatField(null=True, default=None)
     shape_pt_lat = models.FloatField()
     shape_pt_lon = models.FloatField()
     objects = FilterManager('shape__project__project_id')
@@ -400,7 +401,7 @@ class Frequency(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
     headway_secs = models.PositiveIntegerField()
-    exact_times = models.IntegerField()
+    exact_times = models.IntegerField(null=True)
 
     objects = FilterManager('trip__project__project_id')
 
