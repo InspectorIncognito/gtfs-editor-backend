@@ -353,7 +353,7 @@ class Trip(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     shape = models.ForeignKey(Shape, on_delete=models.CASCADE, null=True, blank=True)
     service_id = models.CharField(max_length=50)
-    trip_headsign = models.CharField(max_length=100, null=True, blank=True)
+    trip_headsign = models.CharField(max_length=200, null=True, blank=True)
     direction_id = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(1)])
     trip_short_name = models.CharField(max_length=50, null=True, blank=True)
     block_id = models.CharField(max_length=50, null=True, blank=True)
