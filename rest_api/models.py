@@ -37,7 +37,7 @@ class Project(models.Model):
     creation_status = models.CharField(max_length=20, default=CREATION_STATUS_EMPTY, choices=creation_status_choices,
                                        null=False)
     loading_gtfs_job_id = models.UUIDField(null=True)
-    loading_gtfs_error_message = models.CharField(max_length=100, default=None, null=True)
+    loading_gtfs_error_message = models.TextField(default=None, null=True)
     last_modification = models.DateTimeField(default=timezone.now, null=False)
     gtfs_file = models.FileField(upload_to=gtfs_update_to, null=True)
     gtfs_file_updated_at = models.DateTimeField(null=True)
