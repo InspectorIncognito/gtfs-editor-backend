@@ -423,11 +423,15 @@ class ShapeViewSet(MyModelViewSet):
         for row in shape_qs.filter(shape_id__in=shape_ids).distinct('shape_id').values_list('shape_id', 'id'):
             id_dict[row[0]] = row[1]
 
-        def dereference_shape_id(row):
+        def transform_data(row):
+            # dereference_shape_id
             row['shape_id'] = id_dict[row['shape_id']]
+            # replace '' with None to avoid type error
+            if 'shape_dist_traveled' in row:
+                row['shape_dist_traveled'] = None if row['shape_dist_traveled'] == '' else row['shape_dist_traveled']
             return row
 
-        ShapePoint.objects.bulk_create(map(lambda row: ShapePoint(**row), map(dereference_shape_id, chunk)))
+        ShapePoint.objects.bulk_create(map(lambda row: ShapePoint(**row), map(transform_data, chunk)))
 
     @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
     @transaction.atomic()
