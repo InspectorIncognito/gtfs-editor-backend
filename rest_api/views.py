@@ -914,7 +914,7 @@ class StopTimeViewSet(CSVHandlerMixin,
                       'pickup_type',
                       'drop_off_type',
                       'continuous_pickup',
-                      'continuous_dropoff',
+                      'continuous_drop_off',
                       'shape_dist_traveled',
                       'timepoint']
         search_fields = ['trip__trip_id', 'stop__stop_id']

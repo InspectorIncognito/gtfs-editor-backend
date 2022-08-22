@@ -380,7 +380,7 @@ class StopTime(models.Model):
     pickup_type = models.IntegerField(null=True, blank=True)
     drop_off_type = models.IntegerField(null=True, blank=True)
     continuous_pickup = models.IntegerField(null=True, blank=True)
-    continuous_dropoff = models.IntegerField(null=True, blank=True)
+    continuous_drop_off = models.IntegerField(null=True, blank=True)
     shape_dist_traveled = models.FloatField(null=True, blank=True)
     timepoint = models.IntegerField(null=True, blank=True)
 
