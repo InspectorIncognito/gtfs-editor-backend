@@ -67,7 +67,10 @@ def upload_gtfs_file(project_pk, zip_file):
                                 raise ValidationError('{0} file is mandatory'.format(uploader_filename))
                             else:
                                 logger.info('file "{0}" does not exist in zip file'.format(uploader_filename))
-                    Project.objects.filter(pk=project_pk).update(last_modification=timezone.now())
+                    project_obj = Project.objects.get(pk=project_pk)
+                    project_obj.last_modification = timezone.now()
+                    project_obj.envelope = project_obj.get_envelope()
+                    project_obj.save()
             except IntegrityError as e:
                 logger.error('error while zip file was loading: {0}'.format(e))
                 transaction.rollback()
