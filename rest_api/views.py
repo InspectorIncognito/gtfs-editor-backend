@@ -441,6 +441,10 @@ class ShapeViewSet(MyModelViewSet):
         file = request.FILES['file']
         self._perform_upload(file, kwargs['project_pk'])
 
+        project_obj = Project.objects.get(pk=kwargs['project_pk'])
+        project_obj.envelope = project_obj.get_envelope()
+        project_obj.save()
+
         return HttpResponse(content_type='text/plain')
 
     def _perform_upload(self, file, project_pk):
@@ -632,6 +636,17 @@ class StopViewSet(CSVHandlerMixin,
         for k, v in stops.values_list(*values):
             resp[k] = v
         return Response(resp)
+
+    @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
+    @transaction.atomic()
+    def upload(self, request, *args, **kwargs):
+        response = super().upload(request, *args, **kwargs)
+
+        project_obj = Project.objects.get(pk=kwargs['project_pk'])
+        project_obj.envelope = project_obj.get_envelope()
+        project_obj.save()
+
+        return response
 
 
 class PathwayViewSet(CSVHandlerMixin,
