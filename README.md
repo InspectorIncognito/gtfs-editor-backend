@@ -1,28 +1,5 @@
 # GTFS EDITOR
 
-```
-Some changes were made in the way the steps were Some changes were made in the way the project documentation. Some sections
-were added and others were modified. Also, some typos were fixed. The
-following sections were added:
-
-- Table of Contents
-- Requirements
-- Installations
-- Configuration
-- Running the project
-
-Also, it was added a section where explains how to run the project when cloning
-it the repository in Windows. This is because the entrypoints.sh files have
-to be converted to LF line endings. This is not necessary in Linux or Mac.
-
-There were some typos in the README.md file that were fixed. Also, some
-sections were modified to make them more clear.
-
-Last version of the README.md did not have sections were the user could
-find more information about the installation process. Some tools were also
-added to the list of requirements to make the installation process easier.
-```
-
 This project is a web application to create, edit and publish static GTFS.
 
 In the current document you will find the necessary information to
