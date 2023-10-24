@@ -1,0 +1,11 @@
+version: '3.7'
+
+services:
+  web:
+    command:
+      - webserver-dev
+    volumes:
+      - ../:/app
+  db:
+    ports:
+      - "5431:5432"
