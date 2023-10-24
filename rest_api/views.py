@@ -1046,7 +1046,7 @@ class ServiceViewSet(ViewSet):
 
     def get_services(self, project_pk):
         kwargs = self.kwargs
-        calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
+        calendars = Calendar.objects.filter(project=project_pk).values('id','service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
         calendar_dates = CalendarDate.objects.filter(project=project_pk, exception_type=1).values(
             'service_id').annotate(
