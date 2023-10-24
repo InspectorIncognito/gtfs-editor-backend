@@ -17,7 +17,7 @@ def get_empty_envelope():
         'properties': {},
         'geometry': {
             'type': 'Polygon',
-            'coordinates': [[]]
+            'coordinates': [[[-180.0, -90.0], [180.0, -90.0], [180.0, 90.0], [-180.0, 90.0], [-180.0, -90.0]]]
         }
     }
 
@@ -106,7 +106,7 @@ class Project(models.Model):
         try:
             coordinates = [list(envelope_obj.exterior.coords)]
         except AttributeError:
-            coordinates = [[]]
+            coordinates = [[[-180.0, -90.0], [180.0, -90.0], [180.0, 90.0], [-180.0, 90.0], [-180.0, -90.0]]]
 
         geojson = {
             'type': 'Feature',
