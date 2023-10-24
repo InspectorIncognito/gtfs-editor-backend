@@ -1045,8 +1045,7 @@ class FrequencyViewSet(CSVHandlerMixin,
 class ServiceViewSet(ViewSet):
 
     def get_services(self, project_pk):
-        kwargs = self.kwargs
-        calendars = Calendar.objects.filter(project=project_pk).values('id','service_id').annotate(
+        calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
         calendar_dates = CalendarDate.objects.filter(project=project_pk, exception_type=1).values(
             'service_id').annotate(
@@ -1060,7 +1059,9 @@ class ServiceViewSet(ViewSet):
 
     def list(self, request, project_pk):
         services = self.get_services(project_pk)
-        return Response(self.simulate_pagination(services))
+        serialized_services = [dict(id=service['service_id'], service_id=service['service_id'], type=service['type'])
+                               for service in services]
+        return Response(self.simulate_pagination(serialized_services))
 
     def simulate_pagination(self, services):
         return {
