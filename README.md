@@ -20,13 +20,7 @@ You need to have the following tools installed in your machine:
 - Python 3
 - pip package manager
 - virtualenv package
-- Docker
-- Docker Compose
 - Docker Desktop
-
-In this repository you will find a file called `requirements.txt` that
-contains all the dependencies that you need to install in order to run the
-project. 
 
 ## Installations
 
@@ -112,26 +106,10 @@ it [here](https://hub.docker.com/signup).
 
 You can download it [here](https://docs.docker.com/get-docker/).
 
-### Installing Docker Compose
-
-Docker Compose is a tool for defining and running multi-container Docker
-applications. You can learn more about Docker Compose
-[here](https://docs.docker.com/compose/).
-
-You can download it [here](https://docs.docker.com/compose/install/).
-
 ### Installing Docker Desktop
 
 Docker Desktop is a handy tool that allows you to manage Docker containers
 and images. You can download it [here](https://www.docker.com/products/docker-desktop).
-
-### Installing Docker Compose
-
-Docker Compose is a tool for defining and running multi-container Docker
-applications. You can learn more about Docker Compose [here](https://docs.docker.com/compose/).
-
-You can download it [here](https://docs.docker.com/compose/install/). The
-installation steps depend on your operating system.
 
 ## Configuration
 
@@ -173,7 +151,6 @@ REDIS_LOCATION=redis://127.0.0.1:6379
 LOG_PATH=./file.log
 
 CORS_ALLOWED_ORIGINS=http://localhost:8080 # needed in dev mode
-
 ```
 
 You will need to replace the values of the variables with the ones that you
