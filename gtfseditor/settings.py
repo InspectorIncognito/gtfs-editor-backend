@@ -164,7 +164,7 @@ LOGGING = {
             'filename': config('LOG_PATH'),
         },
         'console': {
-            'class': 'rq.utils.ColorizingStreamHandler',
+            'class': 'rq.logutils.ColorizingStreamHandler',
         }
     },
     'loggers': {

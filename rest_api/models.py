@@ -253,6 +253,7 @@ class ShapePoint(models.Model):
     shape_pt_sequence = models.IntegerField()
     shape_pt_lat = models.FloatField()
     shape_pt_lon = models.FloatField()
+    shape_dist_traveled = models.FloatField(default=None, null=True, blank=True)
     objects = FilterManager('shape__project__project_id')
 
     def __str__(self):

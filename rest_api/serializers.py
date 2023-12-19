@@ -25,13 +25,13 @@ class NestedModelSerializer(serializers.ModelSerializer):
 
 
 class CalendarSerializer(NestedModelSerializer):
-    monday = serializers.NullBooleanField(required=False)
-    tuesday = serializers.NullBooleanField(required=False)
-    wednesday = serializers.NullBooleanField(required=False)
-    thursday = serializers.NullBooleanField(required=False)
-    friday = serializers.NullBooleanField(required=False)
-    saturday = serializers.NullBooleanField(required=False)
-    sunday = serializers.NullBooleanField(required=False)
+    monday = serializers.BooleanField(required=False)
+    tuesday = serializers.BooleanField(required=False)
+    wednesday = serializers.BooleanField(required=False)
+    thursday = serializers.BooleanField(required=False)
+    friday = serializers.BooleanField(required=False)
+    saturday = serializers.BooleanField(required=False)
+    sunday = serializers.BooleanField(required=False)
 
     def validate_monday(self, value):
         return False if value is None else value

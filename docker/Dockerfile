@@ -1,13 +1,13 @@
-FROM python:3.7.7-alpine3.11 as base
+FROM python:3.11-slim-buster as base
 
 FROM base as builder
 
 RUN mkdir /install
-RUN apk add postgresql-dev=9.6.10-r0 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.5/main
-RUN /bin/sh -c 'apk update && apk add --no-cache gcc musl-dev geos-dev'
+RUN apt-get update &&  \
+    apt-get upgrade -y
 COPY requirements.txt /install/requirements.txt
-RUN /bin/sh -c 'pip3 install --no-cache-dir --upgrade pip'
-RUN /bin/sh -c 'pip3 install --no-cache-dir --no-warn-script-location --prefix /install -r /install/requirements.txt'
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-warn-script-location --no-cache-dir --prefix /install -r /install/requirements.txt
 
 FROM base
 
@@ -18,7 +18,9 @@ ENV PYTHONUNBUFFERED 1
 
 COPY --from=builder /install /usr/local
 
-RUN /bin/sh -c 'apk update && apk add --no-cache openjdk11 postgresql-dev geos'
+RUN apt-get update &&  \
+    apt-get upgrade -y &&  \
+    apt-get install -y netcat
 
 WORKDIR /app
 RUN mkdir ./static && \

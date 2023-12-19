@@ -56,9 +56,9 @@ services:
       - cache_network
 
   db:
-    image: postgres:9.6-alpine
+    image: postgres:16.1-alpine
     volumes:
-      - postgres_gtfseditor_data:/var/lib/postgresql/data/
+      - postgres_gtfseditor_data_v16:/var/lib/postgresql/data/
     env_file:
       - ./docker_db_env
     networks:
@@ -74,6 +74,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_gtfseditor_data:
+  postgres_gtfseditor_data_v16:
   static_volume:
   media_volume:

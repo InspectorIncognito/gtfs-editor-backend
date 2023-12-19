@@ -1,3 +1,5 @@
+TRY_LOOP=10
+
 wait_for_port()
 {
   local name="$1" host="$2" port="$3"
