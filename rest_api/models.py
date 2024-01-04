@@ -1,6 +1,7 @@
 import os
 
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
 from shapely.geometry import MultiPoint
 
@@ -22,8 +23,41 @@ def get_empty_envelope():
     }
 
 
+class User(models.Model):
+    username = models.CharField(max_length=30, unique=True)
+    email = models.EmailField()
+    email_confirmation_token = models.UUIDField(editable=False, null=True, blank=True)
+    confirmed_email = models.BooleanField(default=False)
+    password = models.CharField(max_length=128)
+    session_token = models.UUIDField(editable=False, null=True, blank=True)
+    email_recovery_token = models.UUIDField(editable=False, null=True, blank=True)
+    name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+
+    def __str__(self):
+        return str(self.username)
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.lower()
+        if self.pk:
+            original = self.__class__.objects.get(pk=self.pk)
+            if original.password != self.password:
+                self.set_password(self.password)
+        else:
+            self.set_password(self.password)
+        super().save(*args, **kwargs)
+
+    def set_password(self, password):
+        password = password.strip()
+        self.password = make_password(password)
+
+    def authenticate(self, password):
+        return check_password(password, self.password)
+
+
 class Project(models.Model):
     project_id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=50, unique=True)
     CREATION_STATUS_EMPTY = 'empty'
     CREATION_STATUS_LOADING_GTFS = 'loading_gtfs'
@@ -201,7 +235,7 @@ class Stop(models.Model):
     stop_desc = models.CharField(max_length=200, null=True, blank=True)
     zone_id = models.CharField(max_length=50, null=True, blank=True)
     location_type = models.IntegerField(null=True, blank=True)
-    # Since it's a self-referential FK we can't use Stop so we reference it by name instead
+    # Since it's a self-referential FK we can't use Stop, so we reference it by name instead
     parent_station = models.ForeignKey("Stop", null=True, blank=True, on_delete=models.SET_NULL)
     stop_timezone = models.CharField(max_length=200, null=True, blank=True)
     wheelchair_boarding = models.CharField(max_length=200, null=True, blank=True)
