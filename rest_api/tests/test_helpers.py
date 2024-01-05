@@ -17,7 +17,7 @@ from rest_framework.test import APIClient
 from rq.exceptions import NoSuchJobError
 from rq.worker import WorkerStatus
 
-from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
+from rest_api.models import User, Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
     ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule
 from rest_api.serializers import ProjectSerializer
 
@@ -65,14 +65,19 @@ class BaseTestCase(TestCase):
 
     @staticmethod
     def create_data():
+        user = User.objects.create(username="user",
+                                   email="test@example.com",
+                                   password="password",
+                                   name="",
+                                   last_name="")
         projects_number = 1
-        Project.objects.create(name="Empty Project")
+        Project.objects.create(user=user, name="Empty Project")
         projects = list()
         # create projects
         for proj in range(projects_number):
             data = dict()
             name = "Test Project {0}".format(proj)
-            project = Project.objects.create(name=name)
+            project = Project.objects.create(user=user, name=name)
             projects.append(project)
             data['project'] = project
 
@@ -362,24 +367,36 @@ class ProjectAPITest(BaseTestCase):
         self.assertEqual(len(json_response['results']), 2)
 
     def test_create_project(self):
+        user = User.objects.create(username="test_user",
+                                   email="test@example.com",
+                                   password="password",
+                                   name="",
+                                   last_name="")
         name = "Test Project"
         fields = {
+            'user': user,
             'name': name,
             'creation_status': Project.CREATION_STATUS_EMPTY
         }
         with self.assertNumQueries(3):
-            json_response = self.projects_create(self.client, fields)
+            json_response = self.projects_create(self.client, **fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_create_project_from_GTFS(self):
+        user = User.objects.create(username="test_user",
+                                   email="test@example.com",
+                                   password="password",
+                                   name="",
+                                   last_name="")
         name = "Test Project"
         fields = {
+            'user': user,
             'name': name,
             'creation_status': Project.CREATION_STATUS_LOADING_GTFS
         }
         with self.assertNumQueries(3):
-            json_response = self.projects_create(self.client, fields)
+            json_response = self.projects_create(self.client, **fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
