@@ -475,11 +475,6 @@ class ShapeViewSet(MyModelViewSet):
         return DetailedShapeSerializer
 
 
-class UserViewSet(MyModelViewSet):
-    queryset = User.objects.all().order_by('username')
-    serializer_class = UserSerializer
-
-
 class CalendarViewSet(CSVHandlerMixin,
                       MyModelViewSet):
     serializer_class = CalendarSerializer

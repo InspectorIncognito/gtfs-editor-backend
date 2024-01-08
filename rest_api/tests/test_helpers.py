@@ -367,36 +367,26 @@ class ProjectAPITest(BaseTestCase):
         self.assertEqual(len(json_response['results']), 2)
 
     def test_create_project(self):
-        user = User.objects.create(username="test_user",
-                                   email="test@example.com",
-                                   password="password",
-                                   name="",
-                                   last_name="")
         name = "Test Project"
         fields = {
-            'user': user,
+            'user_id': 1,
             'name': name,
             'creation_status': Project.CREATION_STATUS_EMPTY
         }
         with self.assertNumQueries(3):
-            json_response = self.projects_create(self.client, **fields)
+            json_response = self.projects_create(self.client, fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_create_project_from_GTFS(self):
-        user = User.objects.create(username="test_user",
-                                   email="test@example.com",
-                                   password="password",
-                                   name="",
-                                   last_name="")
         name = "Test Project"
         fields = {
-            'user': user,
+            'user_id': 1,
             'name': name,
             'creation_status': Project.CREATION_STATUS_LOADING_GTFS
         }
         with self.assertNumQueries(3):
-            json_response = self.projects_create(self.client, **fields)
+            json_response = self.projects_create(self.client, fields)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 

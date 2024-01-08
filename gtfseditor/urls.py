@@ -22,7 +22,7 @@ from rest_api import views as api_views
 
 router = routers.SimpleRouter()
 router.register(r'projects', api_views.ProjectViewSet)
-router.register(r'users', api_views.UserViewSet)
+
 
 project_router = routers.NestedSimpleRouter(router, r'projects', lookup='project')
 project_router.register(r'calendars', api_views.CalendarViewSet, basename='project-calendars')

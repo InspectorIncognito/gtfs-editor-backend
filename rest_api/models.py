@@ -1,11 +1,12 @@
 import os
 
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.contrib.auth.hashers import make_password, check_password
+
 from django.utils import timezone
 from shapely.geometry import MultiPoint
-
+from user.models import User
 from rest_api.managers import *
+
 
 
 def gtfs_update_to(instance, filename):
@@ -21,38 +22,6 @@ def get_empty_envelope():
             'coordinates': [[[-180.0, -90.0], [180.0, -90.0], [180.0, 90.0], [-180.0, 90.0], [-180.0, -90.0]]]
         }
     }
-
-
-class User(models.Model):
-    username = models.CharField(max_length=30, unique=True)
-    email = models.EmailField()
-    email_confirmation_token = models.UUIDField(editable=False, null=True, blank=True)
-    confirmed_email = models.BooleanField(default=False)
-    password = models.CharField(max_length=128)
-    session_token = models.UUIDField(editable=False, null=True, blank=True)
-    email_recovery_token = models.UUIDField(editable=False, null=True, blank=True)
-    name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-
-    def __str__(self):
-        return str(self.username)
-
-    def save(self, *args, **kwargs):
-        self.email = self.email.lower()
-        if self.pk:
-            original = self.__class__.objects.get(pk=self.pk)
-            if original.password != self.password:
-                self.set_password(self.password)
-        else:
-            self.set_password(self.password)
-        super().save(*args, **kwargs)
-
-    def set_password(self, password):
-        password = password.strip()
-        self.password = make_password(password)
-
-    def authenticate(self, password):
-        return check_password(password, self.password)
 
 
 class Project(models.Model):

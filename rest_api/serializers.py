@@ -7,11 +7,6 @@ from rest_api import validators
 from rest_api.models import *
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username', 'email', 'is_staff']
-
 
 class NestedModelSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
@@ -380,6 +375,7 @@ class FrequencySerializer(serializers.ModelSerializer):
 class ProjectSerializer(serializers.ModelSerializer):
     feedinfo = FeedInfoSerializer(read_only=True)
     gtfs_validation = serializers.SerializerMethodField('get_gtfs_validation')
+    user_id = serializers.IntegerField()
 
     def get_gtfs_validation(self, obj):
         result = dict(error_number=obj.gtfs_validation_error_number, message=obj.gtfs_validation_message,
@@ -388,6 +384,6 @@ class ProjectSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Project
-        fields = ['project_id', 'name', 'feedinfo', 'last_modification', 'gtfs_file_updated_at',
+        fields = ["user_id",'project_id', 'name', 'feedinfo', 'last_modification', 'gtfs_file_updated_at',
                   'gtfs_building_and_validation_status', 'gtfs_building_duration', 'envelope', 'creation_status',
                   'loading_gtfs_error_message', 'gtfs_validation']

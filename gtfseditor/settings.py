@@ -51,6 +51,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'gtfseditor',
     'rest_api',
+    'user',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
