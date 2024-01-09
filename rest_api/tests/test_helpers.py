@@ -17,9 +17,12 @@ from rest_framework.test import APIClient
 from rq.exceptions import NoSuchJobError
 from rq.worker import WorkerStatus
 
-from rest_api.models import User, Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
+from rest_api.models import Project, Calendar, FeedInfo, Agency, Stop, Route, Trip, Frequency, StopTime, Level, Shape, \
     ShapePoint, CalendarDate, Pathway, Transfer, FareAttribute, FareRule
 from rest_api.serializers import ProjectSerializer
+
+from user.models import User
+from user.tests.factories import UserFactory
 
 
 class BaseTestCase(TestCase):
@@ -65,11 +68,7 @@ class BaseTestCase(TestCase):
 
     @staticmethod
     def create_data():
-        user = User.objects.create(username="user",
-                                   email="test@example.com",
-                                   password="password",
-                                   name="",
-                                   last_name="")
+        user = UserFactory()
         projects_number = 1
         Project.objects.create(user=user, name="Empty Project")
         projects = list()
@@ -310,6 +309,7 @@ class ProjectAPITest(BaseTestCase):
     def setUp(self):
         self.client = APIClient()
         self.project = self.create_data()[0]
+        self.user = UserFactory()
 
     # helper methods
     def projects_list(self, client, data, status_code=status.HTTP_200_OK):
@@ -369,7 +369,7 @@ class ProjectAPITest(BaseTestCase):
     def test_create_project(self):
         name = "Test Project"
         fields = {
-            'user_id': 1,
+            'user_id': self.user.id,
             'name': name,
             'creation_status': Project.CREATION_STATUS_EMPTY
         }
@@ -381,7 +381,7 @@ class ProjectAPITest(BaseTestCase):
     def test_create_project_from_GTFS(self):
         name = "Test Project"
         fields = {
-            'user_id': 1,
+            'user_id': self.user.id,
             'name': name,
             'creation_status': Project.CREATION_STATUS_LOADING_GTFS
         }
@@ -407,6 +407,7 @@ class ProjectAPITest(BaseTestCase):
         with self.assertNumQueries(3):
             name = "New Name"
             update_data = {
+                "user_id": self.project.user_id,
                 "name": name
             }
             json_response = self.projects_patch(self.client, self.project.project_id, update_data)
@@ -421,7 +422,7 @@ class ProjectAPITest(BaseTestCase):
         type(mock_upload_gtfs.delay.return_value).id = job_id
         zip_content = 'zip file'
         file_obj = StringIO(zip_content)
-        data = dict(name='project_name', file=file_obj)
+        data = dict(user_id=self.user.id, name='project_name', file=file_obj)
         json_response = self.projects_create_project_from_gtfs_action(self.client, data,
                                                                       status_code=status.HTTP_201_CREATED)
         new_project_obj = Project.objects.order_by('-last_modification').first()
@@ -433,7 +434,7 @@ class ProjectAPITest(BaseTestCase):
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action_without_gtfs_file(self, mock_upload_gtfs):
         project_name = 'project_name'
-        data = dict(name=project_name)
+        data = dict(user_id=self.user.id, name=project_name)
         json_response = self.projects_create_project_from_gtfs_action(self.client, data,
                                                                       status_code=status.HTTP_400_BAD_REQUEST)
         self.assertRaises(Project.DoesNotExist, lambda: Project.objects.get(name=project_name))
