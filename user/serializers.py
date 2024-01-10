@@ -1,5 +1,5 @@
-from django.contrib.auth.hashers import check_password
 from rest_framework import serializers
+from django.core.exceptions import ObjectDoesNotExist
 from .models import User
 
 
@@ -25,10 +25,12 @@ class UserLoginSerializer(serializers.Serializer):
         password = data.get('password')
 
         if username and password:
-            user = User.objects.get(username=username)
+            try:
+                user = User.objects.get(username=username)
+            except ObjectDoesNotExist:
+                user = None
 
             if user and user.authenticate(password=password):
-                self.context['user'] = user
                 data['user'] = user
             else:
                 raise serializers.ValidationError('Invalid username or password.')

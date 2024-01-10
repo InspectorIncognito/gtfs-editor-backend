@@ -10,11 +10,12 @@ from rest_framework.permissions import AllowAny
 class UserLoginView(APIView):
     serializer_class = UserLoginSerializer
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        user = serializer.context['user']
+        user = serializer.validated_data['user']
 
         user.session_token = uuid.uuid4()
         user.save()
