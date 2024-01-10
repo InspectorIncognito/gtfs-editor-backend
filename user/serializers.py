@@ -1,3 +1,4 @@
+from django.contrib.auth.hashers import check_password
 from rest_framework import serializers
 from .models import User
 
@@ -17,16 +18,17 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
 class UserLoginSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=30)
-    password = serializers.CharField(min_length=8, max_length=64)
+    password = serializers.CharField(min_length=8, max_length=128)
 
     def validate(self, data):
         username = data.get('username')
         password = data.get('password')
 
         if username and password:
-            user = User.objects.filter(username=username).first()
+            user = User.objects.get(username=username)
 
-            if user and user.authenticate(password):
+            if user and user.authenticate(password=password):
+                self.context['user'] = user
                 data['user'] = user
             else:
                 raise serializers.ValidationError('Invalid username or password.')
