@@ -8,7 +8,7 @@ from user.tests.factories import UserFactory
 
 class LoginTest(TestCase):
     def setUp(self):
-        self.password = "<PASSWORD>"
+        self.password = "password"
         self.user = UserFactory(password=self.password)
         self.client = APIClient()
         self.url = reverse("user-login")

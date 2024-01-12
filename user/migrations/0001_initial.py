@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 ('username', models.CharField(max_length=30, unique=True)),
                 ('email', models.EmailField(max_length=254)),
                 ('email_confirmation_token', models.UUIDField(blank=True, editable=False, null=True)),
-                ('confirmed_email', models.BooleanField(default=False)),
+                ('is_active', models.BooleanField(default=False)),
                 ('password', models.CharField(max_length=128)),
                 ('session_token', models.UUIDField(blank=True, editable=False, null=True)),
                 ('email_recovery_token', models.UUIDField(blank=True, editable=False, null=True)),

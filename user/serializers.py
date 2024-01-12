@@ -1,19 +1,36 @@
+import re
 from rest_framework import serializers
 from django.core.exceptions import ObjectDoesNotExist
 from .models import User
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(min_length=8, max_length=128, write_only=True)
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'password',
-                  'email', 'session_token',
-                  'email_confirmation_token',
-                  'confirmed_email',
-                  'email_recovery_token',
-                  'name', 'last_name']
-        read_only = ['id', 'email_confirmation_token', 'session_token',
-                     'confirmed_email', 'email_recovery_token']
+        fields = ['id',
+                  'username',
+                  'password',
+                  'email',
+                  'name',
+                  'last_name']
+
+        read_only = ['id']
+
+    def validate_field(self, field_name, value, regex):
+        if not re.match(regex, value):
+            raise serializers.ValidationError(f'Invalid format for {field_name}.')
+
+    def validate(self, data):
+        self.validate_field('username', data['username'], r'^[a-zA-Z]+([_a-zA-Z0-9]+)?$')
+        self.validate_field('name', data['name'], r'^[a-zA-Z]+$')
+        self.validate_field('last_name', data['last_name'], r'^[a-zA-Z]+$')
+        self.validate_field('password', data['password'], r'^\S+$')
+
+        if User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError('This email is already registered.')
+        return data
 
 
 class UserLoginSerializer(serializers.Serializer):
