@@ -11,7 +11,8 @@ class RegisterTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.url = reverse('user-register')
-        self.user = UserFactory()
+        self.password = "password"
+        self.user = UserFactory(password=self.password)
 
     def test_user_register_success(self):
         data = {
@@ -25,14 +26,13 @@ class RegisterTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(User.objects.count(), 2)
-        self.assertIn('email_confirmation_token', response.data)
 
         user = User.objects.get(username='test')
         self.assertEqual(user.is_active, False)
 
-        token = str(response.data['email_confirmation_token'])
         email_confirmation_token = str(user.email_confirmation_token)
-        self.assertEqual(token, email_confirmation_token)
+        self.assertIsNot('', email_confirmation_token)
+        self.assertIsNotNone(email_confirmation_token)
 
     def test_user_registration_missing_required_field(self):
         data = {
@@ -158,3 +158,4 @@ class RegisterTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('non_field_errors', response.data)
         self.assertEqual(response.data['non_field_errors'][0], 'Invalid format for last_name.')
+

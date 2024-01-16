@@ -11,12 +11,10 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
-from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
 class UserLoginView(APIView):
     serializer_class = UserLoginSerializer
-    permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -32,7 +30,6 @@ class UserLoginView(APIView):
 
 class UserRegisterView(APIView):
     serializer_class = UserRegisterSerializer
-    permission_classes = [~IsAuthenticated]  # Those who have logged in cannot register
 
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -50,21 +47,21 @@ class UserRegisterView(APIView):
         send_mail(
             'Verificación de Email',
             f'Haz clic para verificar tu correo electrónico: {verification_url}',
-            'correo@transapp.cl',
+            '',
             [user.email],
             fail_silently=False,
         )
 
-        return Response({'email_confirmation_token': user.email_confirmation_token},
-                        status=status.HTTP_201_CREATED)
+        return Response(status=status.HTTP_201_CREATED)
 
 
 class UserConfirmationEmailView(APIView):
     def get(self, request, *args, **kwargs):
         token = self.kwargs.get('verification_token')
-        user = User.objects.get(email_confirmation_token=token)
 
-        if user:
+        try:
+            user = User.objects.get(email_confirmation_token=token)
+
             expiration_time = timezone.now() - user.email_confirmation_timestamp
             delta = timedelta(hours=1)
 
@@ -79,9 +76,14 @@ class UserConfirmationEmailView(APIView):
                 url = reverse('user-login')
                 return redirect(url)
             else:
-
                 messages.error(request, 'The verification link has expired.')
-                return Response({'error_expired': 'Verification link expired'},
-                                status=status.HTTP_400_BAD_REQUEST)
-        else:
-            return Response({'error_invalid': 'Invalid verification token.'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({'error_expired': 'Verification link expired.'},
+                                status=status.HTTP_408_REQUEST_TIMEOUT)
+        except User.DoesNotExist:
+            return Response({'error_token': 'Invalid verification token. User with that token does not exist.'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return Response({'error': 'An unexpected error occurred.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)

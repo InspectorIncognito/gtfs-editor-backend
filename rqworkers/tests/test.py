@@ -13,6 +13,7 @@ from rest_api.models import Agency, Stop, Route, Trip, Calendar, CalendarDate, F
 from rest_api.tests.test_helpers import BaseTestCase
 from rqworkers.jobs import validate_gtfs, upload_gtfs_file, build_and_validate_gtfs_file, \
     upload_gtfs_file_when_project_is_created
+from user.tests.factories import UserFactory
 
 
 class TestValidateGTFS(BaseTestCase):
@@ -117,11 +118,7 @@ class TestBuildAndValidateGTFSFile(BaseTestCase):
 class UploadGTFSFileJob(TransactionTestCase):
 
     def setUp(self):
-        user = User.objects.create(username="test_user",
-                                        email="test@example.com",
-                                        password="password",
-                                        name="",
-                                        last_name="")
+        user = UserFactory()
         self.project_obj = Project.objects.create(user=user, name='project')
 
     def test_upload_non_zip_file(self):
@@ -184,11 +181,7 @@ class UploadGTFSFileJob(TransactionTestCase):
 class TestUploadGTFSWhenProjectIsCreated(BaseTestCase):
 
     def setUp(self):
-        user = User.objects.create(username="test_user",
-                                        email="test@example.com",
-                                        password="password",
-                                        name="",
-                                        last_name="")
+        user = UserFactory()
         self.project_obj = Project.objects.create(user=user, name='project', creation_status=Project.CREATION_STATUS_LOADING_GTFS)
         self.project_obj.loading_gtfs_job_id = uuid.uuid4()
         self.project_obj.save()
