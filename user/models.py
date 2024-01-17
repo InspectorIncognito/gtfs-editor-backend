@@ -7,6 +7,8 @@ class User(models.Model):
     email = models.EmailField()
     email_confirmation_token = models.UUIDField(editable=False, null=True, blank=True)
     is_active = models.BooleanField(default=False)
+    password_recovery_token = models.UUIDField(null=True, blank=True)
+    recovery_timestamp = models.DateTimeField(null=True, blank=True, default=None)
     email_confirmation_timestamp = models.DateTimeField(null=True, blank=True)
     password = models.CharField(max_length=128)
     session_token = models.UUIDField(editable=False, null=True, blank=True)
