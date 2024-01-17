@@ -75,8 +75,8 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('non_field_errors', response.data)
-        self.assertEqual(response.data['non_field_errors'][0], 'This email is already registered.')
+        self.assertIn('already_exist_error', response.data)
+        self.assertEqual(response.data['already_exist_error'][0], 'This email is already registered.')
 
     def test_user_registration_with_min_length_password(self):
         data = {
@@ -102,8 +102,8 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('non_field_errors', response.data)
-        self.assertEqual(response.data['non_field_errors'][0], 'Invalid format for username.')
+        self.assertIn('invalid_error', response.data)
+        self.assertEqual(response.data['invalid_error'][0], 'Invalid format for username.')
 
     def test_user_registration_with_invalid_email(self):
         data = {
@@ -128,8 +128,8 @@ class RegisterTest(TestCase):
         }
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('non_field_errors', response.data)
-        self.assertEqual(response.data['non_field_errors'][0], 'Invalid format for password.')
+        self.assertIn('invalid_error', response.data)
+        self.assertEqual(response.data['invalid_error'][0], 'Invalid format for password.')
 
     def test_user_registration_with_invalid_name(self):
         data = {
@@ -142,8 +142,8 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('non_field_errors', response.data)
-        self.assertEqual(response.data['non_field_errors'][0], 'Invalid format for name.')
+        self.assertIn('invalid_error', response.data)
+        self.assertEqual(response.data['invalid_error'][0], 'Invalid format for name.')
 
     def test_user_registration_with_invalid_lastname(self):
         data = {
@@ -156,6 +156,6 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('non_field_errors', response.data)
-        self.assertEqual(response.data['non_field_errors'][0], 'Invalid format for last_name.')
+        self.assertIn('invalid_error', response.data)
+        self.assertEqual(response.data['invalid_error'][0], 'Invalid format for last_name.')
 

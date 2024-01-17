@@ -11,6 +11,7 @@ from datetime import timedelta
 from rest_framework import status
 from rest_framework.test import APIClient
 
+from user.jobs import send_confirmation_email
 from user.models import User
 from user.tests.factories import UserFactory
 
@@ -20,8 +21,11 @@ class ConfirmationEmailTest(TestCase):
         self.client = APIClient()
         self.url = reverse('user-register')
 
-    @patch('user.views.send_mail')
-    def test_user_registration_send_email(self, mock_send_mail):
+    @patch('user.views.django_rq.get_queue')
+    def test_user_registration_enqueue_task(self, mock_get_queue):
+        mock_queue = Mock()
+        mock_get_queue.return_value = mock_queue
+
         data = {
             'username': 'test',
             'email': 'test@email.com',
@@ -33,13 +37,14 @@ class ConfirmationEmailTest(TestCase):
         self.client.post(self.url, data, format='json')
         user = User.objects.get(username='test')
 
-        # Assert that send_mail was called with the correct arguments
-        mock_send_mail.assert_called_once_with(
-            'Verificación de Email',
-            f'Haz clic para verificar tu correo electrónico: https://testserver/user/email-verification?verificationToken={user.email_confirmation_token}',
-            '',
-            ['test@email.com'],
-            fail_silently=False,
+        verification_url = 'http://testserver/user/email-verification/?verificationToken=' + str(user.email_confirmation_token)
+
+        # Verifica que enqueue fue llamado correctamente con los argumentos esperados
+        mock_queue.enqueue.assert_called_once_with(
+            send_confirmation_email,
+            'test',  # usuario creado en el post
+            verification_url,
+            result_ttl=-1,
         )
 
     @patch('user.views.User.objects.get')
@@ -48,7 +53,7 @@ class ConfirmationEmailTest(TestCase):
         user.email_confirmation_timestamp = timezone.now()
         mock_get.return_value = user
 
-        response = self.client.get(reverse('user-confirmation-email', kwargs={'verification_token': 'some_token'}))
+        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=some_token')
 
         # Assert that the confirmation view returns a successful response and redirects to the login view
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
@@ -70,11 +75,11 @@ class ConfirmationEmailTest(TestCase):
         expired_user.email_confirmation_timestamp = timezone.now() - timedelta(hours=2)
         mock_user_get.return_value = expired_user
 
-        response = self.client.get(reverse('user-confirmation-email', kwargs={'verification_token': 'some_token'}))
+        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=some_token')
 
         self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
-        self.assertIn('error_expired', response.data)
-        self.assertEqual(response.data['error_expired'], 'Verification link expired.')
+        self.assertIn('expired_error', response.data)
+        self.assertEqual(response.data['expired_error'], 'Verification link expired.')
 
         # Assert that messages.error was called
         messages = list(get_messages(response.wsgi_request))
@@ -82,10 +87,32 @@ class ConfirmationEmailTest(TestCase):
         self.assertEqual(str(messages[0]), 'The verification link has expired.')
 
     def test_user_confirmation_link_invalid_token(self):
-        response = self.client.get(reverse('user-confirmation-email', kwargs={'verification_token': uuid.uuid4()}))
+        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=' + str({uuid.uuid4()}))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn('error_token', response.data)
-        self.assertEqual(response.data['error_token'],
+        self.assertIn('token_error', response.data)
+        self.assertEqual(response.data['token_error'],
                          'Invalid verification token. User with that token does not exist.')
 
+
+""" @patch('user.views.send_mail')
+    def test_user_registration_send_email(self, mock_send_mail):
+        data = {
+            'username': 'test',
+            'email': 'test@email.com',
+            'password': 'testPassword',
+            'name': 'testName',
+            'last_name': 'testLastName'
+        }
+
+        self.client.post(self.url, data, format='json')
+        user = User.objects.get(username='test')
+
+        # Assert that send_mail was called with the correct arguments
+        mock_send_mail.assert_called_once_with(
+            'Verificación de Email',
+            f'Haz clic para verificar tu correo electrónico: https://testserver/user/email-verification?verificationToken={user.email_confirmation_token}',
+            '',
+            ['test@email.com'],
+            fail_silently=False,
+        )"""
