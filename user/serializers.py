@@ -20,7 +20,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     def validate_field(self, field_name, value, regex):
         if not re.match(regex, value):
-            raise serializers.ValidationError(f'Invalid format for {field_name}.')
+            raise serializers.ValidationError({'invalid_error': f'Invalid format for {field_name}.'})
 
     def validate(self, data):
         self.validate_field('username', data['username'], r'^[a-zA-Z]+([_a-zA-Z0-9]+)?$')
@@ -29,7 +29,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         self.validate_field('password', data['password'], r'^\S+$')
 
         if User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError('This email is already registered.')
+            raise serializers.ValidationError({'already_exist_error': 'This email is already registered.'})
         return data
 
 
@@ -50,7 +50,7 @@ class UserLoginSerializer(serializers.Serializer):
             if user and user.authenticate(password=password):
                 data['user'] = user
             else:
-                raise serializers.ValidationError('Invalid username or password.')
+                raise serializers.ValidationError({'invalid_error': 'Invalid username or password.'})
         else:
             raise serializers.ValidationError('Both username and password are required.')
 

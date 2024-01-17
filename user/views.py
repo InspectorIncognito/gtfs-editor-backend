@@ -1,4 +1,7 @@
 import uuid
+import django_rq
+import logging
+
 from datetime import timedelta
 
 from django.urls import reverse
@@ -11,6 +14,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
+from user.jobs import send_confirmation_email
+
+logger = logging.getLogger(__name__)
 
 
 class UserLoginView(APIView):
@@ -42,15 +48,15 @@ class UserRegisterView(APIView):
 
         user.save()
 
-        verification_url = f'https://{get_current_site(request).domain}/user/email-verification?verificationToken={user.email_confirmation_token}'
+        verification_url = request.build_absolute_uri(reverse('user-confirmation-email'))
+        verification_url = verification_url + '?verificationToken=' + str(user.email_confirmation_token)
 
-        send_mail(
-            'Verificación de Email',
-            f'Haz clic para verificar tu correo electrónico: {verification_url}',
-            '',
-            [user.email],
-            fail_silently=False,
-        )
+        # Task queue and adding a job to the queue
+        default_queue = django_rq.get_queue('default')
+        default_queue.enqueue(send_confirmation_email, user.username, verification_url, result_ttl=-1)
+
+        # Tracks this event
+        logger.info(f'User with username: {user.username} started an activation user process')
 
         return Response(status=status.HTTP_201_CREATED)
 
@@ -77,10 +83,10 @@ class UserConfirmationEmailView(APIView):
                 return redirect(url)
             else:
                 messages.error(request, 'The verification link has expired.')
-                return Response({'error_expired': 'Verification link expired.'},
+                return Response({'expired_error': 'Verification link expired.'},
                                 status=status.HTTP_408_REQUEST_TIMEOUT)
         except User.DoesNotExist:
-            return Response({'error_token': 'Invalid verification token. User with that token does not exist.'},
+            return Response({'token_error': 'Invalid verification token. User with that token does not exist.'},
                             status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:

@@ -47,8 +47,7 @@ project_router.register(r'services', api_views.ServiceViewSet, basename='project
 project_router.register(r'tables', api_views.TablesViewSet, basename='project-tables')
 
 urlpatterns = [
-    path('user/email-verification/<str:verification_token>/', UserConfirmationEmailView.as_view(),
-         name='user-confirmation-email'),
+    path('user/email-verification/', UserConfirmationEmailView.as_view(), name='user-confirmation-email'),
     path('users/register/', UserRegisterView.as_view(), name='user-register'),
     path('users/login/', UserLoginView.as_view(), name='user-login'),
     path(r'admin/', admin.site.urls),
