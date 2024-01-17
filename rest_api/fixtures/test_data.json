@@ -203,6 +203,7 @@
       "model":"rest_api.project",
       "pk":1,
       "fields":{
+         "user":1,
          "name":"Test Project"
       }
    },
@@ -210,6 +211,7 @@
       "model":"rest_api.project",
       "pk":2,
       "fields":{
+         "user":1,
          "name":"Test Project 2"
       }
    },

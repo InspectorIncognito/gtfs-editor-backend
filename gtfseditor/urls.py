@@ -19,10 +19,11 @@ from django.urls import path, include
 from rest_framework_nested import routers
 
 from rest_api import views as api_views
+from user.views import UserLoginView
 
 router = routers.SimpleRouter()
 router.register(r'projects', api_views.ProjectViewSet)
-router.register(r'users', api_views.UserViewSet)
+
 
 project_router = routers.NestedSimpleRouter(router, r'projects', lookup='project')
 project_router.register(r'calendars', api_views.CalendarViewSet, basename='project-calendars')
@@ -46,6 +47,7 @@ project_router.register(r'services', api_views.ServiceViewSet, basename='project
 project_router.register(r'tables', api_views.TablesViewSet, basename='project-tables')
 
 urlpatterns = [
+    path('users/login/', UserLoginView.as_view(), name='user-login'),
     path(r'admin/', admin.site.urls),
     path(r'django-rq/', include('django_rq.urls')),
     path(r'api/', include(router.urls)),

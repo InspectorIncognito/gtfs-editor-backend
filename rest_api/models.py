@@ -1,10 +1,12 @@
 import os
 
 from django.core.validators import MaxValueValidator, MinValueValidator
+
 from django.utils import timezone
 from shapely.geometry import MultiPoint
-
+from user.models import User
 from rest_api.managers import *
+
 
 
 def gtfs_update_to(instance, filename):
@@ -24,6 +26,7 @@ def get_empty_envelope():
 
 class Project(models.Model):
     project_id = models.AutoField(primary_key=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=50, unique=True)
     CREATION_STATUS_EMPTY = 'empty'
     CREATION_STATUS_LOADING_GTFS = 'loading_gtfs'
@@ -201,7 +204,7 @@ class Stop(models.Model):
     stop_desc = models.CharField(max_length=200, null=True, blank=True)
     zone_id = models.CharField(max_length=50, null=True, blank=True)
     location_type = models.IntegerField(null=True, blank=True)
-    # Since it's a self-referential FK we can't use Stop so we reference it by name instead
+    # Since it's a self-referential FK we can't use Stop, so we reference it by name instead
     parent_station = models.ForeignKey("Stop", null=True, blank=True, on_delete=models.SET_NULL)
     stop_timezone = models.CharField(max_length=200, null=True, blank=True)
     wheelchair_boarding = models.CharField(max_length=200, null=True, blank=True)
