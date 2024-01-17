@@ -87,27 +87,28 @@ class UserConfirmationEmailView(APIView):
             print(f"An unexpected error occurred: {e}")
             return Response({'error': 'An unexpected error occurred.'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
-    class UserRecoverPasswordRequestView(APIView):
-        def post(self, request, *args, **kwargs):
-            username = request.data.get('username')
-            if not username:
-                return Response({'message': 'Please provide a username.'}, status=status.HTTP_400_BAD_REQUEST)
+class UserRecoverPasswordRequestView(APIView):
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        if not username:
+            return Response({'message': 'Please provide a username.'}, status=status.HTTP_400_BAD_REQUEST)
 
-            try:
-                user = User.objects.get(username=username)
+        try:
+            user = User.objects.get(username=username)
 
-                user.recovery_timestamp = timezone.now()
-                user.password_recovery_token = uuid.uuid4()
+            user.recovery_timestamp = timezone.now()
+            user.password_recovery_token = uuid.uuid4()
 
-                recovery_url = request.build_absolute_uri(reverse('recover-password'))
-                recovery_url = recovery_url + '?token=' + str(user.password_recovery_token)
-                user.save()
-                return Response(status=status.HTTP_204_NO_CONTENT)
+            recovery_url = request.build_absolute_uri(reverse('recover-password'))
+            recovery_url = recovery_url + '?token=' + str(user.password_recovery_token)
+            user.save()
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
-            except User.DoesNotExist:
-                return Response({'error_username': "User with the provided username does not exist."},
-                                status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'error_username': "User with the provided username does not exist."},
+                            status=status.HTTP_400_BAD_REQUEST)
 
 
 
