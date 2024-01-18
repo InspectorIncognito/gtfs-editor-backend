@@ -1,4 +1,6 @@
 import re
+import uuid
+from django.utils import timezone
 from rest_framework import serializers
 from django.core.exceptions import ObjectDoesNotExist
 from .models import User
@@ -31,6 +33,13 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         if User.objects.filter(email=data['email']).exists():
             raise serializers.ValidationError({'detail': 'This email is already registered.'})
         return data
+
+    def create(self, validated_data):
+        user = User.objects.create(**validated_data)
+        user.email_confirmation_token = uuid.uuid4()
+        user.email_recovery_timestamp = timezone.now()
+        user.save()
+        return user
 
 
 class UserLoginSerializer(serializers.Serializer):

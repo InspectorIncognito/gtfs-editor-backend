@@ -1,4 +1,3 @@
-import uuid
 import django_rq
 import logging
 
@@ -7,7 +6,6 @@ from datetime import timedelta
 from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import redirect
-from django.utils import timezone
 from rest_framework.generics import CreateAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -24,11 +22,6 @@ class UserRegisterView(CreateAPIView):
     def perform_create(self, serializer):
         user = serializer.save()
 
-        user.email_confirmation_token = uuid.uuid4()
-        user.email_recovery_timestamp = timezone.now()
-
-        user.save()
-
         verification_url = self.request.build_absolute_uri(reverse('user-confirmation-email'))
         verification_url = verification_url + '?verificationToken=' + str(user.email_confirmation_token)
 
@@ -38,10 +31,6 @@ class UserRegisterView(CreateAPIView):
 
         # Tracks this event
         logger.info(f'User with username: {user.username} started an activation user process')
-
-    def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)
-        return response
 
 
 class UserLoginView(APIView):
@@ -91,30 +80,3 @@ class UserConfirmationEmailView(APIView):
             print(f"An unexpected error occurred: {e}")
             return Response({'detail': 'An unexpected error occurred.'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-"""class UserRegisterView(APIView):
-    serializer_class = UserRegisterSerializer
-
-    def post(self, request, *args, **kwargs):
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        user = serializer.save()
-
-        user.email_confirmation_token = uuid.uuid4()
-        user.email_recovery_timestamp = timezone.now()
-
-        user.save()
-
-        verification_url = request.build_absolute_uri(reverse('user-confirmation-email'))
-        verification_url = verification_url + '?verificationToken=' + str(user.email_confirmation_token)
-
-        # Task queue and adding a job to the queue
-        default_queue = django_rq.get_queue('default')
-        default_queue.enqueue(send_confirmation_email, user.username, verification_url, result_ttl=-1)
-
-        # Tracks this event
-        logger.info(f'User with username: {user.username} started an activation user process')
-
-        return Response(status=status.HTTP_201_CREATED)"""

@@ -13,7 +13,6 @@ from rest_framework.test import APIClient
 
 from user.jobs import send_confirmation_email
 from user.models import User
-from user.tests.factories import UserFactory
 
 
 class ConfirmationEmailTest(TestCase):
@@ -37,14 +36,15 @@ class ConfirmationEmailTest(TestCase):
         self.client.post(self.url, data, format='json')
         user = User.objects.get(username='test')
 
-        verification_url = 'http://testserver/user/email-verification/?verificationToken=' + str(user.email_confirmation_token)
+        verification_url = ('http://testserver/user/email-verification/?verificationToken='
+                            + str(user.email_confirmation_token))
 
-        # Verifica que enqueue fue llamado correctamente con los argumentos esperados
+        # Assert that enqueue was called correctly with the expected arguments
         mock_queue.enqueue.assert_called_once_with(
             send_confirmation_email,
-            'test',  # usuario creado en el post
+            'test',
             verification_url,
-            result_ttl=-1,
+            result_ttl=-1
         )
 
     @patch('user.views.User.objects.get')
