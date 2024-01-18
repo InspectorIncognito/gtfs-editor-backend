@@ -1,5 +1,5 @@
-from django.core.mail import EmailMessage
 from django_rq import job
+from django.core.mail import EmailMessage
 
 from gtfseditor import settings
 from user.models import User
