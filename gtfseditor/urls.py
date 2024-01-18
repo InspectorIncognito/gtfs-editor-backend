@@ -19,7 +19,7 @@ from django.urls import path, include
 from rest_framework_nested import routers
 
 from rest_api import views as api_views
-from user.views import *
+from user.views import UserLoginView, UserRegisterView, UserConfirmationEmailView, UserRecoverPasswordRequestView
 
 router = routers.SimpleRouter()
 router.register(r'projects', api_views.ProjectViewSet)
@@ -50,6 +50,7 @@ urlpatterns = [
     path('user/email-verification/', UserConfirmationEmailView.as_view(), name='user-confirmation-email'),
     path('users/register/', UserRegisterView.as_view(), name='user-register'),
     path('user/recover-password', UserRecoverPasswordRequestView.as_view(), name='recover-password'),
+    path('user/register/', UserRegisterView.as_view(), name='user-register'),
     path('user/login/', UserLoginView.as_view(), name='user-login'),
     path(r'admin/', admin.site.urls),
     path(r'django-rq/', include('django_rq.urls')),

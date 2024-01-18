@@ -37,8 +37,8 @@ class LoginTest(TestCase):
         response_user_invalid = self.client.post(self.url, data_user_invalid, format='json')
 
         self.assertEqual(response_user_invalid.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('invalid_error', response_user_invalid.data)
-        self.assertEqual(response_user_invalid.data['invalid_error'][0], 'Invalid username or password.')
+        self.assertIn('detail', response_user_invalid.data)
+        self.assertEqual(response_user_invalid.data['detail'][0], 'Invalid username or password.')
 
     def test_user_login_invalid_password(self):
         data_password_invalid = {
@@ -49,5 +49,5 @@ class LoginTest(TestCase):
         response_password_invalid = self.client.post(self.url, data_password_invalid, format='json')
 
         self.assertEqual(response_password_invalid.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('invalid_error', response_password_invalid.data)
-        self.assertEqual(response_password_invalid.data['invalid_error'][0], 'Invalid username or password.')
+        self.assertIn('detail', response_password_invalid.data)
+        self.assertEqual(response_password_invalid.data['detail'][0], 'Invalid username or password.')

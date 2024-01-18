@@ -13,7 +13,6 @@ from rest_framework.test import APIClient
 
 from user.jobs import send_confirmation_email
 from user.models import User
-from user.tests.factories import UserFactory
 
 
 class ConfirmationEmailTest(TestCase):
@@ -37,14 +36,15 @@ class ConfirmationEmailTest(TestCase):
         self.client.post(self.url, data, format='json')
         user = User.objects.get(username='test')
 
-        verification_url = 'http://testserver/user/email-verification/?verificationToken=' + str(user.email_confirmation_token)
+        verification_url = ('http://testserver/user/email-verification/?verificationToken='
+                            + str(user.email_confirmation_token))
 
-        # Verifica que enqueue fue llamado correctamente con los argumentos esperados
+        # Assert that enqueue was called correctly with the expected arguments
         mock_queue.enqueue.assert_called_once_with(
             send_confirmation_email,
-            'test',  # usuario creado en el post
+            'test',
             verification_url,
-            result_ttl=-1,
+            result_ttl=-1
         )
 
     @patch('user.views.User.objects.get')
@@ -77,9 +77,9 @@ class ConfirmationEmailTest(TestCase):
 
         response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=some_token')
 
-        self.assertEqual(response.status_code, status.HTTP_408_REQUEST_TIMEOUT)
-        self.assertIn('expired_error', response.data)
-        self.assertEqual(response.data['expired_error'], 'Verification link expired.')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'], 'Verification link expired.')
 
         # Assert that messages.error was called
         messages = list(get_messages(response.wsgi_request))
@@ -90,29 +90,6 @@ class ConfirmationEmailTest(TestCase):
         response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=' + str({uuid.uuid4()}))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn('token_error', response.data)
-        self.assertEqual(response.data['token_error'],
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'],
                          'Invalid verification token. User with that token does not exist.')
-
-
-""" @patch('user.views.send_mail')
-    def test_user_registration_send_email(self, mock_send_mail):
-        data = {
-            'username': 'test',
-            'email': 'test@email.com',
-            'password': 'testPassword',
-            'name': 'testName',
-            'last_name': 'testLastName'
-        }
-
-        self.client.post(self.url, data, format='json')
-        user = User.objects.get(username='test')
-
-        # Assert that send_mail was called with the correct arguments
-        mock_send_mail.assert_called_once_with(
-            'Verificación de Email',
-            f'Haz clic para verificar tu correo electrónico: https://testserver/user/email-verification?verificationToken={user.email_confirmation_token}',
-            '',
-            ['test@email.com'],
-            fail_silently=False,
-        )"""

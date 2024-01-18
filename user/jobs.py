@@ -1,11 +1,11 @@
-from django.core.mail import EmailMessage
 from django_rq import job
+from django.core.mail import EmailMessage
 
 from gtfseditor import settings
 from user.models import User
 
 
-@job
+@job('default', timeout=300)
 def send_confirmation_email(username, verification_url):
     user = User.objects.get(username=username)
     subject, to = 'Verificación de Email', user.email
