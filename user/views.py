@@ -96,11 +96,20 @@ class UserRecoverPasswordRequestView(APIView):
 
             recovery_url = request.build_absolute_uri(reverse('recover-password'))
             recovery_url = recovery_url + '?token=' + str(user.password_recovery_token)
+
             user.save()
+
+            # Task queue and adding a job to the queue
+            default_queue = django_rq.get_queue('default')
+            default_queue.enqueue(send_confirmation_email, user.username, recovery_url, result_ttl=-1)
+
+            # Tracks this event
+            logger.info(f'User with username: {user.username} started a password change process')
+
             return Response(status=status.HTTP_204_NO_CONTENT)
 
         except User.DoesNotExist:
-            return Response({'error_username': "User with the provided username does not exist."},
+            return Response({'detail': "User with the provided username does not exist."},
                             status=status.HTTP_400_BAD_REQUEST)
 
 
