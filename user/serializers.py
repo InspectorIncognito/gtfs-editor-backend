@@ -35,10 +35,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        user = User.objects.create(**validated_data)
-        user.email_confirmation_token = uuid.uuid4()
-        user.email_recovery_timestamp = timezone.now()
-        user.save()
+        user = User.objects.create(**validated_data,
+                                   email_confirmation_token=uuid.uuid4(),
+                                   email_confirmation_timestamp=timezone.now())
         return user
 
 
