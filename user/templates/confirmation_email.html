@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmación de correo electrónico</title>
+    <link href="{% assets 'css/confirmation_email'%}" rel="stylesheet" type="text/css">
+</head>
+<body>
+<div>
+    <div class="container">
+        <div class="logo">
+            <img src="https://transapp-static.s3.us-east-2.amazonaws.com/logo-codelco.png">
+        </div>
+      <div class= "message-container">
+        <div class="greeting">
+            ¡Hola <span>{{ username }}</span> !
+        </div>
+        <div class="message">
+          <p> Bienvenido al editor gtfs de transapp. Como último paso, necesitamos verificar tu dirección de correo electrónico para asegurarnos de que todo esté en orden.</p>
+
+          <p> Por favor, toma un momento para hacer clic en el botón de abajo y confirmar tu dirección de correo:</p>
+        </div>
+        <div class="button-container">
+            <a href="{{ form_url }}" class="button">CONFIRMAR</a>
+        </div>
+  </div>
+        <div class="small-text">
+            Si no creaste una cuenta con nosotros. Por favor, ignora este correo.
+        </div>
+    </div>
+</div>
+</body>
+</html>
