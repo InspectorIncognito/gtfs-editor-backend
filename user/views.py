@@ -6,7 +6,7 @@ from datetime import timedelta
 from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import redirect
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -82,7 +82,25 @@ class UserConfirmationEmailView(APIView):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-class UserRecoverPasswordRequestView(APIView):
+class UserRecoverPasswordRequestView(UpdateAPIView):
+    serializers_class = UserRecoverPasswordRequestSerializer
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+
+        # Generate recovery_url
+        recovery_url = self.request.build_absolute_uri(reverse('recover-password'))
+        recovery_url = recovery_url + '?token=' + str(instance.password_recovery_token)
+
+        # Task queue and adding a job to the queue
+        default_queue = django_rq.get_queue('default')
+        default_queue.enqueue(send_confirmation_email, instance.username, recovery_url, result_ttl=-1)
+
+        # Tracks this event
+        logger.info(f'User with username: {instance.username} started a password change process')
+
+
+"""class UserRecoverPasswordRequestView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username')
         if not username:
@@ -110,7 +128,4 @@ class UserRecoverPasswordRequestView(APIView):
 
         except User.DoesNotExist:
             return Response({'detail': "User with the provided username does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-
-
+                            status=status.HTTP_400_BAD_REQUEST)"""

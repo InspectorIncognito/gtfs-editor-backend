@@ -24,6 +24,10 @@ def send_confirmation_email(username, verification_url):
 def send_pw_recovery_email(username, recovery_url):
     user = User.objects.get(username=username)
     subject, to = 'Recuperación de contraseña', user.email
-    text_content = f'Haz clic para verificar tu correo electrónico: {recovery_url}'
-    msg = EmailMessage(subject, text_content, settings.EMAIL_HOST_USER, [to])
+    text_content = ''
+    html_content = render_to_string('confirmation_email.html',
+                                    context={'username': user.username,
+                                             'form_url': recovery_url})
+    msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
+    msg.attach_alternative(html_content, "text/html")
     msg.send()

@@ -63,3 +63,25 @@ class UserLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError({'detail': 'Both username and password are required.'})
 
         return data
+
+
+class UserRecoverPasswordRequestSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=30)
+
+    def validate(self, data):
+        username = data.get('username')
+
+        if username:
+            try:
+                user = User.objects.get(username=username)
+                user.recovery_timestamp = timezone.now()
+                user.password_recovery_token = uuid.uuid4()
+                data['user'] = user
+
+            except ObjectDoesNotExist:
+                raise serializers.ValidationError({'detail': 'User with the provided username does not exist.'})
+
+        else:
+            raise serializers.ValidationError({'detail': 'Username is required.'})
+
+        return data
