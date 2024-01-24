@@ -86,18 +86,53 @@ class UserRecoverPasswordRequestView(UpdateAPIView):
     serializers_class = UserRecoverPasswordRequestSerializer
 
     def perform_update(self, serializer):
-        instance = serializer.save()
+        user = serializer.save()
 
         # Generate recovery_url
         recovery_url = self.request.build_absolute_uri(reverse('recover-password'))
-        recovery_url = recovery_url + '?token=' + str(instance.password_recovery_token)
+        recovery_url = recovery_url + '?token=' + str(user.password_recovery_token)
 
         # Task queue and adding a job to the queue
         default_queue = django_rq.get_queue('default')
-        default_queue.enqueue(send_confirmation_email, instance.username, recovery_url, result_ttl=-1)
+        default_queue.enqueue(send_confirmation_email, user.username, recovery_url, result_ttl=-1)
 
         # Tracks this event
-        logger.info(f'User with username: {instance.username} started a password change process')
+        logger.info(f'User with username: {user.username} started a password change process')
+
+
+class UserRecoverPasswordView(APIView):
+    def get(self, request, *args, **kwargs):
+        template_name = 'recover_password_driver.html'
+        token = self.kwargs.get('password_recovery_token')
+
+        try:
+            user = User.objects.get(password_recovery_token=token)
+
+            expiration_time = timezone.now() - user.recovery_timestamp
+            delta = timedelta(hours=1)
+
+            if expiration_time <= delta:
+                user.is_active = True
+                user.email_confirmation_token = None
+                user.email_confirmation_timestamp = None
+                user.save()
+
+                messages.success(request, 'Your account has been successfully activated. You can now log in.')
+
+                url = reverse('user-login')
+                return redirect(url)
+            else:
+                messages.error(request, 'The verification link has expired.')
+                return Response({'detail': 'Verification link expired.'},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except User.DoesNotExist:
+            return Response({'detail': 'Invalid verification token. User with that token does not exist.'},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            return Response({'detail': 'An unexpected error occurred.'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 """class UserRecoverPasswordRequestView(APIView):

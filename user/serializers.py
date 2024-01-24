@@ -66,22 +66,18 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class UserRecoverPasswordRequestSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=30)
+    username = serializers.CharField(max_length=30, required=True)
 
     def validate(self, data):
         username = data.get('username')
 
-        if username:
-            try:
-                user = User.objects.get(username=username)
-                user.recovery_timestamp = timezone.now()
-                user.password_recovery_token = uuid.uuid4()
-                data['user'] = user
+        try:
+            user = User.objects.get(username=username)
+            user.recovery_timestamp = timezone.now()
+            user.password_recovery_token = uuid.uuid4()
+            data['user'] = user
 
-            except ObjectDoesNotExist:
-                raise serializers.ValidationError({'detail': 'User with the provided username does not exist.'})
-
-        else:
-            raise serializers.ValidationError({'detail': 'Username is required.'})
+        except ObjectDoesNotExist:
+            raise serializers.ValidationError({'detail': 'Invalid Username'})
 
         return data
