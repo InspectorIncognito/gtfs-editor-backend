@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmación de correo electrónico</title>
+    <style>
+        body{
+            font-family: 'Verdana', sans-serif;
+        }
+        .container {
+            background-color: #074752FF;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 60px 30px 60px;
+            box-sizing: border-box;
+        }
+
+        .logo {
+            text-align: left;
+            padding-bottom: 20px;
+        }
+
+        .logo img {
+            width: 190px;
+        }
+
+        .greeting {
+            color: #4E5F68FF;
+            font-size: 30px;
+            font-weight: bold;
+            text-align: center;
+            padding-bottom: 40px;
+            padding-top: 50px;
+        }
+
+        .message-container {
+            background-color: #D4DDE1;
+            margin-right: 40px;
+            margin-left: 40px;
+            border-radius: 10px;
+
+        }
+
+        .message {
+            color: #788C94FF;
+            font-size: 20px;
+            margin: 0 auto;
+            text-align: center;
+            padding-bottom: 20px;
+            padding-left: 40px;
+            padding-right: 40px;
+            opacity: 0.8;
+        }
+
+        .message span {
+            color: #4E5F68;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 20px;
+        }
+
+        .button {
+            background-color: #D99B20FF;
+            color: #fff !important;
+            font-size: 18px;
+            letter-spacing: 0.05rem;
+            text-decoration: none;
+            padding: 16px 29px;
+            width: 30%;
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .small-text {
+            font-size: 16px;
+            text-align: center;
+            padding-top: 10px;
+            padding-bottom: 20px;
+            color: #788C94FF;
+        }
+
+    </style>
+</head>
+<body>
+<div>
+    <div class="container">
+        <div class="logo">
+            <img src="https://transapp-static.s3.us-east-2.amazonaws.com/logo-gtfs-editor.svg">
+        </div>
+        <div class= "message-container">
+            <div class="greeting">
+                ¡Hola <span>{{ username }}</span>!
+            </div>
+            <div class="message">
+                <p><b>Bienvenido al <span>editor de GTFS</span> de <span>TranSapp.</span></b></p>
+                <p>Como último paso, necesitamos verificar tu <b>dirección de correo electrónico</b> para asegurarnos de que todo esté en orden.</p>
+                <p>Por favor, toma un momento para hacer clic en el botón de abajo y confirmar tu <b>dirección de correo:</b></p>
+            </div>
+            <div class="button-container">
+                <a href="{{ link_url }}" class="button">CONFIRMAR</a>
+            </div>
+        </div>
+        <div class="small-text">
+            Si no creaste una cuenta con nosotros. Por favor, ignora este mensaje.
+        </div>
+    </div>
+</div>
+</body>
+</html>
