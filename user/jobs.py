@@ -12,8 +12,9 @@ def send_confirmation_email(username, verification_url):
     subject, to = 'Verificación de Email', user.email
     text_content = ''
     html_content = render_to_string('confirmation_email.html',
-                                    context={'username': user.username,
-                                             'link_url': verification_url})
+                                    context={'name': user.name,
+                                             'username': user.username,
+                                             'form_url': verification_url})
     msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
     msg.attach_alternative(html_content, "text/html")
     msg.send()
