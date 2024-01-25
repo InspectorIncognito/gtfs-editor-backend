@@ -24,9 +24,9 @@ def send_pw_recovery_email(username, recovery_url):
     user = User.objects.get(username=username)
     subject, to = 'Recuperación de contraseña', user.email
     text_content = ''
-    html_content = render_to_string('confirmation_email.html',
+    html_content = render_to_string('recover_password.html',
                                     context={'username': user.username,
-                                             'form_url': recovery_url})
+                                             'link_url': recovery_url})
     msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
     msg.attach_alternative(html_content, "text/html")
     msg.send()

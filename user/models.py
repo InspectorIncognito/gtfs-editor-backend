@@ -35,3 +35,4 @@ class User(models.Model):
 
     def authenticate(self, password):
         return check_password(password, self.password)
+

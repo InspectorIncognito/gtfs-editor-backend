@@ -87,9 +87,9 @@ class ConfirmationEmailTest(TestCase):
         self.assertEqual(str(messages[0]), 'The verification link has expired.')
 
     def test_user_confirmation_link_invalid_token(self):
-        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=' + str({uuid.uuid4()}))
+        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=' + str(uuid.uuid4()))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn('detail', response.data)
         self.assertEqual(response.data['detail'],
-                         'Invalid verification token. User with that token does not exist.')
+                         'Invalid verification token.')

@@ -6,12 +6,12 @@ from datetime import timedelta
 from django.urls import reverse
 from django.contrib import messages
 from django.shortcuts import redirect
-from rest_framework.generics import CreateAPIView, UpdateAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import *
-from user.jobs import send_confirmation_email
+from user.jobs import send_confirmation_email, send_pw_recovery_email
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,8 @@ class UserLoginView(APIView):
 
 class UserConfirmationEmailView(APIView):
     def get(self, request, *args, **kwargs):
-        token = self.kwargs.get('verification_token')
+        token = self.request.query_params.get('verificationToken')
+        print(token)
 
         try:
             user = User.objects.get(email_confirmation_token=token)
@@ -73,7 +74,7 @@ class UserConfirmationEmailView(APIView):
                 return Response({'detail': 'Verification link expired.'},
                                 status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
-            return Response({'detail': 'Invalid verification token. User with that token does not exist.'},
+            return Response({'detail': 'Invalid verification token.'},
                             status=status.HTTP_404_NOT_FOUND)
 
         except Exception as e:
@@ -83,27 +84,49 @@ class UserConfirmationEmailView(APIView):
         
 
 class UserRecoverPasswordRequestView(UpdateAPIView):
-    serializers_class = UserRecoverPasswordRequestSerializer
+    serializer_class = UserRecoverPasswordRequestSerializer
+    queryset = User.objects.all()
 
-    def perform_update(self, serializer):
-        user = serializer.save()
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer, instance)
 
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
+    def perform_update(self, serializer, user):
         # Generate recovery_url
+        recovery_token = uuid.uuid4()
+        serializer.validated_data['password_recovery_token'] = recovery_token
+        serializer.validated_data['recovery_timestamp'] = timezone.now()
+        serializer.save()
+
         recovery_url = self.request.build_absolute_uri(reverse('recover-password'))
-        recovery_url = recovery_url + '?token=' + str(user.password_recovery_token)
+        recovery_url = recovery_url + '?recoveryToken=' + str(recovery_token)
 
         # Task queue and adding a job to the queue
-        default_queue = django_rq.get_queue('default')
-        default_queue.enqueue(send_confirmation_email, user.username, recovery_url, result_ttl=-1)
+        send_pw_recovery_email.delay(user.email, recovery_url)
 
         # Tracks this event
         logger.info(f'User with username: {user.username} started a password change process')
 
+    def get_object(self):
+        username = self.request.data.get('username')
+        user = get_object_or_404(self.get_queryset(), username=username)
+        return user
+
 
 class UserRecoverPasswordView(APIView):
-    def get(self, request, *args, **kwargs):
-        template_name = 'recover_password_driver.html'
-        token = self.kwargs.get('password_recovery_token')
+    serializer_class = UserRecoverPasswordSerializer
+
+    def _process_recovery_request(self, token, request, is_post=False):
 
         try:
             user = User.objects.get(password_recovery_token=token)
@@ -112,55 +135,36 @@ class UserRecoverPasswordView(APIView):
             delta = timedelta(hours=1)
 
             if expiration_time <= delta:
-                user.is_active = True
-                user.email_confirmation_token = None
-                user.email_confirmation_timestamp = None
-                user.save()
+                if is_post:
+                    serializer = self.serializer_class(data=request.data)
+                    serializer.is_valid(raise_exception=True)
+                    new_password = serializer.validated_data['password']
+                    user.password_recovery_token = None
+                    user.recovery_timestamp = None
+                    user.password = new_password
 
-                messages.success(request, 'Your account has been successfully activated. You can now log in.')
+                return Response(status=status.HTTP_200_OK)
 
-                url = reverse('user-login')
-                return redirect(url)
             else:
-                messages.error(request, 'The verification link has expired.')
-                return Response({'detail': 'Verification link expired.'},
-                                status=status.HTTP_400_BAD_REQUEST)
-        except User.DoesNotExist:
-            return Response({'detail': 'Invalid verification token. User with that token does not exist.'},
-                            status=status.HTTP_404_NOT_FOUND)
+                messages.error(self.request, 'The recovery link has expired.')
+                return Response({'detail': 'Recovery link expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        except User.DoesNotExist:
+            return Response({'detail': 'Invalid recovery token.'}, status=status.HTTP_404_NOT_FOUND)
+        except serializers.ValidationError as validation_error:
+            return Response(validation_error.detail, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-            return Response({'detail': 'An unexpected error occurred.'},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'detail': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    def get(self, request, *args, **kwargs):
+        token = self.request.query_params.get('recoveryToken')
+        return self._process_recovery_request(token, request)
 
-"""class UserRecoverPasswordRequestView(APIView):
     def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
-        if not username:
-            return Response({'message': 'Please provide a username.'}, status=status.HTTP_400_BAD_REQUEST)
+        token = self.request.query_params.get('recoveryToken')
+        return self._process_recovery_request(token, request, is_post=True)
 
-        try:
-            user = User.objects.get(username=username)
 
-            user.recovery_timestamp = timezone.now()
-            user.password_recovery_token = uuid.uuid4()
 
-            recovery_url = request.build_absolute_uri(reverse('recover-password'))
-            recovery_url = recovery_url + '?token=' + str(user.password_recovery_token)
 
-            user.save()
-
-            # Task queue and adding a job to the queue
-            default_queue = django_rq.get_queue('default')
-            default_queue.enqueue(send_confirmation_email, user.username, recovery_url, result_ttl=-1)
-
-            # Tracks this event
-            logger.info(f'User with username: {user.username} started a password change process')
-
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        except User.DoesNotExist:
-            return Response({'detail': "User with the provided username does not exist."},
-                            status=status.HTTP_400_BAD_REQUEST)"""
