@@ -2,7 +2,6 @@ import uuid
 
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.messages import get_messages
 
 from unittest.mock import patch, Mock
 from django.utils import timezone
@@ -12,9 +11,6 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from user.tests.factories import UserFactory
-
-from user.jobs import send_pw_recovery_email
-from user.models import User
 
 
 class TestRecoveryPassword(TestCase):
@@ -50,8 +46,8 @@ class TestRecoveryPassword(TestCase):
         self.assertEqual(status.HTTP_200_OK, response.status_code)
         # Assert that enqueue was called correctly with the expected arguments
         mock_email_job.assert_called_once_with(
-            self.user.email,
-            recovery_url,
+            self.user.username,
+            recovery_url
         )
 
     def test_recovery_password_request_invalid_username(self):

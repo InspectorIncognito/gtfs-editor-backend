@@ -18,15 +18,13 @@ class LoginTest(TestCase):
             'username': self.user.username,
             'password': self.password
         }
+        self.assertIsNone(self.user.session_token)
+
         response = self.client.post(self.url, data, format='json')
         self.user.refresh_from_db()
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('session_token', response.data)
-
-        token = str(response.data['session_token'])
-        session_token = str(self.user.session_token)
-        self.assertEqual(token, session_token)
+        self.assertIsNotNone(self.user.session_token)
 
     def test_user_login_invalid_user(self):
         data_user_invalid = {

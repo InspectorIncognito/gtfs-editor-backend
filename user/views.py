@@ -1,4 +1,3 @@
-import django_rq
 import logging
 
 from datetime import timedelta
@@ -26,8 +25,7 @@ class UserRegisterView(CreateAPIView):
         verification_url = verification_url + '?verificationToken=' + str(user.email_confirmation_token)
 
         # Task queue and adding a job to the queue
-        default_queue = django_rq.get_queue('default')
-        default_queue.enqueue(send_confirmation_email, user.username, verification_url, result_ttl=-1)
+        send_confirmation_email.delay(user.username, verification_url)
 
         # Tracks this event
         logger.info(f'User with username: {user.username} started an activation user process')
@@ -45,7 +43,7 @@ class UserLoginView(APIView):
         user.session_token = uuid.uuid4()
         user.save()
 
-        return Response({'session_token': user.session_token}, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
 
 class UserConfirmationEmailView(APIView):
@@ -112,7 +110,7 @@ class UserRecoverPasswordRequestView(UpdateAPIView):
         recovery_url = recovery_url + '?recoveryToken=' + str(recovery_token)
 
         # Task queue and adding a job to the queue
-        send_pw_recovery_email.delay(user.email, recovery_url)
+        send_pw_recovery_email.delay(user.username, recovery_url)
 
         # Tracks this event
         logger.info(f'User with username: {user.username} started a password change process')
