@@ -35,20 +35,15 @@ class UserLoginMiddleware:
         if request.path_info != login:
             user_id, user_token = self.__get_user_params_from_header(request)
 
-            if user_id is not None and user_token is not None:
+            if user_id and user_token:
                 try:
-                    user = User.objects.get(userId=user_id)
+                    user = User.objects.get(id=user_id)
                     if str(user.session_token) == user_token:
                         request.app.user = user
                     else:
-                        return Response({'detail': 'Invalid recovery token.'}, status=status.HTTP_404_NOT_FOUND)
+                        return Response({'detail': 'Invalid session token.'}, status=status.HTTP_401_UNAUTHORIZED)
                 except User.DoesNotExist:
-                    return Response({'detail': 'Invalid User'}, status=status.HTTP_404_NOT_FOUND)
-                except ValueError as e:
-                    return Response({'detail': f'ValueError: {e}'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response({'detail': 'Invalid User'}, status=status.HTTP_401_UNAUTHORIZED)
 
         response = self.get_response(request)
         return response
-
-
-   # preguntar si es mejor guardarlos Response en una variable y luego retornar o retornar altiro
