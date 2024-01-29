@@ -1,16 +1,21 @@
 import logging
-
+import uuid
 from datetime import timedelta
 
 from django.urls import reverse
+from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect
+
+from rest_framework import serializers
 from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializers import *
+from .serializers import (UserLoginSerializer, UserRegisterSerializer,
+                          UserRecoverPasswordSerializer, UserRecoverPasswordRequestSerializer)
 from user.jobs import send_confirmation_email, send_pw_recovery_email
+from .models import User
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +54,6 @@ class UserLoginView(APIView):
 class UserConfirmationEmailView(APIView):
     def get(self, request, *args, **kwargs):
         token = self.request.query_params.get('verificationToken')
-        print(token)
 
         try:
             user = User.objects.get(email_confirmation_token=token)
@@ -124,7 +128,8 @@ class UserRecoverPasswordRequestView(UpdateAPIView):
 class UserRecoverPasswordView(APIView):
     serializer_class = UserRecoverPasswordSerializer
 
-    def _process_recovery_request(self, token, request, is_post=False):
+    def post(self, request, *args, **kwargs):
+        token = self.request.query_params.get('recoveryToken')
 
         try:
             user = User.objects.get(password_recovery_token=token)
@@ -133,13 +138,12 @@ class UserRecoverPasswordView(APIView):
             delta = timedelta(hours=1)
 
             if expiration_time <= delta:
-                if is_post:
-                    serializer = self.serializer_class(data=request.data)
-                    serializer.is_valid(raise_exception=True)
-                    new_password = serializer.validated_data['password']
-                    user.password_recovery_token = None
-                    user.recovery_timestamp = None
-                    user.password = new_password
+                serializer = self.serializer_class(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                new_password = serializer.validated_data['password']
+                user.password_recovery_token = None
+                user.recovery_timestamp = None
+                user.password = new_password
 
                 return Response(status=status.HTTP_200_OK)
 
@@ -155,13 +159,7 @@ class UserRecoverPasswordView(APIView):
             print(f"An unexpected error occurred: {e}")
             return Response({'detail': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def get(self, request, *args, **kwargs):
-        token = self.request.query_params.get('recoveryToken')
-        return self._process_recovery_request(token, request)
 
-    def post(self, request, *args, **kwargs):
-        token = self.request.query_params.get('recoveryToken')
-        return self._process_recovery_request(token, request, is_post=True)
 
 
 

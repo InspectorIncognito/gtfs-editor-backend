@@ -57,21 +57,7 @@ class TestRecoveryPassword(TestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch('user.views.User.objects.get')
-    def test_recovery_password_link_success_get(self, mock_get):
-        user = Mock()
-        user.recovery_timestamp = timezone.now()
-        mock_get.return_value = user
-
-        response = self.client.get(self.url_pw + '?recoveryToken=some_token')
-
-        # Assert that the confirmation view returns a successful response
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
-
-        self.assertIsNotNone(user.password_recovery_token)
-        self.assertIsNotNone(user.recovery_timestamp)
-
-    @patch('user.views.User.objects.get')
-    def test_recovery_password_link_success_post(self, mock_get):
+    def test_recovery_password_link_success(self, mock_get):
         user = Mock()
         user.recovery_timestamp = timezone.now()
         mock_get.return_value = user
@@ -94,12 +80,6 @@ class TestRecoveryPassword(TestCase):
         expired_user.recovery_timestamp = timezone.now() - timedelta(hours=3)
         mock_get.return_value = expired_user
 
-        response_get = self.client.get(self.url_pw + '?recoveryToken=some_token')
-
-        self.assertEqual(response_get.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('detail', response_get.data)
-        self.assertEqual(response_get.data['detail'], 'Recovery link expired.')
-
         response_post = self.client.post(self.url_pw + '?recoveryToken=some_token')
 
         self.assertEqual(response_post.status_code, status.HTTP_400_BAD_REQUEST)
@@ -107,13 +87,6 @@ class TestRecoveryPassword(TestCase):
         self.assertEqual(response_post.data['detail'], 'Recovery link expired.')
 
     def test_recovery_password_link_invalid_token(self):
-
-        response_get = self.client.get(self.url_pw + '?recoveryToken=' + str(uuid.uuid4()))
-
-        self.assertEqual(response_get.status_code, status.HTTP_404_NOT_FOUND)
-        self.assertIn('detail', response_get.data)
-        self.assertEqual(response_get.data['detail'], 'Invalid recovery token.')
-
         response_post = self.client.post(self.url_pw + '?recoveryToken=' + str(uuid.uuid4()))
 
         self.assertEqual(response_post.status_code, status.HTTP_404_NOT_FOUND)
