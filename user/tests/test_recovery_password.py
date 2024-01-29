@@ -89,7 +89,7 @@ class TestRecoveryPassword(TestCase):
     def test_recovery_password_link_invalid_token(self):
         response_post = self.client.post(self.url_pw + '?recoveryToken=' + str(uuid.uuid4()))
 
-        self.assertEqual(response_post.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response_post.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn('detail', response_post.data)
         self.assertEqual(response_post.data['detail'], 'Invalid recovery token.')
 
