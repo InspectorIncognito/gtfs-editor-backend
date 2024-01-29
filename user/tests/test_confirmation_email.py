@@ -11,7 +11,6 @@ from datetime import timedelta
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from user.jobs import send_confirmation_email
 from user.models import User
 
 
@@ -20,11 +19,8 @@ class ConfirmationEmailTest(TestCase):
         self.client = APIClient()
         self.url = reverse('user-register')
 
-    @patch('user.views.django_rq.get_queue')
-    def test_user_registration_enqueue_task(self, mock_get_queue):
-        mock_queue = Mock()
-        mock_get_queue.return_value = mock_queue
-
+    @patch('user.views.send_confirmation_email.delay')
+    def test_user_registration_enqueue_task(self, mock_email_job):
         data = {
             'username': 'test',
             'email': 'test@email.com',
@@ -33,18 +29,17 @@ class ConfirmationEmailTest(TestCase):
             'last_name': 'testLastName'
         }
 
-        self.client.post(self.url, data, format='json')
+        response = self.client.post(self.url, data, format='json')
         user = User.objects.get(username='test')
 
         verification_url = ('http://testserver/user/email-verification/?verificationToken='
                             + str(user.email_confirmation_token))
 
+        self.assertEqual(status.HTTP_201_CREATED, response.status_code)
         # Assert that enqueue was called correctly with the expected arguments
-        mock_queue.enqueue.assert_called_once_with(
-            send_confirmation_email,
-            'test',
-            verification_url,
-            result_ttl=-1
+        mock_email_job.assert_called_once_with(
+            user.username,
+            verification_url
         )
 
     @patch('user.views.User.objects.get')
@@ -87,9 +82,9 @@ class ConfirmationEmailTest(TestCase):
         self.assertEqual(str(messages[0]), 'The verification link has expired.')
 
     def test_user_confirmation_link_invalid_token(self):
-        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=' + str({uuid.uuid4()}))
+        response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=' + str(uuid.uuid4()))
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertIn('detail', response.data)
         self.assertEqual(response.data['detail'],
-                         'Invalid verification token. User with that token does not exist.')
+                         'Invalid verification token.')

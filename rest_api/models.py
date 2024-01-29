@@ -8,7 +8,6 @@ from user.models import User
 from rest_api.managers import *
 
 
-
 def gtfs_update_to(instance, filename):
     return os.path.join(str(instance.pk), filename)
 

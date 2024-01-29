@@ -6,6 +6,11 @@ from django.core.exceptions import ObjectDoesNotExist
 from .models import User
 
 
+def validate_field(field_name, value, regex):
+    if not re.match(regex, value):
+        raise serializers.ValidationError({'detail': f'Invalid format for {field_name}.'})
+
+
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(min_length=8, max_length=128, write_only=True)
 
@@ -20,15 +25,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
         read_only = ['id']
 
-    def validate_field(self, field_name, value, regex):
-        if not re.match(regex, value):
-            raise serializers.ValidationError({'detail': f'Invalid format for {field_name}.'})
-
     def validate(self, data):
-        self.validate_field('username', data['username'], r'^[a-zA-Z]+([_a-zA-Z0-9]+)?$')
-        self.validate_field('name', data['name'], r'^[a-zA-Z]+$')
-        self.validate_field('last_name', data['last_name'], r'^[a-zA-Z]+$')
-        self.validate_field('password', data['password'], r'^\S+$')
+        validate_field('username', data['username'], r'^[a-zA-Z]+([_a-zA-Z0-9]+)?$')
+        validate_field('name', data['name'], r'^[a-zA-Z]+$')
+        validate_field('last_name', data['last_name'], r'^[a-zA-Z]+$')
+        validate_field('password', data['password'], r'^\S+$')
 
         if User.objects.filter(email=data['email']).exists():
             raise serializers.ValidationError({'detail': 'This email is already registered.'})
@@ -62,4 +63,24 @@ class UserLoginSerializer(serializers.Serializer):
         else:
             raise serializers.ValidationError({'detail': 'Both username and password are required.'})
 
+        return data
+
+
+class UserRecoverPasswordRequestSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(max_length=30, required=True)
+
+    class Meta:
+        model = User
+        fields = ['username']
+
+
+class UserRecoverPasswordSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(min_length=8, max_length=128)
+
+    class Meta:
+        model = User
+        fields = ['password']
+
+    def validate(self, data):
+        validate_field('password', data['password'], r'^\S+$')
         return data
