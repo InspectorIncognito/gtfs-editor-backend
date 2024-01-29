@@ -19,8 +19,7 @@ from django.urls import path, include
 from rest_framework_nested import routers
 
 from rest_api import views as api_views
-from user.views import (UserLoginView, UserRegisterView, UserConfirmationEmailView,
-                        UserRecoverPasswordView, UserRecoverPasswordRequestView)
+from user.views import UserLoginView, UserRegisterView, UserConfirmationEmailView
 
 router = routers.SimpleRouter()
 router.register(r'projects', api_views.ProjectViewSet)
@@ -49,9 +48,6 @@ project_router.register(r'tables', api_views.TablesViewSet, basename='project-ta
 
 urlpatterns = [
     path('user/email-verification/', UserConfirmationEmailView.as_view(), name='user-confirmation-email'),
-    path('user/register/', UserRegisterView.as_view(), name='user-register'),
-    path('user/recover-password/', UserRecoverPasswordView.as_view(), name='recover-password'),
-    path('user/recover-password-request/', UserRecoverPasswordRequestView.as_view(), name='recover-password-request'),
     path('user/register/', UserRegisterView.as_view(), name='user-register'),
     path('user/login/', UserLoginView.as_view(), name='user-login'),
     path(r'admin/', admin.site.urls),
