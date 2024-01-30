@@ -30,14 +30,14 @@ class UserLoginMiddlewareTest(TestCase):
 
         request = HttpRequest()
         request.META['HTTP_USER_ID'] = '999'  # non-existent user
-        request.META['HTTP_USER_TOKEN'] = 'invalid_token'
+        request.META['HTTP_USER_TOKEN'] = str(self.token)
 
         middleware = UserLoginMiddleware(get_response)
         response = middleware(request)
 
         self.assertIsInstance(request.app.user, AnonymousUser)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data['detail'], 'Invalid User.')
+        self.assertEqual(response.data['detail'], 'Unauthorized Access.')
 
     def test_invalid_session_token(self):
         get_response = mock.MagicMock()
@@ -51,4 +51,4 @@ class UserLoginMiddlewareTest(TestCase):
 
         self.assertIsInstance(request.app.user, AnonymousUser)
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data['detail'], 'Invalid session token.')
+        self.assertEqual(response.data['detail'], 'Unauthorized Access.')

@@ -41,9 +41,9 @@ class UserLoginMiddleware:
                     if str(user.session_token) == user_token:
                         request.app.user = user
                     else:
-                        return Response({'detail': 'Invalid session token.'}, status=status.HTTP_401_UNAUTHORIZED)
+                        return Response({'detail': 'Unauthorized Access.'}, status=status.HTTP_401_UNAUTHORIZED)
                 except User.DoesNotExist:
-                    return Response({'detail': 'Invalid User.'}, status=status.HTTP_401_UNAUTHORIZED)
+                    return Response({'detail': 'Unauthorized Access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         response = self.get_response(request)
         return response
