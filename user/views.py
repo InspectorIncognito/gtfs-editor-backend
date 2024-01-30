@@ -77,13 +77,8 @@ class UserConfirmationEmailView(APIView):
                                 status=status.HTTP_400_BAD_REQUEST)
         except User.DoesNotExist:
             return Response({'detail': 'Invalid verification token.'},
-                            status=status.HTTP_404_NOT_FOUND)
+                            status=status.HTTP_401_UNAUTHORIZED)
 
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            return Response({'detail': 'An unexpected error occurred.'},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
 
 class UserRecoverPasswordRequestView(UpdateAPIView):
     serializer_class = UserRecoverPasswordRequestSerializer
@@ -152,12 +147,10 @@ class UserRecoverPasswordView(APIView):
                 return Response({'detail': 'Recovery link expired.'}, status=status.HTTP_400_BAD_REQUEST)
 
         except User.DoesNotExist:
-            return Response({'detail': 'Invalid recovery token.'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({'detail': 'Invalid recovery token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
         except serializers.ValidationError as validation_error:
             return Response(validation_error.detail, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            print(f"An unexpected error occurred: {e}")
-            return Response({'detail': 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
