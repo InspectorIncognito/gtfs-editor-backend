@@ -16,6 +16,7 @@ from rest_framework.viewsets import ViewSet
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
+from rest_api.permission import IsAuthenticatedOrObjectOwner
 from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file_when_project_is_created
 from rqworkers.utils import delete_job
 
@@ -289,9 +290,12 @@ class ProjectViewSet(MyModelViewSet):
     """
     API endpoint that allows projects to be viewed or edited.
     """
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     queryset = Project.objects.select_related('feedinfo').all().order_by('-last_modification')
     serializer_class = ProjectSerializer
 
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.app.user)
     @action(methods=['GET'], detail=True)
     def download(self, *args, **kwargs):
         project_obj = self.get_object()
@@ -303,9 +307,13 @@ class ProjectViewSet(MyModelViewSet):
         return response
 
     @action(methods=['POST'], detail=False)
-    def create_project_from_gtfs(self, *args, **kwargs):
-        data = dict(creation_status=Project.CREATION_STATUS_LOADING_GTFS, name=self.request.data['name'],
-                    user_id=self.request.data['user_id'])
+    def create_project_from_gtfs(self, request, *args, **kwargs):
+        data = dict(
+            creation_status=Project.CREATION_STATUS_LOADING_GTFS,
+            name=self.request.data['name'],
+            user=self.request.app.user
+        )
+
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -314,7 +322,7 @@ class ProjectViewSet(MyModelViewSet):
         except KeyError:
             raise ValidationError('Zip file with GTFS format is required')
 
-        project_obj = serializer.save()
+        project_obj = serializer.save(user=self.request.app.user)
         job = upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
         Project.objects.filter(pk=project_obj.pk).update(loading_gtfs_job_id=job.id)
 
