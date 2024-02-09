@@ -9,6 +9,7 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
@@ -294,8 +295,14 @@ class ProjectViewSet(MyModelViewSet):
     queryset = Project.objects.select_related('feedinfo').all().order_by('-last_modification')
     serializer_class = ProjectSerializer
 
+    def get_queryset(self):
+        user = self.request.app.user
+        queryset = self.queryset.filter(user=user)
+        return queryset
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.app.user)
+
     @action(methods=['GET'], detail=True)
     def download(self, *args, **kwargs):
         project_obj = self.get_object()
@@ -311,9 +318,7 @@ class ProjectViewSet(MyModelViewSet):
         data = dict(
             creation_status=Project.CREATION_STATUS_LOADING_GTFS,
             name=self.request.data['name'],
-            user=self.request.app.user
         )
-
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         try:
@@ -384,6 +389,7 @@ class ProjectViewSet(MyModelViewSet):
 
 
 class ShapeViewSet(MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     CHUNK_SIZE = 10000
 
     def get_queryset(self):
@@ -486,6 +492,7 @@ class ShapeViewSet(MyModelViewSet):
 
 class CalendarViewSet(CSVHandlerMixin,
                       MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = CalendarSerializer
 
     class Meta(ConvertValuesMeta):
@@ -515,6 +522,7 @@ class CalendarViewSet(CSVHandlerMixin,
 
 class LevelViewSet(CSVHandlerMixin,
                    MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = LevelSerializer
 
     class Meta(ConvertValuesMeta):
@@ -534,6 +542,7 @@ class LevelViewSet(CSVHandlerMixin,
 
 class CalendarDateViewSet(CSVHandlerMixin,
                           MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = CalendarDateSerializer
 
     class Meta(ConvertValuesMeta):
@@ -555,6 +564,7 @@ class CalendarDateViewSet(CSVHandlerMixin,
 
 class FeedInfoViewSet(CSVHandlerMixin,
                       MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = FeedInfoSerializer
 
     class Meta(ConvertValuesMeta):
@@ -580,6 +590,7 @@ class FeedInfoViewSet(CSVHandlerMixin,
 
 class StopViewSet(CSVHandlerMixin,
                   MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = StopSerializer
     CHUNK_SIZE = 10000
 
@@ -636,6 +647,7 @@ class StopViewSet(CSVHandlerMixin,
 
 class PathwayViewSet(CSVHandlerMixin,
                      MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = PathwaySerializer
 
     class Meta(ConvertValuesMeta):
@@ -672,6 +684,7 @@ class PathwayViewSet(CSVHandlerMixin,
 
 
 class ShapePointViewSet(MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
@@ -681,6 +694,7 @@ class ShapePointViewSet(MyModelViewSet):
 
 class TransferViewSet(CSVHandlerMixin,
                       MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = TransferSerializer
 
     class Meta(ConvertValuesMeta):
@@ -721,6 +735,7 @@ class TransferViewSet(CSVHandlerMixin,
 
 class AgencyViewSet(CSVHandlerMixin,
                     MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = AgencySerializer
 
     class Meta(ConvertValuesMeta):
@@ -743,6 +758,7 @@ class AgencyViewSet(CSVHandlerMixin,
 
 class RouteViewSet(CSVHandlerMixin,
                    MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = RouteSerializer
 
     class Meta(ConvertValuesMeta):
@@ -793,6 +809,7 @@ class RouteViewSet(CSVHandlerMixin,
 
 class FareAttributeViewSet(CSVHandlerMixin,
                            MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = FareAttributeSerializer
 
     class Meta(ConvertValuesMeta):
@@ -824,6 +841,7 @@ class FareAttributeViewSet(CSVHandlerMixin,
 
 class FareRuleViewSet(CSVHandlerMixin,
                       MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = FareRuleSerializer
 
     class Meta(ConvertValuesMeta):
@@ -853,6 +871,7 @@ class FareRuleViewSet(CSVHandlerMixin,
 
 class TripViewSet(CSVHandlerMixin,
                   MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = TripSerializer
     CHUNK_SIZE = 10000
 
@@ -900,6 +919,7 @@ class TripViewSet(CSVHandlerMixin,
 
 class StopTimeViewSet(CSVHandlerMixin,
                       MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = StopTimeSerializer
     CHUNK_SIZE = 100000
 
@@ -997,6 +1017,7 @@ class StopTimeViewSet(CSVHandlerMixin,
 
 class FrequencyViewSet(CSVHandlerMixin,
                        MyModelViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     serializer_class = FrequencySerializer
 
     class Meta(ConvertValuesMeta):
@@ -1028,7 +1049,7 @@ class FrequencyViewSet(CSVHandlerMixin,
 
 
 class ServiceViewSet(ViewSet):
-
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     def get_services(self, project_pk):
         calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
@@ -1065,6 +1086,7 @@ class ServiceViewSet(ViewSet):
 
 
 class TablesViewSet(ViewSet):
+    permission_classes = [IsAuthenticatedOrObjectOwner]
     def list(self, request, project_pk):
         tables = {
             'agency': AgencyViewSet,

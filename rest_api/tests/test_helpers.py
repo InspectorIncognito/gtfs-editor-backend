@@ -362,8 +362,8 @@ class ProjectAPITest(BaseTestCase):
 
     # tests
     def test_retrieve_project_list(self):
-        user_id = str(self.user.id)
-        token = str(self.user.session_token)
+        user_id = str(self.project.user.id)
+        token = str(self.project.user.session_token)
 
         custom_headers = {
             'USER_ID': user_id,
@@ -424,6 +424,7 @@ class ProjectAPITest(BaseTestCase):
         with self.assertNumQueries(3):
             json_response = self.projects_retrieve(self.client, self.project.project_id, custom_headers)
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
+        print(json_response)
 
     def test_delete_project(self):
         user_id = str(self.project.user.id)

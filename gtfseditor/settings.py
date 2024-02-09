@@ -164,6 +164,7 @@ REST_FRAMEWORK = {
         'rest_api.parsers.MultiSearchFilter',
         'rest_api.parsers.SortFilter',
     ),
+
     'DEFAULT_PAGINATION_CLASS': 'rest_api.parsers.ResultsSetPagination',
     'PAGE_SIZE': 50,
 }
