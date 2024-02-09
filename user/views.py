@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect
 
-from rest_framework import serializers
+from rest_framework import serializers, permissions
 from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -15,13 +15,16 @@ from rest_framework import status
 from .serializers import (UserLoginSerializer, UserRegisterSerializer,
                           UserRecoverPasswordSerializer, UserRecoverPasswordRequestSerializer)
 from user.jobs import send_confirmation_email, send_pw_recovery_email
+from user.permission import IsAuthenticated
 from .models import User
 
 logger = logging.getLogger(__name__)
 
 
 class UserRegisterView(CreateAPIView):
+    permission_classes = [~IsAuthenticated]
     serializer_class = UserRegisterSerializer
+
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -37,6 +40,7 @@ class UserRegisterView(CreateAPIView):
 
 
 class UserLoginView(APIView):
+    permission_classes = [~IsAuthenticated]
     serializer_class = UserLoginSerializer
 
     def post(self, request, *args, **kwargs):
@@ -52,6 +56,8 @@ class UserLoginView(APIView):
 
 
 class UserConfirmationEmailView(APIView):
+    permission_classes = [~IsAuthenticated]
+
     def get(self, request, *args, **kwargs):
         token = self.request.query_params.get('verificationToken')
 
@@ -81,6 +87,7 @@ class UserConfirmationEmailView(APIView):
 
 
 class UserRecoverPasswordRequestView(UpdateAPIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = UserRecoverPasswordRequestSerializer
     queryset = User.objects.all()
 
@@ -121,6 +128,7 @@ class UserRecoverPasswordRequestView(UpdateAPIView):
 
 
 class UserRecoverPasswordView(APIView):
+    permission_classes = [IsAuthenticated]
     serializer_class = UserRecoverPasswordSerializer
 
     def post(self, request, *args, **kwargs):

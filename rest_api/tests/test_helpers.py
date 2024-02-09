@@ -693,6 +693,14 @@ class BaseTableTest(BaseTestCase):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
+        user_id = str(self.project.user.id)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
     def get_list_url(self, project_id):
         kwargs = dict(project_pk=project_id)
         url = reverse('{}-list'.format(self.table_name), kwargs=kwargs)
@@ -708,28 +716,28 @@ class BaseTableTest(BaseTestCase):
         url = self.get_list_url(project_id)
         data['format'] = 'json'
         data['no_page'] = ''
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json', no_page="a")
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json', no_page="a")
 
     def create(self, project_id, client, data, status_code=status.HTTP_201_CREATED):
         url = self.get_list_url(project_id)
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def retrieve(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def delete(self, project_id, pk, client, data, status_code=status.HTTP_204_NO_CONTENT):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, format='json',
+        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, headers=self.custom_headers, format='json',
                                   json_process=False)
 
     def patch(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.PATCH_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.PATCH_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def put(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
 
 class BasicTestSuiteMixin(object):
