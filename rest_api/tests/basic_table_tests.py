@@ -168,7 +168,7 @@ class FeedInfoTableTest(BaseTableTest, BasicTestSuiteMixin):
             'feed_version': '1.2.3',
             'feed_id': 'Test Feed 1'
         }
-        with self.assertNumQueries(0):
+        with self.assertNumQueries(1):
             json_response = self.create(self.project.project_id, self.client, data, status.HTTP_400_BAD_REQUEST)
 
     # This should fail because PUT is not supported for one-to-one
@@ -182,7 +182,7 @@ class FeedInfoTableTest(BaseTableTest, BasicTestSuiteMixin):
             'feed_version': '1.2.3',
             'feed_id': 'Test Feed 1'
         }
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(5):
             id = self.Meta().get_id(self.project, data)
             json_response = self.put(self.project.project_id, id, self.client, data, status.HTTP_400_BAD_REQUEST)
 
@@ -441,7 +441,7 @@ class ShapeTableTest(BaseTableTest):
                                     shape_id=shape_id)[0].id
 
     def test_list(self):
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             json_response = self.list(self.project.project_id, self.client, dict())
         self.assertEqual(len(json_response), 2)
 
@@ -451,7 +451,7 @@ class ShapeTableTest(BaseTableTest):
             'shape_id': shape_id
         }
         id = self.get_id(shape_id)
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(5):
             json_response = self.retrieve(self.project.project_id, id, self.client, dict())
         target = Shape.objects.filter(project=self.project, **data)[0]
         self.assertEqual(json_response, DetailedShapeSerializer(target).data)
@@ -463,7 +463,7 @@ class ShapeTableTest(BaseTableTest):
         }
         id = self.get_id(shape_id)
         # 1 extra query to erase the shapepoints (cascade)
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(8):
             json_response = self.delete(self.project.project_id, id, self.client, dict())
         self.assertEqual(Shape.objects.filter(**data).count(), 0)
 

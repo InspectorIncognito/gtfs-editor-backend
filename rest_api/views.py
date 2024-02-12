@@ -17,7 +17,9 @@ from rest_framework.viewsets import ViewSet
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
 from rest_api.utils import log, create_foreign_key_hashmap
-from rest_api.permission import IsAuthenticated, IsAuthenticatedOrProjectOwner
+from rest_api.permissions import (IsAuthenticatedViews, IsAuthenticatedProject,
+                                  IsAuthenticatedTransferAndPathway, IsAuthenticatedStopTimesAndFrequency,
+                                  IsAuthenticatedShapePoint, IsAuthenticatedRoute)
 from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file_when_project_is_created
 from rqworkers.utils import delete_job
 
@@ -291,7 +293,7 @@ class ProjectViewSet(MyModelViewSet):
     """
     API endpoint that allows projects to be viewed or edited.
     """
-    permission_classes = [IsAuthenticatedOrProjectOwner]
+    permission_classes = [IsAuthenticatedProject]
     queryset = Project.objects.select_related('feedinfo').all().order_by('-last_modification')
     serializer_class = ProjectSerializer
 
@@ -389,7 +391,7 @@ class ProjectViewSet(MyModelViewSet):
 
 
 class ShapeViewSet(MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     CHUNK_SIZE = 10000
 
     def get_queryset(self):
@@ -492,7 +494,7 @@ class ShapeViewSet(MyModelViewSet):
 
 class CalendarViewSet(CSVHandlerMixin,
                       MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = CalendarSerializer
 
     class Meta(ConvertValuesMeta):
@@ -522,7 +524,7 @@ class CalendarViewSet(CSVHandlerMixin,
 
 class LevelViewSet(CSVHandlerMixin,
                    MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = LevelSerializer
 
     class Meta(ConvertValuesMeta):
@@ -542,7 +544,7 @@ class LevelViewSet(CSVHandlerMixin,
 
 class CalendarDateViewSet(CSVHandlerMixin,
                           MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = CalendarDateSerializer
 
     class Meta(ConvertValuesMeta):
@@ -564,7 +566,7 @@ class CalendarDateViewSet(CSVHandlerMixin,
 
 class FeedInfoViewSet(CSVHandlerMixin,
                       MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = FeedInfoSerializer
 
     class Meta(ConvertValuesMeta):
@@ -590,7 +592,7 @@ class FeedInfoViewSet(CSVHandlerMixin,
 
 class StopViewSet(CSVHandlerMixin,
                   MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = StopSerializer
     CHUNK_SIZE = 10000
 
@@ -647,7 +649,7 @@ class StopViewSet(CSVHandlerMixin,
 
 class PathwayViewSet(CSVHandlerMixin,
                      MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedTransferAndPathway]
     serializer_class = PathwaySerializer
 
     class Meta(ConvertValuesMeta):
@@ -684,7 +686,7 @@ class PathwayViewSet(CSVHandlerMixin,
 
 
 class ShapePointViewSet(MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedShapePoint]
     serializer_class = ShapePointSerializer
 
     def get_queryset(self):
@@ -694,7 +696,7 @@ class ShapePointViewSet(MyModelViewSet):
 
 class TransferViewSet(CSVHandlerMixin,
                       MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedTransferAndPathway]
     serializer_class = TransferSerializer
 
     class Meta(ConvertValuesMeta):
@@ -735,7 +737,7 @@ class TransferViewSet(CSVHandlerMixin,
 
 class AgencyViewSet(CSVHandlerMixin,
                     MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = AgencySerializer
 
     class Meta(ConvertValuesMeta):
@@ -758,7 +760,7 @@ class AgencyViewSet(CSVHandlerMixin,
 
 class RouteViewSet(CSVHandlerMixin,
                    MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedRoute]
     serializer_class = RouteSerializer
 
     class Meta(ConvertValuesMeta):
@@ -809,7 +811,7 @@ class RouteViewSet(CSVHandlerMixin,
 
 class FareAttributeViewSet(CSVHandlerMixin,
                            MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = FareAttributeSerializer
 
     class Meta(ConvertValuesMeta):
@@ -841,7 +843,7 @@ class FareAttributeViewSet(CSVHandlerMixin,
 
 class FareRuleViewSet(CSVHandlerMixin,
                       MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = FareRuleSerializer
 
     class Meta(ConvertValuesMeta):
@@ -871,7 +873,7 @@ class FareRuleViewSet(CSVHandlerMixin,
 
 class TripViewSet(CSVHandlerMixin,
                   MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     serializer_class = TripSerializer
     CHUNK_SIZE = 10000
 
@@ -919,7 +921,7 @@ class TripViewSet(CSVHandlerMixin,
 
 class StopTimeViewSet(CSVHandlerMixin,
                       MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedStopTimesAndFrequency]
     serializer_class = StopTimeSerializer
     CHUNK_SIZE = 100000
 
@@ -1017,7 +1019,7 @@ class StopTimeViewSet(CSVHandlerMixin,
 
 class FrequencyViewSet(CSVHandlerMixin,
                        MyModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedStopTimesAndFrequency]
     serializer_class = FrequencySerializer
 
     class Meta(ConvertValuesMeta):
@@ -1049,7 +1051,7 @@ class FrequencyViewSet(CSVHandlerMixin,
 
 
 class ServiceViewSet(ViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     def get_services(self, project_pk):
         calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
@@ -1086,7 +1088,7 @@ class ServiceViewSet(ViewSet):
 
 
 class TablesViewSet(ViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticatedViews]
     def list(self, request, project_pk):
         tables = {
             'agency': AgencyViewSet,

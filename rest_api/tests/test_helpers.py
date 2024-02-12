@@ -309,69 +309,70 @@ class ProjectAPITest(BaseTestCase):
     def setUp(self):
         self.client = APIClient()
         self.project = self.create_data()[0]
+
+        user_id = str(self.project.user.id)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
         self.user = UserFactory(session_token=uuid.uuid4())
 
     # helper methods
-    def projects_list(self, client, data, custom_headers, status_code=status.HTTP_200_OK):
+    def projects_list(self, client, data, status_code=status.HTTP_200_OK):
         url = reverse('project-list')
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=custom_headers, format='json')
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
-    def projects_retrieve(self, client, pk, custom_headers, status_code=status.HTTP_200_OK):
+    def projects_retrieve(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-detail', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=custom_headers, format='json')
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def projects_create(self, client, data, custom_headers, status_code=status.HTTP_201_CREATED):
         url = reverse('project-list')
         return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='json')
 
-    def projects_delete(self, client, pk, custom_headers, status_code=status.HTTP_204_NO_CONTENT):
+    def projects_delete(self, client, pk, status_code=status.HTTP_204_NO_CONTENT):
         url = reverse('project-detail', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, headers=custom_headers, format='json',
+        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, headers=self.custom_headers, format='json',
                                   json_process=False)
 
-    def projects_patch(self, client, pk, data, custom_headers, status_code=status.HTTP_200_OK):
+    def projects_patch(self, client, pk, data, status_code=status.HTTP_200_OK):
         url = reverse('project-detail', kwargs=dict(pk=pk))
-        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, headers=custom_headers, format='json')
+        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def projects_create_project_from_gtfs_action(self, client, data, custom_headers, status_code=status.HTTP_201_CREATED):
         url = reverse('project-create-project-from-gtfs')
         return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='multipart')
 
-    def projects_cancel_gtfs_validation_action(self, client, pk, custom_headers, status_code=status.HTTP_200_OK):
+    def projects_cancel_gtfs_validation_action(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-cancel-build-and-validate-gtfs-file', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
-    def projects_build_and_validate_gtfs_file_action(self, client, pk, custom_headers, status_code=status.HTTP_200_OK):
+    def projects_build_and_validate_gtfs_file_action(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-build-and-validate-gtfs-file', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
-    def projects_upload_gtfs_file_action(self, client, pk, zipfile_obj, custom_headers, status_code=status.HTTP_200_OK):
+    def projects_upload_gtfs_file_action(self, client, pk, zipfile_obj, status_code=status.HTTP_200_OK):
         url = reverse('project-upload-gtfs-file', kwargs=dict(pk=pk))
         data = dict(file=zipfile_obj)
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='multipart')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='multipart')
 
-    def projects_download_action(self, client, pk, custom_headers, status_code=status.HTTP_200_OK, json_process=True):
+    def projects_download_action(self, client, pk, status_code=status.HTTP_200_OK, json_process=True):
         url = reverse('project-download', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, json_process=json_process, headers=custom_headers,
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, json_process=json_process, headers=self.custom_headers,
                                   format='json')
 
     # tests
     def test_retrieve_project_list(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         with self.assertNumQueries(3):
-            json_response = self.projects_list(self.client, dict(), custom_headers)
+            json_response = self.projects_list(self.client, dict())
         self.assertEqual(len(json_response['results']), 2)
 
     def test_create_project(self):
@@ -413,50 +414,25 @@ class ProjectAPITest(BaseTestCase):
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_retrieve_project(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         with self.assertNumQueries(3):
-            json_response = self.projects_retrieve(self.client, self.project.project_id, custom_headers)
+            json_response = self.projects_retrieve(self.client, self.project.project_id)
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
-        print(json_response)
 
     def test_delete_project(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         # Number of queries is erratic because of the cascade behavior
         name = "Empty Project"
         id = Project.objects.filter(name=name)[0].project_id
-        self.projects_delete(self.client, id, custom_headers)
+        self.projects_delete(self.client, id)
         self.assertEqual(Project.objects.filter(project_id=id).count(), 0)
 
     def test_patch(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         # One to get one to update
         with self.assertNumQueries(5):
             name = "New Name"
             update_data = {
                 "name": name
             }
-            json_response = self.projects_patch(self.client, self.project.project_id, update_data, custom_headers)
+            json_response = self.projects_patch(self.client, self.project.project_id, update_data)
         self.project.refresh_from_db()
         db_data = ProjectSerializer(self.project).data
         self.assertDictEqual(json_response, db_data)
@@ -504,19 +480,11 @@ class ProjectAPITest(BaseTestCase):
         mock_upload_gtfs.delay.assert_not_called()
 
     def test_cancel_build_and_validation_gtfs_file_action_but_process_is_not_running(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         for build_and_validation_status in [None, Project.GTFS_BUILDING_AND_VALIDATION_STATUS_ERROR,
                                             Project.GTFS_BUILDING_AND_VALIDATION_STATUS_CANCELED,
                                             Project.GTFS_BUILDING_AND_VALIDATION_STATUS_FINISHED]:
             self.project.gtfs_building_and_validation_status = build_and_validation_status
-            json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk, custom_headers,
+            json_response = self.projects_cancel_gtfs_validation_action(self.client, self.project.pk,
                                                                         status_code=status.HTTP_400_BAD_REQUEST)
             self.assertEqual(json_response[0], 'Process is not running or queued')
 
@@ -567,17 +535,9 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.build_and_validate_gtfs_file')
     def test_create_gtfs_file_with_queued_status(self, mock_build_and_validate_gtfs_file):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         job_id = uuid.uuid4()
         type(mock_build_and_validate_gtfs_file.delay.return_value).id = job_id
-        json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk, custom_headers,
+        json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_201_CREATED)
         mock_build_and_validate_gtfs_file.delay.assert_called_with(self.project.pk)
         mock_build_and_validate_gtfs_file.delay.assert_called_once()
@@ -592,17 +552,9 @@ class ProjectAPITest(BaseTestCase):
         for build_and_validation_status in [Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING,
                                             Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED,
                                             Project.GTFS_BUILDING_AND_VALIDATION_STATUS_VALIDATING]:
-            user_id = str(self.project.user.id)
-            token = str(self.project.user.session_token)
-
-            custom_headers = {
-                'USER_ID': user_id,
-                'USER_TOKEN': token
-            }
-
             self.project.gtfs_building_and_validation_status = build_and_validation_status
             self.project.save()
-            json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk, custom_headers,
+            json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                               status_code=status.HTTP_200_OK)
 
             self.project.refresh_from_db()
@@ -612,71 +564,39 @@ class ProjectAPITest(BaseTestCase):
         mock_build_and_validate_gtfs_file.delay.assert_not_called()
 
     def test_create_gtfs_file_does_not_run_because_status(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED
         self.project.save()
 
-        json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk, custom_headers,
+        json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_200_OK)
         self.assertEqual(json_response['gtfs_building_and_validation_status'],
                          Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED)
 
         self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING
         self.project.save()
-        json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk, custom_headers,
+        json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_200_OK)
         self.assertEqual(json_response['gtfs_building_and_validation_status'],
                          Project.GTFS_BUILDING_AND_VALIDATION_STATUS_BUILDING)
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_upload_gtfs_file(self, mock_upload_gtfs_file_when_project_is_created):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         current_dir = pathlib.Path(__file__).parent.absolute()
         with open(os.path.join(current_dir, '..', '..', 'rqworkers', 'tests', 'cat.jpg'), 'rb') as fp:
-            json_response = self.projects_upload_gtfs_file_action(self.client, self.project.pk, fp, custom_headers)
+            json_response = self.projects_upload_gtfs_file_action(self.client, self.project.pk, fp)
 
         mock_upload_gtfs_file_when_project_is_created.delay.assert_called_once()
         self.project.refresh_from_db()
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
 
     def test_download_gtfs_file_but_file_does_not_exist(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
-        json_response = self.projects_download_action(self.client, self.project.pk, custom_headers,
+        json_response = self.projects_download_action(self.client, self.project.pk,
                                                       status_code=status.HTTP_400_BAD_REQUEST)
         self.assertEqual(json_response[0], 'Project does not have gtfs file')
 
     def test_download_gtfs_file_without_problem(self):
-        user_id = str(self.project.user.id)
-        token = str(self.project.user.session_token)
-
-        custom_headers = {
-            'USER_ID': user_id,
-            'USER_TOKEN': token
-        }
-
         self.project.gtfs_file.save('test_file', ContentFile('content'))
-        response = self.projects_download_action(self.client, self.project.pk, custom_headers,
+        response = self.projects_download_action(self.client, self.project.pk,
                                                  status_code=status.HTTP_302_FOUND, json_process=False)
 
         self.assertEqual(response.url, self.project.gtfs_file.url)
