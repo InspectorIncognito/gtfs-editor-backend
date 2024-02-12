@@ -1,0 +1,120 @@
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% trans "Email Confirmation" %}</title>
+    <style>
+        body{
+            font-family: 'Verdana', sans-serif;
+        }
+        .container {
+            background-color: #074752FF;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 60px 30px 60px;
+            box-sizing: border-box;
+        }
+
+        .logo {
+            text-align: left;
+            padding-bottom: 20px;
+        }
+
+        .logo img {
+            width: 190px;
+        }
+
+        .greeting {
+            color: #4E5F68FF;
+            font-size: 30px;
+            font-weight: bold;
+            text-align: center;
+            padding-bottom: 40px;
+            padding-top: 50px;
+        }
+
+        .message-container {
+            background-color: #D4DDE1;
+            margin-right: 40px;
+            margin-left: 40px;
+            border-radius: 10px;
+
+        }
+
+        .message {
+            color: #788C94FF;
+            font-size: 20px;
+            margin: 0 auto;
+            text-align: center;
+            padding-bottom: 20px;
+            padding-left: 40px;
+            padding-right: 40px;
+            opacity: 0.8;
+        }
+
+        .message span {
+            color: #4E5F68;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 20px;
+        }
+
+        .button {
+            background-color: #D99B20FF;
+            color: #fff !important;
+            font-size: 18px;
+            letter-spacing: 0.05rem;
+            text-decoration: none;
+            padding: 16px 29px;
+            width: 30%;
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .small-text {
+            font-size: 16px;
+            text-align: center;
+            padding-top: 10px;
+            padding-bottom: 20px;
+            color: #788C94FF;
+        }
+
+    </style>
+</head>
+<body>
+<div>
+    <div class="container">
+        <div class="logo">
+            <img src="https://transapp-static.s3.us-east-2.amazonaws.com/logo-gtfs-editor.svg" alt="logo">
+        </div>
+        <div class="message-container">
+            <div class="greeting">
+                {% trans "Hello" %}, <span>{{ username }}</span>
+            </div>
+            <div class="message">
+                {% blocktranslate %}
+                <p><b>Welcome to the <span>GTFS editor</span> of <span>TranSapp.</span></b></p>
+                <p>As a final step, we need to verify your <b>email address</b> to ensure everything is in order.</p>
+                <p>Please take a moment to click the button below and confirm your <b>email address:</b></p>
+                {% endblocktranslate %}
+            </div>
+            <div class="button-container">
+                <a href="{{ link_url }}" class="button">{% trans "CONFIRM" %}</a>
+            </div>
+        </div>
+        <div class="small-text">
+            {% trans "If you did not create an account with us, please ignore this message." %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

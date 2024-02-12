@@ -6,7 +6,10 @@ class User(models.Model):
     username = models.CharField(max_length=30, unique=True)
     email = models.EmailField()
     email_confirmation_token = models.UUIDField(editable=False, null=True, blank=True)
-    confirmed_email = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=False)
+    password_recovery_token = models.UUIDField(null=True, blank=True)
+    recovery_timestamp = models.DateTimeField(null=True, blank=True, default=None)
+    email_confirmation_timestamp = models.DateTimeField(null=True, blank=True)
     password = models.CharField(max_length=128)
     session_token = models.UUIDField(editable=False, null=True, blank=True)
     email_recovery_token = models.UUIDField(editable=False, null=True, blank=True)
@@ -32,3 +35,4 @@ class User(models.Model):
 
     def authenticate(self, password):
         return check_password(password, self.password)
+

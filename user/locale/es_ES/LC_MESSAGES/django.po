@@ -1,0 +1,89 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-29 18:48-0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: .\jobs.py:13
+#, fuzzy
+#| msgid "Email Confirmation"
+msgid "Email Verification"
+msgstr "Confirmación de correo electrónico"
+
+#: .\jobs.py:26 .\templates\recover_password.html:6
+msgid "Password Recovery"
+msgstr "Recuperación de Contraseña"
+
+#: .\templates\confirmation_email.html:6
+msgid "Email Confirmation"
+msgstr "Confirmación de correo electrónico"
+
+#: .\templates\confirmation_email.html:101
+#: .\templates\recover_password.html:105
+msgid "Hello"
+msgstr "Hola"
+
+#: .\templates\confirmation_email.html:104
+msgid ""
+"\n"
+"                <p><b>Welcome to the <span>GTFS editor</span> of "
+"<span>TranSapp.</span></b></p>\n"
+"                <p>As a final step, we need to verify your <b>email address</"
+"b> to ensure everything is in order.</p>\n"
+"                <p>Please take a moment to click the button below and "
+"confirm your <b>email address:</b></p>\n"
+"                "
+msgstr ""
+"\n"
+"                <p><b>Bienvenido al <span>editor de GTFS</span> de "
+"<span>TranSapp.</span></b></p>\n"
+"                <p>Como último paso, necesitamos verificar tu <b>dirección "
+"de correo electrónico</b> para asegurarnos de que todo esté en orden.</p>\n"
+"                <p>Por favor, toma un momento para hacer clic en el botón de "
+"abajo y confirmar tu <b>dirección de correo:</b></p>\n"
+"                "
+
+#: .\templates\confirmation_email.html:111
+msgid "CONFIRM"
+msgstr "CONFIRMAR"
+
+#: .\templates\confirmation_email.html:115
+msgid "If you did not create an account with us, please ignore this message."
+msgstr "Si no creó una cuenta con nosotros, por favor ignora este mensaje."
+
+#: .\templates\recover_password.html:108
+msgid ""
+"\n"
+"                <p><b>We have received a request to <span>modify</span> the "
+"<span>password</span> for your <span>GTFS editor</span> account on "
+"<span>TranSapp.</span></b></p>\n"
+"                <p>To proceed, click the button below:</p>\n"
+"                "
+msgstr ""
+"\n"
+"                <p><b>Hemos recibido una solicitud para <span>modificar</"
+"span> la <span>contraseña</span> de tu cuenta del <span>editor de GTFS</"
+"span> de <span>TranSapp.</span></b></p>\n"
+"                <p> Para continuar, haz clic en el siguiente botón:</p>\n"
+"                "
+
+#: .\templates\recover_password.html:114
+msgid "RESET PASSWORD"
+msgstr "RESTABLECER CONTRASEÑA"
+
+#: .\templates\recover_password.html:118
+msgid "If you have not requested a password change, please ignore this email."
+msgstr "Si no ha solicitado un cambio de contraseña, por favor ignore este correo."

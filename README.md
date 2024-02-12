@@ -121,3 +121,33 @@ Sometimes you want to update frontend code without upgrade everything else, so i
 ```
 docker-compose -p gtfs-editor -f docker\docker-compose.yml build --no-cache nginx
 ```
+---
+## Install install GNU gettext toolset
+You should only install it if you need to generate .po or .mo files
+
+### Windows
+
+1- Go to this link : https://mlocati.github.io/articles/gettext-iconv-windows.html
+
+2- Download 32 or 64 bit shared and static windows installation files.
+
+3- Install both of files.
+
+4- Restart your computer.
+
+## Linux & Unix-like
+
+Run the following command on terminal:
+
+```
+apt-get update
+apt-get install gettext
+```
+
+## macOS
+
+Installing gettext package on macOS via brew:
+
+```
+brew install gettext
+```
