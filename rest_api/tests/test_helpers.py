@@ -780,6 +780,13 @@ class CSVTestCase(BaseTestCase):
         self.project = self.create_data()[0]
         self.client = APIClient()
 
+        user_id = str(self.project.user.id)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
 
 class CSVTestMixin:
     def test_download(self):
@@ -788,7 +795,7 @@ class CSVTestMixin:
         endpoint = meta.endpoint
         url = reverse('project-{}-download'.format(endpoint), kwargs={'project_pk': self.project.project_id})
 
-        response = self.client.get(url, {})
+        response = self.client.get(url, {}, headers=self.custom_headers)
 
         with open('rest_api/tests/csv/download/{}.csv'.format(filename), 'rb') as expected_file:
             expected = expected_file.read().strip().splitlines()
@@ -851,5 +858,183 @@ class CSVTestMixin:
                                            content_type='application/octet-stream')
         headers = {'HTTP_CONTENT_DISPOSITION': 'attachment; filename={}.csv'.format(meta.filename)}
         response = self._make_request(self.client, self.PUT_REQUEST, url, {'file': uploaded_file},
-                                      status.HTTP_200_OK, json_process=False, **headers)
+                                      status.HTTP_200_OK, json_process=False, **headers, headers=self.custom_headers)
         return response
+
+
+class BaseTablePermissionTests(BaseTableTest):
+    def setUp(self):
+        self.client = APIClient()
+        self.project = self.create_data()[0]
+
+        user_id = str(self.project.user.id)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_invalid_user_id = {
+            'USER_ID': '99',
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_invalid_token = {
+            'USER_ID': user_id,
+            'USER_TOKEN': str(uuid.uuid4())
+        }
+
+        self.custom_headers_without_user_id = {
+            'USER_ID': '',
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_without_token = {
+            'USER_ID': user_id,
+            'USER_TOKEN': ''
+        }
+
+    # helper methods
+    def base_list(self, project_id, client, data, status_code, headers):
+        url = self.get_list_url(project_id)
+        data['format'] = 'json'
+        data['no_page'] = ''
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=headers,
+                                  format='json', no_page="a")
+
+    def base_create(self, project_id, client, data, status_code, headers):
+        url = self.get_list_url(project_id)
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=headers,
+                                  format='json')
+
+    def base_retrieve(self, project_id, pk, client, data, status_code, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=headers,
+                                  format='json')
+
+    def base_delete(self, project_id, pk, client, data, status_code, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, headers=headers,
+                                  format='json',
+                                  json_process=False)
+
+    def base_patch(self, project_id, pk, client, data, status_code, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self._make_request(client, self.PATCH_REQUEST, url, data, status_code, headers=headers,
+                                  format='json')
+
+    def base_put(self, project_id, pk, client, data, status_code, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, headers=headers,
+                                  format='json')
+
+
+class ViewsPermissionTests(object):
+
+    def test_list_with_permission(self):
+        json_response = self.list(self.project.project_id, self.client, dict())
+        self.assertEqual(len(json_response), self.Meta.initial_size)
+
+    def test_retrieve_with_permission(self):
+        data = self.Meta.retrieve_data
+        id = self.Meta().get_id(self.project, data)
+        json_response = self.retrieve(self.project.project_id, id, self.client, dict())
+        target = self.Meta.model.objects.filter(**data)[0]
+        self.assertEqual(json_response, self.Meta.serializer(target).data)
+
+    # Tests the POST method to create an object
+    # Requires class' Meta to contain:
+    # create_data : data describing the object to be created
+    def test_create_with_permission(self):
+        data = self.Meta.create_data
+        json_response = self.create(self.project.project_id, self.client, data)
+        self.assertEqual(self.Meta.model.objects.filter().count(), self.Meta.initial_size + 1)
+        data['id'] = json_response['id']
+        self.clean_data(data)
+        obj = self.Meta.model.objects.filter(id=json_response['id'])[0]
+        self.contains(data, obj)
+
+    # Asserts that every key in data is contained by the target object
+    def contains_with_permission(self, data, obj):
+        for key in data:
+            val = getattr(obj, key)
+            if isinstance(val, datetime.date):
+                day = datetime.datetime.strptime(data[key], '%Y-%m-%d').date()
+                self.assertEqual(day, val, "Dates do not match for key {0}\n{1}\n{2}".format(key, day, val))
+            elif isinstance(val, datetime.time):
+                t = data[key]
+                if type(t) == str:
+                    t = datetime.datetime.strptime(t, '%H:%M:%S').time()
+                self.assertEqual(t, val, "Times do not match for key {0}\n{1}\n{2}".format(key, t, val))
+            elif isinstance(val, models.Model):
+                self.assertEqual(data[key], val.id,
+                                 "Models do not match for key {0}\n{1}\n{2}".format(key, data[key], val.id))
+            else:
+                if key.replace('_id', '') in data:
+                    continue
+                self.assertEqual(data[key], val,
+                                 "Values do not match for key {0}\n{1}\n{2}".format(key, data[key], val))
+
+    # Tests the PUT method to update an object
+    # Requires class' Meta to contain:
+    # put_data : data describing the object to be created
+    def test_put_with_permission(self):
+        data = self.Meta.put_data
+        id = self.Meta().get_id(self.project, data)
+        json_response = self.put(self.project.project_id, id, self.client, data)
+        updated = self.Meta.model.objects.filter(**data)[0]
+        data['id'] = id
+        self.clean_data(data)
+        obj = self.Meta.model.objects.filter(id=id)[0]
+        self.contains(data, obj)
+
+    # Tests the PATCH method to modify an object
+    # Requires class' Meta to contain:
+    # create_data : data describing the object to be created
+    def test_patch(self):
+        data = self.Meta.patch_data
+        id = self.Meta().get_id(self.project, data)
+        original = self.retrieve(self.project.project_id, id, self.client, dict())
+        json_response = self.patch(self.project.project_id, id, self.client, data)
+        updated = self.Meta.model.objects.filter(**data)[0]
+        for k in json_response:
+            if not k in data:
+                data[k] = json_response[k]
+        self.clean_data(data)
+        self.assertDictEqual(json_response, data)
+
+        obj = self.Meta.model.objects.filter(id=id)[0]
+        self.contains(data, obj)
+
+    # Tests the DELETE method to remove an object
+    # Requires class' Meta to contain:
+    # get_id : function that takes a dict and returns an id based on the dict's attributes
+    # delete_data : dict that will be used to get the object id to be deleted
+    def test_delete(self):
+        data = self.Meta.delete_data
+        id = self.Meta().get_id(self.project, data)
+        json_response = self.delete(self.project.project_id, id, self.client, dict())
+        self.assertEqual(self.Meta.model.objects.filter(**data).count(), 0)
+
+    def clean_data(self, data):
+        if hasattr(self.Meta, 'ignore_fields'):
+            for field in self.Meta.ignore_fields:
+                del data[field]
+
+    def test_delete_invalid(self):
+        id = self.Meta.invalid_id
+        self.delete(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_put_invalid(self):
+        id = self.Meta.invalid_id
+        self.put(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_patch_invalid(self):
+        id = self.Meta.invalid_id
+        self.patch(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+
+    def test_retrieve_invalid(self):
+        id = self.Meta.invalid_id
+        self.retrieve(self.project.project_id, id, self.client, dict(), status.HTTP_404_NOT_FOUND)
+

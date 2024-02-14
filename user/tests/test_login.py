@@ -11,7 +11,7 @@ class LoginTest(TestCase):
         self.password = "password"
         self.user = UserFactory(password=self.password)
         self.client = APIClient()
-        self.url = reverse("user-login")
+        self.url = reverse('user-login')
 
     def test_user_login_success(self):
         data = {

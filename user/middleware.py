@@ -32,18 +32,17 @@ class UserLoginMiddleware:
         request.app = AppRequest()
 
         login = reverse('user-login')
-        if request.path_info != login:
-            user_id, user_token = self.__get_user_params_from_header(request)
+        user_id, user_token = self.__get_user_params_from_header(request)
 
-            if user_id and user_token:
-                try:
-                    user = User.objects.get(id=user_id)
-                    if str(user.session_token) == user_token:
-                        request.app.user = user
-                    else:
-                        return Response({'detail': 'Unauthorized Access.'}, status=status.HTTP_401_UNAUTHORIZED)
-                except User.DoesNotExist:
+        if user_id and user_token:
+            try:
+                user = User.objects.get(id=user_id)
+                if str(user.session_token) == user_token:
+                    request.app.user = user
+                else:
                     return Response({'detail': 'Unauthorized Access.'}, status=status.HTTP_401_UNAUTHORIZED)
+            except User.DoesNotExist:
+                return Response({'detail': 'Unauthorized Access.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         response = self.get_response(request)
         return response

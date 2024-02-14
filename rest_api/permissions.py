@@ -2,7 +2,7 @@ from rest_framework.permissions import BasePermission
 from user.models import User
 
 """
-Classes extending BasePermission that allow access to certain views depending on the user.
+Classes extending BasePermission that allow access to certain views depending on user authentication.
 """
 
 

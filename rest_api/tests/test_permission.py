@@ -10,11 +10,11 @@ from rest_framework.test import APIClient
 from rest_framework import status
 
 from rest_api.models import Project
-from rest_api.tests.test_helpers import BaseTestCase
+from rest_api.tests.test_helpers import BaseTestCase, BaseTableTest, CSVTestCase
 from user.tests.factories import UserFactory
 
 
-class PermissionTest(BaseTestCase):
+class ProjectPermissionTest(BaseTestCase):
     def setUp(self):
         self.client = APIClient()
         self.project = self.create_data()[0]
@@ -392,7 +392,14 @@ class PermissionTest(BaseTestCase):
         self.assertEquals(response.data['detail'], 'Unauthorized Access.')
 
 
+class BaseTablePermissionTests(BaseTableTest):
+    # debería ponerlo en helper
+    pass
 
+
+class CSVPermissionTests(CSVTestCase):
+    # tambien deberia ponerlo en helpers
+    pass
 
 
 

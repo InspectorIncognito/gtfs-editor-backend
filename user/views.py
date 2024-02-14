@@ -15,7 +15,7 @@ from rest_framework import status
 from .serializers import (UserLoginSerializer, UserRegisterSerializer,
                           UserRecoverPasswordSerializer, UserRecoverPasswordRequestSerializer)
 from user.jobs import send_confirmation_email, send_pw_recovery_email
-from user.permission import IsAuthenticated
+from user.permissions import IsAuthenticated
 from .models import User
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 class UserRegisterView(CreateAPIView):
     permission_classes = [~IsAuthenticated]
     serializer_class = UserRegisterSerializer
-
 
     def perform_create(self, serializer):
         user = serializer.save()
