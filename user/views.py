@@ -54,6 +54,16 @@ class UserLoginView(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
+class UserLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        user = self.request.app.user
+        user.session_token = None
+        user.save()
+        return Response(status=status.HTTP_200_OK)
+
+
 class UserConfirmationEmailView(APIView):
     permission_classes = [~IsAuthenticated]
 
