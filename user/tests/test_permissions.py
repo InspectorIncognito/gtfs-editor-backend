@@ -16,7 +16,7 @@ class UserPermissionTest(BaseTestCase):
         self.client = APIClient()
         self.password = "password"
         self.userPW = UserFactory(password=self.password)
-        user_id_pw = str(self.userPW.id)
+        user_id_pw = str(self.userPW.username)
         token_pw = self.userPW.session_token
         self.custom_headers_not_login = {
             'USER_ID': user_id_pw,
@@ -24,7 +24,7 @@ class UserPermissionTest(BaseTestCase):
         }
 
         self.user = UserFactory(session_token=uuid.uuid4())
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
         self.custom_headers = {
             'USER_ID': user_id,

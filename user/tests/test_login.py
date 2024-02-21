@@ -25,6 +25,7 @@ class LoginTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(self.user.session_token)
+        self.assertEqual(response.data, self.user.session_token)
 
     def test_user_login_invalid_user(self):
         data_user_invalid = {
