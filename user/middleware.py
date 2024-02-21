@@ -30,13 +30,11 @@ class UserLoginMiddleware:
         # Code to be executed for each request before
         # the view (and later middleware) are called.
         request.app = AppRequest()
-
-        login = reverse('user-login')
         user_id, user_token = self.__get_user_params_from_header(request)
 
         if user_id and user_token:
             try:
-                user = User.objects.get(id=user_id)
+                user = User.objects.get(username=user_id)
                 if str(user.session_token) == user_token:
                     request.app.user = user
                 else:

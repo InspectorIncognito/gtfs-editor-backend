@@ -33,18 +33,22 @@ class ProjectPermissionTest(BaseTestCase):
     def setUp(self):
         self.client = APIClient()
         self.project = self.create_data()[0]
-        self.user = UserFactory(session_token=uuid.uuid4())
 
-        user_id = str(self.user.id)
-        token = str(self.user.session_token)
+        user_id = str(self.project.user.username)
+        token = str(self.project.user.session_token)
 
         self.custom_headers = {
             'USER_ID': user_id,
             'USER_TOKEN': token
         }
 
+        self.user = UserFactory(session_token=uuid.uuid4())
+
     def test_create_project_with_permission(self):
         url = reverse('project-list')
+
+        user_id = str(self.user.username)
+        token = str(self.user.session_token)
         name = "Test Project"
 
         data = {
@@ -52,7 +56,12 @@ class ProjectPermissionTest(BaseTestCase):
             'creation_status': Project.CREATION_STATUS_EMPTY
         }
 
-        response = self.client.post(url, data, headers=self.custom_headers, format='json')
+        custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
+        response = self.client.post(url, data, headers=custom_headers, format='json')
         project = Project.objects.get(name=name)
 
         self.assertEquals(response.status_code, status.HTTP_201_CREATED)
@@ -61,7 +70,7 @@ class ProjectPermissionTest(BaseTestCase):
     def test_create_project_without_permission(self):
         url = reverse('project-list')
 
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = ''
         name = "Test Project"
 
@@ -80,8 +89,16 @@ class ProjectPermissionTest(BaseTestCase):
         self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     @patch('rest_api.views.upload_gtfs_file_when_project_is_created')
-    def test_create_project_from_gtfs_with_permission(self, mock_upload_gtfs):
+    def test_create_project_from_gtfs_action_with_permission(self, mock_upload_gtfs):
         url = reverse('project-create-project-from-gtfs')
+
+        user_id = str(self.user.username)
+        token = str(self.user.session_token)
+
+        custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
 
         job_id = uuid.uuid4()
         type(mock_upload_gtfs.delay.return_value).id = job_id
@@ -89,14 +106,14 @@ class ProjectPermissionTest(BaseTestCase):
         file_obj = StringIO(zip_content)
         data = dict(name='project_name', file=file_obj)
 
-        response = self.client.post(url, data, headers=self.custom_headers, format='multipart')
+        response = self.client.post(url, data, headers=custom_headers, format='multipart')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     @patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_create_project_from_gtfs_without_permission(self, mock_upload_gtfs):
         url = reverse('project-create-project-from-gtfs')
 
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(uuid.uuid4())
 
         custom_headers = {
@@ -117,7 +134,7 @@ class ProjectPermissionTest(BaseTestCase):
     def test_retrieve_project_list_with_permission(self):
         url = reverse('project-list')
 
-        response = self.client.get(url, headers=self.custom_headers, format='json')
+        response = self.client.get(url, dict(), headers=self.custom_headers, format='json')
         self.assertEquals(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data['results']), 2)
 
@@ -134,7 +151,7 @@ class ProjectPermissionTest(BaseTestCase):
     def test_retrieve_project_list_without_permission(self):
         url = reverse('project-list')
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(uuid.uuid4())  # not the user session token
 
         custom_headers = {
@@ -210,7 +227,7 @@ class ProjectPermissionTest(BaseTestCase):
     def test_destroy_project_without_permission(self):
         url = reverse('project-detail', kwargs=dict(pk=self.project.project_id))
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = '123'
 
         custom_headers = {
@@ -266,7 +283,7 @@ class ProjectPermissionTest(BaseTestCase):
     def test_upload_gtfs_file_without_permission(self, mock_upload_gtfs_file_when_project_is_created):
         url = reverse('project-upload-gtfs-file', kwargs=dict(pk=self.project.pk))
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = ''
 
         custom_headers = {
@@ -287,13 +304,13 @@ class ProjectPermissionTest(BaseTestCase):
 
         job_id = uuid.uuid4()
         type(mock_build_and_validate_gtfs_file.delay.return_value).id = job_id
-        response = self.client.post(url, headers=self.custom_headers, format='json')
+        response = self.client.post(url, dict(), headers=self.custom_headers, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
     @patch('rest_api.views.build_and_validate_gtfs_file')
     def test_build_and_validate_gtfs_file_without_permission(self, mock_build_and_validate_gtfs_file):
         url = reverse('project-build-and-validate-gtfs-file', kwargs=dict(pk=self.project.pk))
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(123)
 
         custom_headers = {

@@ -310,7 +310,7 @@ class ProjectAPITest(BaseTestCase):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(self.project.user.session_token)
 
         self.custom_headers = {
@@ -376,7 +376,7 @@ class ProjectAPITest(BaseTestCase):
         self.assertEqual(len(json_response['results']), 2)
 
     def test_create_project(self):
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
 
         custom_headers = {
@@ -395,7 +395,7 @@ class ProjectAPITest(BaseTestCase):
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_create_project_from_GTFS(self):
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
 
         custom_headers = {
@@ -440,7 +440,7 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action(self, mock_upload_gtfs):
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
 
         custom_headers = {
@@ -463,7 +463,7 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action_without_gtfs_file(self, mock_upload_gtfs):
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
 
         custom_headers = {
@@ -613,7 +613,7 @@ class BaseTableTest(BaseTestCase):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(self.project.user.session_token)
 
         self.custom_headers = {
@@ -780,7 +780,7 @@ class CSVTestCase(BaseTestCase):
         self.project = self.create_data()[0]
         self.client = APIClient()
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(self.project.user.session_token)
 
         self.custom_headers = {
@@ -870,7 +870,7 @@ class BaseViewsPermissionTests(BaseTestCase):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(self.project.user.session_token)
 
         self.custom_headers = {
@@ -943,7 +943,7 @@ class BasePermissionCSVTest(BaseTestCase):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
-        user_id = str(self.project.user.id)
+        user_id = str(self.project.user.username)
         token = str(self.project.user.session_token)
 
         self.custom_headers = {

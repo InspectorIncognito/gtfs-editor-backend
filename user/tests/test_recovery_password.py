@@ -21,7 +21,7 @@ class TestRecoveryPassword(TestCase):
         self.password = "password"
         self.user = UserFactory(password=self.password, session_token=uuid.uuid4())
 
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
 
         self.custom_headers = {

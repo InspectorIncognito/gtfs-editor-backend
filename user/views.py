@@ -51,7 +51,7 @@ class UserLoginView(APIView):
         user.session_token = uuid.uuid4()
         user.save()
 
-        return Response(status=status.HTTP_200_OK)
+        return Response(user.session_token, status=status.HTTP_200_OK)
 
 
 class UserLogoutView(APIView):

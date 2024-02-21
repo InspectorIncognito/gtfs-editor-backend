@@ -17,7 +17,7 @@ class UserLoginMiddlewareTest(TestCase):
         get_response = mock.MagicMock()
 
         request = HttpRequest()
-        request.META['HTTP_USER_ID'] = str(self.user.id)
+        request.META['HTTP_USER_ID'] = str(self.user.username)
         request.META['HTTP_USER_TOKEN'] = str(self.token)
 
         middleware = UserLoginMiddleware(get_response)
@@ -43,7 +43,7 @@ class UserLoginMiddlewareTest(TestCase):
         get_response = mock.MagicMock()
 
         request = HttpRequest()
-        request.META['HTTP_USER_ID'] = str(self.user.id)
+        request.META['HTTP_USER_ID'] = str(self.user.username)
         request.META['HTTP_USER_TOKEN'] = 'invalid_token'
 
         middleware = UserLoginMiddleware(get_response)
