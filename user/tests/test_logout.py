@@ -13,7 +13,7 @@ class LogoutTest(TestCase):
         self.url = reverse('user-logout')
         self.user = UserFactory(session_token=uuid.uuid4())
 
-        user_id = str(self.user.id)
+        user_id = str(self.user.username)
         token = str(self.user.session_token)
 
         self.custom_headers = {
