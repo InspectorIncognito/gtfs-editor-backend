@@ -20,7 +20,7 @@ from rest_framework_nested import routers
 
 from rest_api import views as api_views
 from user.views import (UserLoginView, UserRegisterView, UserConfirmationEmailView,
-                        UserRecoverPasswordView, UserRecoverPasswordRequestView)
+                        UserRecoverPasswordView, UserRecoverPasswordRequestView, UserLogoutView)
 
 router = routers.SimpleRouter()
 router.register(r'projects', api_views.ProjectViewSet)
@@ -53,6 +53,7 @@ urlpatterns = [
     path('user/recover-password/', UserRecoverPasswordView.as_view(), name='recover-password'),
     path('user/recover-password-request/', UserRecoverPasswordRequestView.as_view(), name='recover-password-request'),
     path('user/login/', UserLoginView.as_view(), name='user-login'),
+    path('user/logout/', UserLogoutView.as_view(), name='user-logout'),
     path(r'admin/', admin.site.urls),
     path(r'django-rq/', include('django_rq.urls')),
     path(r'api/', include(router.urls)),
