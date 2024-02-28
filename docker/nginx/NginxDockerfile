@@ -1,9 +1,9 @@
-FROM node:9.11.1-alpine as build-stage
+FROM node:14.17.3-alpine as build-stage
 WORKDIR /app
 RUN apk update && apk upgrade && \
     apk add --no-cache git
 RUN git clone https://github.com/InspectorIncognito/gtfs-editor-frontend.git && \
-    cd gtfs-editor-frontend && git checkout dev && cd .. && \
+    cd gtfs-editor-frontend && git checkout feature/EDD-1727-create-recovery-password-view && cd .. && \
     mv gtfs-editor-frontend/* . && \
     rm -r gtfs-editor-frontend
 RUN npm install
