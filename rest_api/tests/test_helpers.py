@@ -68,7 +68,7 @@ class BaseTestCase(TestCase):
 
     @staticmethod
     def create_data():
-        user = UserFactory()
+        user = UserFactory(session_token=uuid.uuid4())
         projects_number = 1
         Project.objects.create(user=user, name="Empty Project")
         projects = list()
@@ -309,89 +309,112 @@ class ProjectAPITest(BaseTestCase):
     def setUp(self):
         self.client = APIClient()
         self.project = self.create_data()[0]
-        self.user = UserFactory()
+
+        user_id = str(self.project.user.username)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
+        self.user = UserFactory(session_token=uuid.uuid4())
 
     # helper methods
     def projects_list(self, client, data, status_code=status.HTTP_200_OK):
         url = reverse('project-list')
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def projects_retrieve(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-detail', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
-    def projects_create(self, client, data, status_code=status.HTTP_201_CREATED):
+    def projects_create(self, client, data, custom_headers, status_code=status.HTTP_201_CREATED):
         url = reverse('project-list')
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='json')
 
     def projects_delete(self, client, pk, status_code=status.HTTP_204_NO_CONTENT):
         url = reverse('project-detail', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, format='json',
+        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, headers=self.custom_headers, format='json',
                                   json_process=False)
 
     def projects_patch(self, client, pk, data, status_code=status.HTTP_200_OK):
         url = reverse('project-detail', kwargs=dict(pk=pk))
-        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
-    def projects_create_project_from_gtfs_action(self, client, data, status_code=status.HTTP_201_CREATED):
+    def projects_create_project_from_gtfs_action(self, client, data, custom_headers, status_code=status.HTTP_201_CREATED):
         url = reverse('project-create-project-from-gtfs')
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='multipart')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=custom_headers, format='multipart')
 
     def projects_cancel_gtfs_validation_action(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-cancel-build-and-validate-gtfs-file', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def projects_build_and_validate_gtfs_file_action(self, client, pk, status_code=status.HTTP_200_OK):
         url = reverse('project-build-and-validate-gtfs-file', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def projects_upload_gtfs_file_action(self, client, pk, zipfile_obj, status_code=status.HTTP_200_OK):
         url = reverse('project-upload-gtfs-file', kwargs=dict(pk=pk))
         data = dict(file=zipfile_obj)
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='multipart')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='multipart')
 
     def projects_download_action(self, client, pk, status_code=status.HTTP_200_OK, json_process=True):
         url = reverse('project-download', kwargs=dict(pk=pk))
         data = dict()
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, json_process=json_process,
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, json_process=json_process, headers=self.custom_headers,
                                   format='json')
 
     # tests
     def test_retrieve_project_list(self):
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             json_response = self.projects_list(self.client, dict())
         self.assertEqual(len(json_response['results']), 2)
 
     def test_create_project(self):
+        user_id = str(self.user.username)
+        token = str(self.user.session_token)
+
+        custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
         name = "Test Project"
         fields = {
-            'user_id': self.user.id,
             'name': name,
             'creation_status': Project.CREATION_STATUS_EMPTY
         }
-        with self.assertNumQueries(3):
-            json_response = self.projects_create(self.client, fields)
+        with self.assertNumQueries(4):
+            json_response = self.projects_create(self.client, fields, custom_headers)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_create_project_from_GTFS(self):
+        user_id = str(self.user.username)
+        token = str(self.user.session_token)
+
+        custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
         name = "Test Project"
         fields = {
-            'user_id': self.user.id,
             'name': name,
             'creation_status': Project.CREATION_STATUS_LOADING_GTFS
         }
-        with self.assertNumQueries(3):
-            json_response = self.projects_create(self.client, fields)
+        with self.assertNumQueries(4):
+            json_response = self.projects_create(self.client, fields, custom_headers)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
 
     def test_retrieve_project(self):
-        with self.assertNumQueries(1):
+        with self.assertNumQueries(3):
             json_response = self.projects_retrieve(self.client, self.project.project_id)
         self.assertDictEqual(json_response, ProjectSerializer(self.project).data)
 
@@ -404,10 +427,9 @@ class ProjectAPITest(BaseTestCase):
 
     def test_patch(self):
         # One to get one to update
-        with self.assertNumQueries(3):
+        with self.assertNumQueries(5):
             name = "New Name"
             update_data = {
-                "user_id": self.project.user_id,
                 "name": name
             }
             json_response = self.projects_patch(self.client, self.project.project_id, update_data)
@@ -418,12 +440,20 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action(self, mock_upload_gtfs):
+        user_id = str(self.user.username)
+        token = str(self.user.session_token)
+
+        custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
         job_id = uuid.uuid4()
         type(mock_upload_gtfs.delay.return_value).id = job_id
         zip_content = 'zip file'
         file_obj = StringIO(zip_content)
-        data = dict(user_id=self.user.id, name='project_name', file=file_obj)
-        json_response = self.projects_create_project_from_gtfs_action(self.client, data,
+        data = dict(name='project_name', file=file_obj)
+        json_response = self.projects_create_project_from_gtfs_action(self.client, data, custom_headers,
                                                                       status_code=status.HTTP_201_CREATED)
         new_project_obj = Project.objects.order_by('-last_modification').first()
         self.assertEqual(new_project_obj.loading_gtfs_job_id, job_id)
@@ -433,9 +463,17 @@ class ProjectAPITest(BaseTestCase):
 
     @mock.patch('rest_api.views.upload_gtfs_file_when_project_is_created')
     def test_projects_create_project_from_gtfs_action_without_gtfs_file(self, mock_upload_gtfs):
+        user_id = str(self.user.username)
+        token = str(self.user.session_token)
+
+        custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
         project_name = 'project_name'
-        data = dict(user_id=self.user.id, name=project_name)
-        json_response = self.projects_create_project_from_gtfs_action(self.client, data,
+        data = dict(name=project_name)
+        json_response = self.projects_create_project_from_gtfs_action(self.client, data, custom_headers,
                                                                       status_code=status.HTTP_400_BAD_REQUEST)
         self.assertRaises(Project.DoesNotExist, lambda: Project.objects.get(name=project_name))
         self.assertListEqual(json_response, ['Zip file with GTFS format is required'])
@@ -528,6 +566,7 @@ class ProjectAPITest(BaseTestCase):
     def test_create_gtfs_file_does_not_run_because_status(self):
         self.project.gtfs_building_and_validation_status = Project.GTFS_BUILDING_AND_VALIDATION_STATUS_QUEUED
         self.project.save()
+
         json_response = self.projects_build_and_validate_gtfs_file_action(self.client, self.project.pk,
                                                                           status_code=status.HTTP_200_OK)
         self.assertEqual(json_response['gtfs_building_and_validation_status'],
@@ -574,6 +613,14 @@ class BaseTableTest(BaseTestCase):
         self.client = APIClient()
         self.project = self.create_data()[0]
 
+        user_id = str(self.project.user.username)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
     def get_list_url(self, project_id):
         kwargs = dict(project_pk=project_id)
         url = reverse('{}-list'.format(self.table_name), kwargs=kwargs)
@@ -589,28 +636,28 @@ class BaseTableTest(BaseTestCase):
         url = self.get_list_url(project_id)
         data['format'] = 'json'
         data['no_page'] = ''
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json', no_page="a")
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json', no_page="a")
 
     def create(self, project_id, client, data, status_code=status.HTTP_201_CREATED):
         url = self.get_list_url(project_id)
-        return self._make_request(client, self.POST_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.POST_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def retrieve(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.GET_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.GET_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def delete(self, project_id, pk, client, data, status_code=status.HTTP_204_NO_CONTENT):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, format='json',
+        return self._make_request(client, self.DELETE_REQUEST, url, data, status_code, headers=self.custom_headers, format='json',
                                   json_process=False)
 
     def patch(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.PATCH_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.PATCH_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
     def put(self, project_id, pk, client, data, status_code=status.HTTP_200_OK):
         url = self.get_detail_url(project_id, pk)
-        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, format='json')
+        return self._make_request(client, self.PUT_REQUEST, url, data, status_code, headers=self.custom_headers, format='json')
 
 
 class BasicTestSuiteMixin(object):
@@ -733,6 +780,13 @@ class CSVTestCase(BaseTestCase):
         self.project = self.create_data()[0]
         self.client = APIClient()
 
+        user_id = str(self.project.user.username)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
 
 class CSVTestMixin:
     def test_download(self):
@@ -741,7 +795,7 @@ class CSVTestMixin:
         endpoint = meta.endpoint
         url = reverse('project-{}-download'.format(endpoint), kwargs={'project_pk': self.project.project_id})
 
-        response = self.client.get(url, {})
+        response = self.client.get(url, {}, headers=self.custom_headers)
 
         with open('rest_api/tests/csv/download/{}.csv'.format(filename), 'rb') as expected_file:
             expected = expected_file.read().strip().splitlines()
@@ -804,5 +858,115 @@ class CSVTestMixin:
                                            content_type='application/octet-stream')
         headers = {'HTTP_CONTENT_DISPOSITION': 'attachment; filename={}.csv'.format(meta.filename)}
         response = self._make_request(self.client, self.PUT_REQUEST, url, {'file': uploaded_file},
-                                      status.HTTP_200_OK, json_process=False, **headers)
+                                      status.HTTP_200_OK, json_process=False, **headers, headers=self.custom_headers)
         return response
+
+
+class BaseViewsPermissionTests(BaseTestCase):
+    """
+    Set of helper methods to obtain the view URL and the client response in the tests.
+    """
+    def setUp(self):
+        self.client = APIClient()
+        self.project = self.create_data()[0]
+
+        user_id = str(self.project.user.username)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_invalid_user_id = {
+            'USER_ID': '99',
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_invalid_token = {
+            'USER_ID': user_id,
+            'USER_TOKEN': str(uuid.uuid4())
+        }
+
+        self.custom_headers_without_user_id = {
+            'USER_ID': '',
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_without_token = {
+            'USER_ID': user_id,
+            'USER_TOKEN': ''
+        }
+
+    def get_list_url(self, project_id):
+        kwargs = dict(project_pk=project_id)
+        url = reverse('{}-list'.format(self.table_name), kwargs=kwargs)
+        return url
+
+    def get_detail_url(self, project_id, id):
+        kwargs = dict(project_pk=project_id, pk=id)
+        url = reverse('{}-detail'.format(self.table_name), kwargs=kwargs)
+        return url
+
+    # helper methods
+    def base_list(self, project_id, data, headers):
+        url = self.get_list_url(project_id)
+        data['format'] = 'json'
+        data['no_page'] = ''
+        return self.client.get(url, headers=headers, format='json', no_page="a")
+
+    def base_create(self, project_id, data, headers):
+        url = self.get_list_url(project_id)
+        return self.client.post(url, data, headers=headers, format='json')
+
+    def base_retrieve(self, project_id, pk, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self.client.get(url, headers=headers, format='json')
+
+    def base_delete(self, project_id, pk, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self.client.delete(url, headers=headers, format='json', json_process=False)
+
+    def base_patch(self, project_id, pk, data, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self.client.patch(url, data, headers=headers, format='json')
+
+    def base_put(self, project_id, pk, data, headers):
+        url = self.get_detail_url(project_id, pk)
+        return self.client.put(url, data, headers=headers, format='json')
+
+class BasePermissionCSVTest(BaseTestCase):
+    """
+    Set of attributes that will be used in the PermissionCSVTest tests.
+    """
+    def setUp(self):
+        self.client = APIClient()
+        self.project = self.create_data()[0]
+
+        user_id = str(self.project.user.username)
+        token = str(self.project.user.session_token)
+
+        self.custom_headers = {
+            'USER_ID': user_id,
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_invalid_user_id = {
+            'USER_ID': '99',
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_invalid_token = {
+            'USER_ID': user_id,
+            'USER_TOKEN': str(uuid.uuid4())
+        }
+
+        self.custom_headers_without_user_id = {
+            'USER_ID': '',
+            'USER_TOKEN': token
+        }
+
+        self.custom_headers_without_token = {
+            'USER_ID': user_id,
+            'USER_TOKEN': ''
+        }

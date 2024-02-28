@@ -52,10 +52,12 @@ class ConfirmationEmailTest(TestCase):
 
         mock_send_mail.assert_called_once()
 
+    @patch('user.views.IsAuthenticated.has_permission')
     @patch('user.jobs.EmailMultiAlternatives.attach_alternative')
     @patch('user.jobs.EmailMultiAlternatives.send')
-    def test_send_recovery_password_with_accept_language_spanish_header(self, mock_send_mail, mock_mail):
+    def test_send_recovery_password_with_accept_language_spanish_header(self, mock_send_mail, mock_mail, mock_has_permission):
         data = {'username': self.user.username}
+        mock_has_permission.return_value = True
 
         client = APIClient(HTTP_ACCEPT_LANGUAGE='es')
         response = client.put(self.url_pw, data, format='json')
@@ -67,10 +69,12 @@ class ConfirmationEmailTest(TestCase):
 
         mock_send_mail.assert_called_once()
 
+    @patch('user.views.IsAuthenticated.has_permission')
     @patch('user.jobs.EmailMultiAlternatives.attach_alternative')
     @patch('user.jobs.EmailMultiAlternatives.send')
-    def test_send_recovery_password_with_accept_language_english_header(self, mock_send_mail, mock_mail):
+    def test_send_recovery_password_with_accept_language_english_header(self, mock_send_mail, mock_mail, mock_has_permission):
         data = {'username': self.user.username}
+        mock_has_permission.return_value = True
 
         client = APIClient(HTTP_ACCEPT_LANGUAGE='en')
         response = client.put(self.url_pw, data, format='json')

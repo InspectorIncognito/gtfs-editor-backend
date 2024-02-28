@@ -9,7 +9,7 @@ from django.test import TransactionTestCase
 from rest_framework.exceptions import ParseError, ValidationError
 
 from rest_api.models import Agency, Stop, Route, Trip, Calendar, CalendarDate, FareAttribute, FareRule, \
-    Frequency, Transfer, Pathway, Level, FeedInfo, ShapePoint, StopTime, Project, Shape, User
+    Frequency, Transfer, Pathway, Level, FeedInfo, ShapePoint, StopTime, Project, Shape
 from rest_api.tests.test_helpers import BaseTestCase
 from rqworkers.jobs import validate_gtfs, upload_gtfs_file, build_and_validate_gtfs_file, \
     upload_gtfs_file_when_project_is_created

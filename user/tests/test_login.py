@@ -11,7 +11,7 @@ class LoginTest(TestCase):
         self.password = "password"
         self.user = UserFactory(password=self.password)
         self.client = APIClient()
-        self.url = reverse("user-login")
+        self.url = reverse('user-login')
 
     def test_user_login_success(self):
         data = {
@@ -25,6 +25,7 @@ class LoginTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIsNotNone(self.user.session_token)
+        self.assertEqual(response.data, self.user.session_token)
 
     def test_user_login_invalid_user(self):
         data_user_invalid = {
