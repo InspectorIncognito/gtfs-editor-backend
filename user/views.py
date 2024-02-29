@@ -83,9 +83,7 @@ class UserConfirmationEmailView(APIView):
                 user.save()
 
                 messages.success(request, 'Your account has been successfully activated. You can now log in.')
-
-                url = reverse('user-login')
-                return redirect(url)
+                return Response(status=status.HTTP_200_OK)
             else:
                 messages.error(request, 'The verification link has expired.')
                 return Response({'detail': 'Verification link expired.'},
