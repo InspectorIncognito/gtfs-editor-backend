@@ -6,10 +6,10 @@ python-decouple==3.3
 djangorestframework==3.12.2
 fakeredis==1.4.4
 django-redis==4.12.1
-gunicorn==20.0.4
+gunicorn==22.0.0
 drf-nested-routers==0.92.1
 django-cors-headers==3.5.0
 djangorestframework-datatables==0.5.2
 pytz~=2020.4
 shapely==1.7.1
-gunicorn==20.0.4
+gunicorn==22.0.0
