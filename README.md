@@ -57,6 +57,10 @@ REDIS_LOCATION=
 LOG_PATH=./file.log
 # needed in dev mode
 CORS_ALLOWED_ORIGINS=http://localhost:8080
+
+# mailgun user to send emails
+EMAIL_USER=
+EMAIL_PASSWORD=
 ```
 
 ## Test

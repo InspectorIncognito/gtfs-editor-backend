@@ -1,6 +1,6 @@
-FROM python:3.11-slim-buster as base
+FROM python:3.11-slim-buster AS base
 
-FROM base as builder
+FROM base AS builder
 
 RUN mkdir /install
 RUN apt-get update &&  \
@@ -12,9 +12,9 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 FROM base
 
 # Prevents Python from writing pyc files to disc
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONDONTWRITEBYTECODE=1
 # Prevents Python from buffering stdout and stderr
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 COPY --from=builder /install /usr/local
 

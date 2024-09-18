@@ -16,3 +16,6 @@ LOG_PATH=./file.log
 REDIS_LOCATION=redis://cache:6379
 
 CORS_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:9000
+
+EMAIL_USER=
+EMAIL_PASSWORD=

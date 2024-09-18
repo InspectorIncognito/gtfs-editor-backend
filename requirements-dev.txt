@@ -1,1 +1,2 @@
 factory-boy==3.3.0
+fakeredis==2.24.1
