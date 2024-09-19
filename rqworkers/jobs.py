@@ -1,4 +1,3 @@
-import csv
 import glob
 import json
 import logging
@@ -6,11 +5,9 @@ import os
 import shutil
 import subprocess
 import zipfile
-from io import StringIO
 from time import sleep
 
 from django.conf import settings
-from django.core.exceptions import FieldDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.management import call_command
 from django.db import transaction, IntegrityError
@@ -105,86 +102,38 @@ def validate_gtfs(project_obj):
         if not project_obj.gtfs_file:
             raise ValueError('GTFS file does not exist')
 
-        arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-v1.4.0_cli.jar'),
+        arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-5.0.1-cli.jar'),
                      '-i', project_obj.gtfs_file.path,
-                     '-o', os.path.join('tmp', str(project_obj.pk)),
-                     '--abort_on_error', 'false']
+                     '-o', os.path.join('tmp', str(project_obj.pk))]
         # call gtfs validator
         subprocess.call(arguments)
 
         error_number = 0
+        info_number = 0
         warning_number = 0
-
-        in_memory_csv = StringIO()
-        spamwriter = csv.writer(in_memory_csv, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        header = ['filename', 'code', 'level', 'entity id', 'title', 'description']
-        spamwriter.writerow(header)
-
-        project_obj.agency_error_number = 0
-        project_obj.stops_error_number = 0
-        project_obj.routes_error_number = 0
-        project_obj.trips_error_number = 0
-        project_obj.stop_times_error_number = 0
-        project_obj.calendar_error_number = 0
-        project_obj.calendar_dates_error_number = 0
-        project_obj.fare_attributes_error_number = 0
-        project_obj.fare_rules_error_number = 0
-        project_obj.shapes_error_number = 0
-        project_obj.frequencies_error_number = 0
-        project_obj.transfers_error_number = 0
-        project_obj.pathways_error_number = 0
-        project_obj.levels_error_number = 0
-        project_obj.feed_info_error_number = 0
-        project_obj.agency_warning_number = 0
-        project_obj.stops_warning_number = 0
-        project_obj.routes_warning_number = 0
-        project_obj.trips_warning_number = 0
-        project_obj.stop_times_warning_number = 0
-        project_obj.calendar_warning_number = 0
-        project_obj.calendar_dates_warning_number = 0
-        project_obj.fare_attributes_warning_number = 0
-        project_obj.fare_rules_warning_number = 0
-        project_obj.shapes_warning_number = 0
-        project_obj.frequencies_warning_number = 0
-        project_obj.transfers_warning_number = 0
-        project_obj.pathways_warning_number = 0
-        project_obj.levels_warning_number = 0
-        project_obj.feed_info_warning_number = 0
 
         for filepath in glob.glob(os.path.join('tmp', str(project_obj.pk), '*.json')):
             with open(filepath) as file_obj:
                 json_file = json.load(file_obj)
-                for row in json_file['results'][1:]:
-                    if row['level'] == 'WARNING':
-                        warning_number += 1
-                        try:
-                            if row['filename'] is not None:
-                                field_name = '{0}_warning_number'.format(row['filename'].replace('.txt', ''))
-                                project_obj._meta.get_field(field_name)
-                                setattr(project_obj, field_name, getattr(project_obj, field_name) + 1)
-                        except FieldDoesNotExist:
-                            pass
-                    if row['level'] == 'ERROR':
-                        error_number += 1
-                        try:
-                            if row['filename'] is not None:
-                                field_name = '{0}_error_number'.format(row['filename'].replace('.txt', ''))
-                                project_obj._meta.get_field(field_name)
-                                setattr(project_obj, field_name, getattr(project_obj, field_name) + 1)
-                        except FieldDoesNotExist:
-                            pass
 
-                    spamwriter.writerow([
-                        row['filename'],
-                        row['code'],
-                        row['level'],
-                        row['entityId'],
-                        row['title'],
-                        row['description']
-                    ])
+                for row in json_file['notices']:
+                    severity = row['severity']
+                    total_notices = row['totalNotices']
 
-        project_obj.gtfs_validation_message = in_memory_csv.getvalue()
+                    if severity == 'WARNING':
+                        warning_number += total_notices
+                    elif severity == 'INFO':
+                        info_number += total_notices
+                    elif severity == 'ERROR':
+                        error_number += total_notices
+
+        for filepath in glob.glob(os.path.join('tmp', str(project_obj.pk), '*.html')):
+            with open(filepath, 'r', encoding='utf-8') as html_file:
+                content = html_file.read()
+
+        project_obj.gtfs_validation_message = content
         project_obj.gtfs_validation_error_number = error_number
+        project_obj.gtfs_validation_info_number = info_number
         project_obj.gtfs_validation_warning_number = warning_number
     except Exception as e:
         project_obj.gtfs_validation_message = str(e)
