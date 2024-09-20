@@ -177,13 +177,16 @@ You should only install it if you need to generate .po or .mo files for translat
 
 ### 5.1. Windows
 
-1- Go to this link : https://mlocati.github.io/articles/gettext-iconv-windows.html
+1- Go to this link: https://mlocati.github.io/articles/gettext-iconv-windows.html
 
-2- Download 32 or 64 bit shared and static windows installation files.
+2- Download the appropriate version (32-bit or 64-bit) of gettext. We recommend the static windows installation file
 
-3- Install both of files.
+3- Extract the downloaded ZIP file to a folder of your choice on your computer
 
-4- Restart your computer.
+4- Add the bin folder to your system's PATH environment variable
+
+5- check if your terminal recognizes the new commands, open a terminal and run the command `msgfmt --version`. If the
+command fails, you may need to restart your terminal or the PyCharm instance to apply the changes
 
 ### 5.2. Linux & Unix-like
 
