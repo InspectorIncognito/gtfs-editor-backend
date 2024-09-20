@@ -29,7 +29,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         validate_field('username', data['username'], r'^[a-zA-Z]+([_a-zA-Z0-9]+)?$')
         validate_field('name', data['name'], r'^[a-zA-Z]+$')
         validate_field('last_name', data['last_name'], r'^[a-zA-Z]+$')
-        validate_field('password', data['password'], r'^\S+$')
+        validate_field('password', data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
 
         if User.objects.filter(email=data['email']).exists():
             raise serializers.ValidationError({'detail': 'This email is already registered.'})
