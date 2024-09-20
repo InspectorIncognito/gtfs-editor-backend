@@ -77,6 +77,9 @@ Run test with:
 python manage.py test
 ```
 
+*: it's crucial to run the django command `python manage.py compilemessages` before test to generate translations used
+by the platform.
+
 ## 4. Docker
 
 ### 4.1. Build image in local
