@@ -2,21 +2,21 @@ import logging
 import uuid
 from datetime import timedelta
 
-from django.urls import reverse
-from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect
-
-from rest_framework import serializers, permissions
-from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
-from rest_framework.views import APIView
-from rest_framework.response import Response
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework import serializers
 from rest_framework import status
-from .serializers import (UserLoginSerializer, UserRegisterSerializer,
-                          UserRecoverPasswordSerializer, UserRecoverPasswordRequestSerializer)
+from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from user.jobs import send_confirmation_email, send_pw_recovery_email
 from user.permissions import IsAuthenticated
 from .models import User
+from .serializers import (UserLoginSerializer, UserRegisterSerializer,
+                          UserRecoverPasswordSerializer, UserRecoverPasswordRequestSerializer)
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ class UserConfirmationEmailView(APIView):
                 user.save()
 
                 messages.success(request, 'Your account has been successfully activated. You can now log in.')
-                return Response(status=status.HTTP_200_OK)
+                return redirect('/login')
             else:
                 messages.error(request, 'The verification link has expired.')
                 return Response({'detail': 'Verification link expired.'},
@@ -166,9 +166,3 @@ class UserRecoverPasswordView(APIView):
 
         except serializers.ValidationError as validation_error:
             return Response(validation_error.detail, status=status.HTTP_400_BAD_REQUEST)
-
-
-
-
-
-

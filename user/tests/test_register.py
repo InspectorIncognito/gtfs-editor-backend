@@ -68,7 +68,7 @@ class RegisterTest(TestCase):
         data = {
             'username': 'test',
             'email': self.user.email,
-            'password': 'testPassword',
+            'password': 'xgm8vcv6CBN*wzk7acu',
             'name': 'testName',
             'last_name': 'testLastName'
         }
@@ -158,4 +158,3 @@ class RegisterTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response.data)
         self.assertEqual(response.data['detail'][0], 'Invalid format for last_name.')
-
