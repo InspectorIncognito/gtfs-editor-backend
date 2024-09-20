@@ -1,39 +1,45 @@
-# GTFS EDITOR 
+# Transappp GTFS EDITOR
 
-Web app to create, edit and publish static GTFS
+Web app to create, edit, validate and publish static GTFS
 
-## Dev environment
-
-### Requirements
+## 1. Requirements
 
 - Python 3
-- Dependencies: requirements.txt
+- Docker
+- Dependencies:
+    - requirements.txt
+    - requirements-dev.txt
 
-## Configuration
+## 2. Configuration
 
-It's recommended to use a virtual environment to keep dependencies required by different projects separate by creating isolated python virtual environments for them.
+It's recommended to use a virtual environment to keep dependencies required by different projects separate by creating
+isolated python virtual environments for them.
 
 To create a virtual environment:
 
 ```
 virtualenv venv
 ```
-If you are using Python 2.7 by default is needed to define a Python3 flag:
+
+If you are using Python 2.7, by default is needed to define a Python3 flag:
 
 ```
 virtualenv -p python3 venv
 ```
 
 Activate virtual env and install dependencies:
+
 ```
 source venv/bin/activate
  
 pip install -r requirements.txt
 ```
 
-### .env file
-The env files allow you to put your environment variables inside a file, it is recommended to only have to worry once about the setup and configuration of application and to not store passwords and sensitive data in public repository.
- 
+### 2.1. `.env` file
+
+The env files allow you to put your environment variables inside a file, it is recommended to only have to worry once
+about the setup and configuration of application and to not store passwords and sensitive data in public repository.
+
 You need to define the environment keys creating an .env file at root path:
 
 ```
@@ -63,24 +69,26 @@ EMAIL_USER=
 EMAIL_PASSWORD=
 ```
 
-## Test
+## 3. Run tests in dev environment
 
 Run test with:
+
 ```
 python manage.py test
 ```
 
-# Docker
+## 4. Docker
 
-## Build image
+### 4.1. Build image in local
 
 ```
 docker build -f docker\Dockerfile -t gtfseditor .
 ```
 
-### AWS
+### 4.2. AWS
 
-for ECR service we need build two images, project and nginx server, for each of two we have to do the following process:
+for ECR service we need to build two images, project and nginx server, for each of two we have to do the following
+process:
 
 ```
 # build gtfseditor project
@@ -104,32 +112,67 @@ docker tag nginx-gtfseditor:latest 992591977826.dkr.ecr.sa-east-1.amazonaws.com/
 docker push 992591977826.dkr.ecr.sa-east-1.amazonaws.com/nginx-gtfseditor:latest
 ```
 
-## Build and run docker-compose
+### 4.3. Build and run docker-compose
 
-Build commad:
+#### 4.3.1. production environment
+
+Build command:
+
 ```
 docker-compose -p gtfs-editor -f docker\docker-compose.yml build
 ```
 
 Run command:
+
 ```
-docker-compose -p gtfs-editor -f docker\docker-compose.yml up
+docker-compose -p gtfs-editor -f docker\docker-compose.yml up -d
 ```
 
 Stop command:
+
 ```
 docker-compose -p gtfs-editor -f docker\docker-compose.yml down
 ```
 
-Sometimes you want to update frontend code without upgrade everything else, so in this cases you should call:
+Sometimes you want to update frontend code without upgrading everything else, so in these cases you should call:
+
 ```
 docker-compose -p gtfs-editor -f docker\docker-compose.yml build --no-cache nginx
 ```
----
-## Install install GNU gettext toolset
-You should only install it if you need to generate .po or .mo files
 
-### Windows
+#### 4.3.2. development environment
+
+Development environment publishes in the host machine the ports to communicate with database, cache and web server.
+
+Build command:
+
+```
+docker-compose -p gtfs-editor -f docker\docker-compose.yml -f docker\docker-compose-dev.yml build
+```
+
+Run command:
+
+```
+docker-compose -p gtfs-editor -f docker\docker-compose.yml -f docker\docker-compose-dev.yml up -d
+```
+
+Stop command:
+
+```
+docker-compose -p gtfs-editor -f docker\docker-compose.yml -f docker\docker-compose-dev.yml down
+```
+
+Sometimes you want to update frontend code without upgrading everything else, so in these cases you should call:
+
+```
+docker-compose -p gtfs-editor -f docker\docker-compose.yml -f docker\docker-compose-dev.yml build --no-cache nginx
+```
+
+## 5. Install install GNU gettext toolset
+
+You should only install it if you need to generate .po or .mo files for translation reasons
+
+### 5.1. Windows
 
 1- Go to this link : https://mlocati.github.io/articles/gettext-iconv-windows.html
 
@@ -139,7 +182,7 @@ You should only install it if you need to generate .po or .mo files
 
 4- Restart your computer.
 
-## Linux & Unix-like
+### 5.2. Linux & Unix-like
 
 Run the following command on terminal:
 
@@ -148,7 +191,7 @@ apt-get update
 apt-get install gettext
 ```
 
-## macOS
+### 5.3. macOS
 
 Installing gettext package on macOS via brew:
 
