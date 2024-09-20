@@ -2,3 +2,4 @@
 venv/*
 venvlinux/*
 media/*
+.git/
