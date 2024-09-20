@@ -6,8 +6,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     command: webserver
-    ports:
-      - 8001:8000
+    expose:
+      - 8000
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media

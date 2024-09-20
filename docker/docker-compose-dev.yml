@@ -4,8 +4,13 @@ services:
   web:
     command:
       - webserver-dev
+    ports:
+      - "8001:8000"
     volumes:
       - ../:/app
   db:
     ports:
-      - "5431:5432"
+      - "5432:5432"
+  cache:
+    ports:
+      - "6379:6379"
