@@ -18,7 +18,7 @@ class RegisterTest(TestCase):
         data = {
             'username': 'test',
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'wnp3MQR@hvj8jmb6hfd',
             'name': 'testName',
             'last_name': 'testLastName'
         }
