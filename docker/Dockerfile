@@ -20,7 +20,7 @@ COPY --from=builder /install /usr/local
 
 RUN apt-get update &&  \
     apt-get upgrade -y &&  \
-    apt-get install -y netcat
+    apt-get install -y netcat gettext
 
 WORKDIR /app
 RUN mkdir ./static && \
