@@ -30,6 +30,7 @@ case "$1" in
     echo "starting webserver"
     python manage.py migrate
     python manage.py collectstatic --no-input
+    python manage.py compilemessages
 
     gunicorn --chdir gtfseditor --access-logfile - --bind :8000 gtfseditor.wsgi:application -t 1200
   ;;
@@ -37,6 +38,7 @@ case "$1" in
     echo "starting webserver"
     python manage.py migrate
     python manage.py collectstatic --no-input
+    python manage.py compilemessages
 
     python ./manage.py runserver 0.0.0.0:8000
   ;;
