@@ -4,7 +4,7 @@ Web app to create, edit, validate and publish static GTFS
 
 ## 1. Requirements
 
-- Python 3
+- Python 3.11
 - Docker
 - Dependencies:
     - requirements.txt
@@ -204,3 +204,19 @@ Installing gettext package on macOS via brew:
 ```
 brew install gettext
 ```
+
+## 6. Updating or adding new translations
+
+To improve existing translations or add new ones, follow these steps:
+
+1. Ensure the new text strings are wrapped inside the `gettext` or `gettext_lazy` functions.
+2. Run the following command to update `.po` files: `python manage.py makemessages -l <language> -i venv3.11/*`
+3. Locate the updated `.po` file in the respective app directory where the new text was added. It can be found
+   in `app_name/locale/<language>/django.po`
+4. Add the necessary translations for the new text strings
+5. Commit your changes
+
+### 6.1. Available languages
+
+1. en: English (default)
+2. es: Spanish
