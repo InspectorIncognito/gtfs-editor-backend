@@ -1,35 +1,33 @@
 import re
 import uuid
-from django.utils import timezone
-from rest_framework import serializers
+
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
+from django.utils.translation import gettext as _
+from rest_framework import serializers
+
 from .models import User
 
 
 def validate_field(field_name, value, regex):
     if not re.match(regex, value):
-        raise serializers.ValidationError({'detail': f'Invalid format for {field_name}.'})
+        error_msg = _('Invalid format for {field_name}.').format(field_name=field_name)
+        raise serializers.ValidationError({'detail': error_msg})
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(min_length=8, max_length=128, write_only=True)
+    username = serializers.EmailField(min_length=7, max_length=128, write_only=True)
 
     class Meta:
         model = User
-        fields = ['id',
-                  'username',
-                  'password',
-                  'email',
-                  'name',
-                  'last_name']
-
+        fields = ['id', 'username', 'password', 'email', 'name', 'last_name']
         read_only = ['id']
 
     def validate(self, data):
-        validate_field('username', data['username'], r'^[a-zA-Z]+([_a-zA-Z0-9]+)?$')
-        validate_field('name', data['name'], r'^[a-zA-Z]+$')
-        validate_field('last_name', data['last_name'], r'^[a-zA-Z]+$')
-        validate_field('password', data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
+        validate_field(_('Name'), data['name'], r'^[a-zA-Z]+$')
+        validate_field(_('Last name'), data['last_name'], r'^[a-zA-Z]+$')
+        validate_field(_('Password'), data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
 
         if User.objects.filter(email=data['email']).exists():
             raise serializers.ValidationError({'detail': 'This email is already registered.'})
@@ -82,5 +80,5 @@ class UserRecoverPasswordSerializer(serializers.ModelSerializer):
         fields = ['password']
 
     def validate(self, data):
-        validate_field('password', data['password'], r'^\S+$')
+        validate_field(_('Password'), data['password'], r'^\S+$')
         return data
