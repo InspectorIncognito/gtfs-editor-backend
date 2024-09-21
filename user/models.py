@@ -1,9 +1,10 @@
-from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
+from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class User(models.Model):
-    username = models.CharField(max_length=30, unique=True)
+    username = models.CharField(max_length=30, unique=True, verbose_name=_("Username"))
     email = models.EmailField()
     email_confirmation_token = models.UUIDField(editable=False, null=True, blank=True)
     is_active = models.BooleanField(default=False)
@@ -35,4 +36,3 @@ class User(models.Model):
 
     def authenticate(self, password):
         return check_password(password, self.password)
-
