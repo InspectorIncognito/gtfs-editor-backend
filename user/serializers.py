@@ -16,8 +16,11 @@ def validate_field(field_name, value, regex):
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(min_length=8, max_length=128, write_only=True)
-    username = serializers.EmailField(min_length=7, max_length=128, write_only=True)
+    password = serializers.CharField(min_length=8, max_length=128, allow_null=False, allow_blank=False, write_only=True)
+    username = serializers.EmailField(min_length=7, max_length=30, allow_null=False, allow_blank=False, write_only=True)
+    name = serializers.CharField(min_length=3, max_length=100, allow_null=False, allow_blank=False, write_only=True)
+    last_name = serializers.CharField(min_length=2, max_length=100, allow_null=False, allow_blank=False,
+                                      write_only=True)
 
     class Meta:
         model = User
@@ -25,8 +28,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         read_only = ['id']
 
     def validate(self, data):
-        validate_field(_('Name'), data['name'], r'^[a-zA-Z]+$')
-        validate_field(_('Last name'), data['last_name'], r'^[a-zA-Z]+$')
         validate_field(_('Password'), data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
 
         if User.objects.filter(email=data['email']).exists():
