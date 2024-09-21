@@ -44,6 +44,7 @@ case "$1" in
   ;;
   worker)
     echo "starting worker"
+    python manage.py compilemessages
     python manage.py rqworker default gtfseditor --worker-class rqworkers.gtfseditorWorker.GTFSEditorWorker
   ;;
 esac
