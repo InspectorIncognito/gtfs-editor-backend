@@ -12,6 +12,7 @@ from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from gtfseditor import settings
 from user.jobs import send_confirmation_email, send_pw_recovery_email
 from user.permissions import IsAuthenticated
 from .models import User
@@ -30,9 +31,14 @@ class UserRegisterView(CreateAPIView):
 
         verification_url = self.request.build_absolute_uri(reverse('user-confirmation-email'))
         verification_url = verification_url + '?verificationToken=' + str(user.email_confirmation_token)
+        request_obj = serializer.context.get('request')
+        if request_obj:
+            language_code = request_obj.headers.get('Accept-Language')
+        else:
+            language_code = settings.LANGUAGE_CODE
 
         # Task queue and adding a job to the queue
-        send_confirmation_email.delay(user.username, verification_url)
+        send_confirmation_email.delay(user.username, verification_url, language_code)
 
         # Tracks this event
         logger.info(f'User with username: {user.username} started an activation user process')
