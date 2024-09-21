@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-21 11:06+0200\n"
+"POT-Creation-Date: 2024-09-21 12:09+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,13 +17,13 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: .\user\jobs.py:13
+#: .\user\jobs.py:16
 #, fuzzy
 #| msgid "Email Confirmation"
 msgid "Email Verification"
 msgstr "Confirmación de correo electrónico"
 
-#: .\user\jobs.py:26 .\user\templates\recover_password.html:6
+#: .\user\jobs.py:29 .\user\templates\recover_password.html:6
 msgid "Password Recovery"
 msgstr "Recuperación de Contraseña"
 
@@ -35,15 +35,15 @@ msgstr "Nombre de usuario"
 msgid "Email"
 msgstr "Correo electrónico"
 
-#: .\user\models.py:14 .\user\serializers.py:30 .\user\serializers.py:83
+#: .\user\models.py:14 .\user\serializers.py:31 .\user\serializers.py:84
 msgid "Password"
 msgstr "Contraseña"
 
-#: .\user\models.py:17 .\user\serializers.py:28
+#: .\user\models.py:17
 msgid "Name"
 msgstr "Nombre"
 
-#: .\user\models.py:18 .\user\serializers.py:29
+#: .\user\models.py:18
 msgid "Last name"
 msgstr "Apellido"
 
@@ -51,6 +51,10 @@ msgstr "Apellido"
 #, python-brace-format
 msgid "Invalid format for {field_name}."
 msgstr "Formato inválido para el atributo {field_name}"
+
+#: .\user\serializers.py:34
+msgid "This email is already registered."
+msgstr "Este correo electrónico ya ha sido registrado."
 
 #: .\user\templates\confirmation_email.html:6
 msgid "Email Confirmation"

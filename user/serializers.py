@@ -31,7 +31,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         validate_field(_('Password'), data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
 
         if User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({'detail': 'This email is already registered.'})
+            raise serializers.ValidationError({'detail': _('This email is already registered.')})
         return data
 
     def create(self, validated_data):
