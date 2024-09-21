@@ -1,4 +1,4 @@
-Django==4.2.16
+Django==5.1.1
 rq==1.16.2
 django-rq==2.10.2
 psycopg2-binary==2.9.9
