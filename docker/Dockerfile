@@ -22,6 +22,11 @@ RUN apt-get update &&  \
     apt-get upgrade -y &&  \
     apt-get install -y netcat gettext
 
+RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.deb \
+    && dpkg -i jdk-21_linux-x64_bin.deb \
+    && java --version \
+    && rm jdk-21_linux-x64_bin.deb
+
 WORKDIR /app
 RUN mkdir ./static && \
     mkdir ./media
