@@ -58,9 +58,9 @@ class UserLoginSerializer(serializers.Serializer):
             if user and user.authenticate(password=password):
                 data['user'] = user
             else:
-                raise serializers.ValidationError({'detail': 'Invalid username or password.'})
+                raise serializers.ValidationError({'detail': _('Invalid username or password.')})
         else:
-            raise serializers.ValidationError({'detail': 'Both username and password are required.'})
+            raise serializers.ValidationError({'detail': _('Both username and password are required.')})
 
         return data
 
@@ -81,5 +81,5 @@ class UserRecoverPasswordSerializer(serializers.ModelSerializer):
         fields = ['password']
 
     def validate(self, data):
-        validate_field(_('Password'), data['password'], r'^\S+$')
+        validate_field(_('Password'), data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
         return data

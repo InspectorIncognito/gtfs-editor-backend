@@ -53,7 +53,6 @@ class UserLoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user']
-
         user.session_token = uuid.uuid4()
         user.save()
 
