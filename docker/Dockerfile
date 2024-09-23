@@ -20,7 +20,7 @@ COPY --from=builder /install /usr/local
 
 RUN apt-get update &&  \
     apt-get upgrade -y &&  \
-    apt-get install -y netcat gettext
+    apt-get install -y netcat gettext wget
 
 RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.deb \
     && dpkg -i jdk-21_linux-x64_bin.deb \
