@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2024-09-21 12:09+0200\n"
+"POT-Creation-Date: 2024-09-23 10:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -55,6 +55,14 @@ msgstr "Formato inválido para el atributo {field_name}"
 #: .\user\serializers.py:34
 msgid "This email is already registered."
 msgstr "Este correo electrónico ya ha sido registrado."
+
+#: .\user\serializers.py:61
+msgid "Invalid username or password."
+msgstr "Nombre de usuario o contraseña inválida"
+
+#: .\user\serializers.py:63
+msgid "Both username and password are required."
+msgstr "Nombre de usuario y contraseña son requeridos."
 
 #: .\user\templates\confirmation_email.html:6
 msgid "Email Confirmation"
