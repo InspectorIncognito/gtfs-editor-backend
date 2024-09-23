@@ -9,17 +9,16 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from rest_api.renderers import BinaryRenderer
-from rest_api.serializers import *
-from rest_api.utils import log, create_foreign_key_hashmap
 from rest_api.permissions import (IsAuthenticatedViews, IsAuthenticatedProject,
                                   IsAuthenticatedTransferAndPathway, IsAuthenticatedStopTimesAndFrequency,
                                   IsAuthenticatedShapePoint, IsAuthenticatedRoute)
+from rest_api.renderers import BinaryRenderer
+from rest_api.serializers import *
+from rest_api.utils import log, create_foreign_key_hashmap
 from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file_when_project_is_created
 from rqworkers.utils import delete_job
 
@@ -1052,6 +1051,7 @@ class FrequencyViewSet(CSVHandlerMixin,
 
 class ServiceViewSet(ViewSet):
     permission_classes = [IsAuthenticatedViews]
+
     def get_services(self, project_pk):
         calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
@@ -1089,6 +1089,7 @@ class ServiceViewSet(ViewSet):
 
 class TablesViewSet(ViewSet):
     permission_classes = [IsAuthenticatedViews]
+
     def list(self, request, project_pk):
         tables = {
             'agency': AgencyViewSet,
@@ -1108,11 +1109,11 @@ class TablesViewSet(ViewSet):
             'stop_times': StopTimeViewSet,
         }
         response_data = dict()
-        project_obj = Project.objects.get(pk=project_pk)
+
         for (table, view) in tables.items():
             response_data[table] = self.get_count(view, project_pk)
-            response_data[table]['error_number'] = getattr(project_obj, '{0}_error_number'.format(table))
-            response_data[table]['warning_number'] = getattr(project_obj, '{0}_warning_number'.format(table))
+            response_data[table]['error_number'] = 0
+            response_data[table]['warning_number'] = 0
         return Response(response_data)
 
     def get_count(self, view, project_pk):
