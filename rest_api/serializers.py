@@ -377,8 +377,11 @@ class ProjectSerializer(serializers.ModelSerializer):
     gtfs_validation = serializers.SerializerMethodField('get_gtfs_validation')
 
     def get_gtfs_validation(self, obj):
-        result = dict(error_number=obj.gtfs_validation_error_number, message=obj.gtfs_validation_message,
-                      warning_number=obj.gtfs_validation_warning_number, duration=obj.gtfs_validation_duration)
+        result = dict(error_number=obj.gtfs_validation_error_number,
+                      warning_number=obj.gtfs_validation_warning_number,
+                      info_number=obj.gtfs_validation_info_number,
+                      message=obj.gtfs_validation_message,
+                      duration=obj.gtfs_validation_duration)
         return result
 
     class Meta:

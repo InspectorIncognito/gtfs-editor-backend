@@ -27,6 +27,7 @@ class TestValidateGTFS(BaseTestCase):
 
         self.project_obj.refresh_from_db()
         self.assertIsNone(self.project_obj.gtfs_validation_error_number)
+        self.assertIsNone(self.project_obj.gtfs_validation_info_number)
         self.assertIsNone(self.project_obj.gtfs_validation_warning_number)
         self.assertEqual(self.project_obj.gtfs_validation_message, 'GTFS file does not exist')
         self.assertIsNotNone(self.project_obj.gtfs_validation_duration)
