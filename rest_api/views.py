@@ -357,6 +357,7 @@ class ProjectViewSet(MyModelViewSet):
             project_obj.gtfs_validation_message = None
             project_obj.gtfs_validation_error_number = None
             project_obj.gtfs_validation_warning_number = None
+            project_obj.gtfs_validation_info_number = None
             project_obj.gtfs_validation_duration = None
             project_obj.building_and_validation_job_id = None
             project_obj.save()
