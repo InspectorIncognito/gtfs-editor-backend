@@ -157,13 +157,11 @@ MEDIA_URL = '/media/'
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_FILTER_BACKENDS': (
         'rest_api.parsers.MultiSearchFilter',
         'rest_api.parsers.SortFilter',
     ),
-
     'DEFAULT_PAGINATION_CLASS': 'rest_api.parsers.ResultsSetPagination',
     'PAGE_SIZE': 50,
 }
