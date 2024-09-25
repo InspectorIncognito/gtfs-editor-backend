@@ -257,7 +257,7 @@ class SimpleStopTimeSerializer(serializers.ModelSerializer):
                   'pickup_type',
                   'drop_off_type',
                   'continuous_pickup',
-                  'continuous_dropoff',
+                  'continuous_drop_off',
                   'shape_dist_traveled',
                   'timepoint']
         read_only = ['id']
@@ -356,7 +356,7 @@ class StopTimeSerializer(serializers.ModelSerializer):
                   'pickup_type',
                   'drop_off_type',
                   'continuous_pickup',
-                  'continuous_dropoff',
+                  'continuous_drop_off',
                   'shape_dist_traveled',
                   'timepoint']
         read_only = ['id', 'trip_id']

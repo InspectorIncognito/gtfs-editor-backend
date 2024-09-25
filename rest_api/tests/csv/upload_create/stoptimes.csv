@@ -1,4 +1,4 @@
-trip_id,stop_id,stop_sequence,arrival_time,departure_time,stop_headsign,pickup_type,drop_off_type,continuous_pickup,continuous_dropoff,shape_dist_traveled,timepoint
+trip_id,stop_id,stop_sequence,arrival_time,departure_time,stop_headsign,pickup_type,drop_off_type,continuous_pickup,continuous_drop_off,shape_dist_traveled,timepoint
 trip0,stop_0,1,,,,,,,,,
 trip0,stop_1,2,,,,,,,,,
 trip0,stop_2,3,,,,,,,,,

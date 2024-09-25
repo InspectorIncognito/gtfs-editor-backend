@@ -2497,7 +2497,7 @@ class StopTimesCSVPermissionTest(BasePermissionCSVTest, PermissionCSVTest):
             'pickup_type': 1,
             'drop_off_type': 1,
             'continuous_pickup': 1,
-            'continuous_dropoff': 0,
+            'continuous_drop_off': 0,
             'shape_dist_traveled': 0.5,
             'timepoint': 1
         }
@@ -2516,7 +2516,7 @@ class StopTimesCSVPermissionTest(BasePermissionCSVTest, PermissionCSVTest):
             'pickup_type': 1,
             'drop_off_type': 1,
             'continuous_pickup': 1,
-            'continuous_dropoff': 0,
+            'continuous_drop_off': 0,
             'shape_dist_traveled': 0.5,
             'timepoint': 1
 
