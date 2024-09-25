@@ -1105,14 +1105,14 @@ class ShapePermissionTest(BaseViewsPermissionTests, ViewsPermissionTests):
     def test_retrieve_without_permission_invalid_user_id(self):
         id = self.get_id('shape_1')
         response = self.base_retrieve(self.project.project_id, id, self.custom_headers_invalid_user_id)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_retrieve_without_permission_invalid_token(self):
         id = self.get_id('shape_1')
         response = self.base_retrieve(self.project.project_id, id, self.custom_headers_invalid_token)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_retrieve_without_permission_without_user_id(self):
         id = self.get_id('shape_1')
@@ -1165,15 +1165,15 @@ class ShapePermissionTest(BaseViewsPermissionTests, ViewsPermissionTests):
         data = self.Meta.put_data
         id = self.get_id('shape_1')
         response = self.base_put(self.project.project_id, id, data, self.custom_headers_invalid_user_id)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_put_without_permission_invalid_token(self):
         data = self.Meta.put_data
         id = self.get_id('shape_1')
         response = self.base_put(self.project.project_id, id, data, self.custom_headers_invalid_token)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_put_without_permission_without_user_id(self):
         data = self.Meta.put_data
@@ -2002,16 +2002,16 @@ class ShapePointPermissionTest(BaseViewsPermissionTests, ViewsPermissionTests):
         data = self.Meta.patch_data_invalid_user_id
         id = self.Meta().get_id(self.project, data)
         response = self.base_patch(self.project.project_id, id, data, self.custom_headers_invalid_user_id)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_patch_without_permission_invalid_token(self):
         self.add_foreign_ids(self.Meta.patch_data_invalid_token)
         data = self.Meta.patch_data_invalid_token
         id = self.Meta().get_id(self.project, data)
         response = self.base_patch(self.project.project_id, id, data, self.custom_headers_invalid_token)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_patch_without_permission_without_user_id(self):
         self.add_foreign_ids(self.Meta.patch_data_without_user_id)
@@ -2038,16 +2038,16 @@ class ShapePointPermissionTest(BaseViewsPermissionTests, ViewsPermissionTests):
         data = self.Meta.put_data_invalid_user_id
         id = self.Meta().get_id(self.project, data)
         response = self.base_put(self.project.project_id, id, data, self.custom_headers_invalid_user_id)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_put_without_permission_invalid_token(self):
         self.add_foreign_ids(self.Meta.put_data_invalid_token)
         data = self.Meta.put_data_invalid_token
         id = self.Meta().get_id(self.project, data)
         response = self.base_put(self.project.project_id, id, data, self.custom_headers_invalid_token)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEquals(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_put_without_permission_without_user_id(self):
         self.add_foreign_ids(self.Meta.put_data_without_user_id)
