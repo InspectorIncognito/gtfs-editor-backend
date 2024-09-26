@@ -75,8 +75,10 @@ class UserPermissionTest(BaseTestCase):
         self.user.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    # User can NOT access 'login' view if logged in
     def test_login_permission_fail(self):
+        """
+        User is redirected to project view if it is logged in
+        """
         url = reverse('user-login')
 
         data = {

@@ -55,7 +55,7 @@ class RegisterTest(TestCase):
         data = {
             'username': self.user.username,
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'zka3YUN9fyd_dtz4zwf',
             'name': 'testName',
             'last_name': 'testLastName'
         }
@@ -149,7 +149,7 @@ class RegisterTest(TestCase):
         data = {
             'username': 'test',
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'zka3YUN9fyd_dtz4zwf',
             'name': 'testName',
             'last_name': 'testLastName123'
         }
