@@ -93,7 +93,7 @@ class CSVUploadMixin:
     are not present in the CSV. The following attributes of the Meta class are used to configure it:
     model: the model associated with the viewset.
     chunk_size: how many rows are processed at once for the bulk operations, defaults to 1000.
-    use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise it will
+    use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise, it will
       delete all entries and create them anew. Defaults to True, requires the model to have a InternalIDFilterManager
     upload_preprocess: dict that associates attribute names to functions that will be called on each row. An example is
       using it to convert the entries that correspond to a date into the correct format (YYYYMMDD instead of python's
@@ -955,6 +955,14 @@ class StopTimeViewSet(CSVHandlerMixin,
         }
         model = StopTime
         filter_params = ['trip', 'stop', 'stop_sequence']
+        upload_preprocess = {
+            'arrival_time': lambda time_str: datetime.timedelta(hours=int(time_str.split(':')[0]),
+                                                                minutes=int(time_str.split(':')[1]),
+                                                                seconds=int(time_str.split(':')[2])),
+            'departure_time': lambda time_str: datetime.timedelta(hours=int(time_str.split(':')[0]),
+                                                                  minutes=int(time_str.split(':')[1]),
+                                                                  seconds=int(time_str.split(':')[2])),
+        }
 
     @staticmethod
     def get_qs(kwargs):
