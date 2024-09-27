@@ -1,11 +1,9 @@
-from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from rest_api import validators
 from rest_api.models import *
-
 
 
 class NestedModelSerializer(serializers.ModelSerializer):
@@ -373,6 +371,7 @@ class FrequencySerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(max_length=50, allow_blank=False, allow_null=False)
     feedinfo = FeedInfoSerializer(read_only=True)
     gtfs_validation = serializers.SerializerMethodField('get_gtfs_validation')
 
