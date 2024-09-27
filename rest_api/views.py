@@ -72,6 +72,7 @@ class CSVDownloadMixin:
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
+        response['Access-Control-Expose-Headers'] = 'Content-Disposition'
         self.write_to_file(response, self.Meta, qs)
         return response
 
