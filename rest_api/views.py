@@ -281,11 +281,17 @@ class ConvertValuesMeta:
             v = values[k]
             if isinstance(v, datetime.date):
                 values[k] = v.strftime('%Y%m%d')
-            if isinstance(v, bool):
+            elif isinstance(v, bool):
                 if v:
                     values[k] = 1
                 else:
                     values[k] = 0
+            elif isinstance(v, datetime.timedelta):
+                total_seconds = int(v.total_seconds())
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                # return format HH:MM:SS
+                values[k] = '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
 
 
 class ProjectViewSet(MyModelViewSet):
