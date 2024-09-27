@@ -1,11 +1,27 @@
 import os
+from datetime import timedelta
 
 from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db.models import DurationField
 from django.utils import timezone
 from shapely.geometry import MultiPoint
 
 from rest_api.managers import *
 from user.models import User
+
+
+class GTFSDurationField(DurationField):
+
+    def value_to_string(self, obj):
+        val = self.value_from_object(obj)
+
+        if isinstance(val, timedelta):
+            total_seconds = int(val.total_seconds())
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            # return format HH:MM:SS
+            return '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
+        return super().value_to_string(obj)
 
 
 def gtfs_update_to(instance, filename):
@@ -345,8 +361,8 @@ class StopTime(models.Model):
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name='stop_times')
     stop = models.ForeignKey(Stop, on_delete=models.CASCADE)
     stop_sequence = models.IntegerField()
-    arrival_time = models.DurationField(null=True, blank=True)
-    departure_time = models.DurationField(null=True, blank=True)
+    arrival_time = GTFSDurationField(null=True, blank=True)
+    departure_time = GTFSDurationField(null=True, blank=True)
     stop_headsign = models.CharField(max_length=50, null=True, blank=True)
     pickup_type = models.IntegerField(null=True, blank=True)
     drop_off_type = models.IntegerField(null=True, blank=True)
