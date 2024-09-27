@@ -78,12 +78,17 @@ def upload_gtfs_file_when_project_is_created(project_pk, zip_file):
     try:
         # wait for job id
         sleep(2)
-        if Project.objects.filter(pk=project_pk, loading_gtfs_job_id__isnull=True).exists():
+        project_obj = Project.objects.get(pk=project_pk)
+        if project_obj.loading_gtfs_job_id is None:
             raise ValueError('job id was not assigned')
 
         upload_gtfs_file(project_pk, zip_file)
-        Project.objects.filter(pk=project_pk).update(creation_status=Project.CREATION_STATUS_FROM_GTFS,
-                                                     last_modification=timezone.now())
+        project_obj.refresh_from_db()
+        project_obj.creation_status = Project.CREATION_STATUS_FROM_GTFS
+        project_obj.last_modification = timezone.now()
+        project_obj.envelope = project_obj.get_envelope()
+        project_obj.save()
+
     except Exception as e:
         Project.objects.filter(pk=project_pk).update(loading_gtfs_error_message=str(e),
                                                      creation_status=Project.CREATION_STATUS_ERROR_LOADING_GTFS)
