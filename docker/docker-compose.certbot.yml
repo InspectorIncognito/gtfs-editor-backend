@@ -1,0 +1,30 @@
+services:
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx/Dockerfile
+      target: certbot
+    profiles: [ 'certbot' ]
+    expose:
+      - 80
+    ports:
+      - "80:80"
+  web:
+    profiles: [ 'certbot' ]
+  cache:
+    profiles: [ 'certbot' ]
+  db:
+    profiles: [ 'certbot' ]
+  certbot:
+    profiles: ['certbot']
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - static_volume_backend:/app/backend/static
+      - files_volume_backend:/app/backend/files
+      - web-root:/var/www/html
+    depends_on:
+      - nginx
+    command: certonly --webroot --webroot-path=/var/www/html --email dgarcia@transapp.cl --agree-tos --no-eff-email -d gtfseditor.transapp.cl -d www.gtfseditor.transapp.cl --force-renewal

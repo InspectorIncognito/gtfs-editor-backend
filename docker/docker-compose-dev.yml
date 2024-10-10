@@ -6,6 +6,15 @@ services:
       - webserver-dev
     volumes:
       - ../:/app
+
+  nginx:
+    build:
+      context: ..
+      dockerfile: docker/nginx/NginxDockerfile
+      target: dev
+    ports:
+      - "8000:80"
+
   db:
     ports:
       - "5431:5432"

@@ -7,11 +7,12 @@ services:
       dockerfile: docker/Dockerfile
     command: webserver
     ports:
-      - 8001:8000
+      - "8001:8000"
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
     env_file:
+      - ./docker_env
       - ./docker_env
     depends_on:
       - db
@@ -42,11 +43,20 @@ services:
     build:
       context: ..
       dockerfile: docker/nginx/NginxDockerfile
+      target: prod
+    expose:
+      - 80
+      - 443
     ports:
-      - 8000:80
+      - "80:80"
+      - "443:443"
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - ../dhparam:/etc/ssl/certs
+      - web-root:/var/www/html
     depends_on:
       - web
     networks:
@@ -79,3 +89,6 @@ volumes:
   postgres_gtfseditor_data_v16:
   static_volume:
   media_volume:
+  certbot-etc:
+  certbot-var:
+  web-root:
