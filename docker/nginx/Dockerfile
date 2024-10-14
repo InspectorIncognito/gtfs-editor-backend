@@ -3,10 +3,13 @@ FROM node:14.17.3-alpine as build-stage
 WORKDIR /app
 RUN apk update && apk upgrade && \
     apk add --no-cache git
+
+
 RUN git clone https://github.com/InspectorIncognito/gtfs-editor-frontend.git && \
     cd gtfs-editor-frontend && git checkout dev && cd .. && \
     mv gtfs-editor-frontend/* . && \
     rm -r gtfs-editor-frontend
+RUN sed -i 's|git+ssh://git@github.com|https://github.com|g' package-lock.json
 RUN npm install
 RUN touch '.env.production' && \
   echo 'NODE_ENV=production' >> '.env.production' && \
