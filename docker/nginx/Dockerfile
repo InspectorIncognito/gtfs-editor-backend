@@ -1,5 +1,5 @@
 # Use node 14.17.3 if RUN npm install have problems
-FROM node:9.11.1-alpine as build-stage
+FROM node:14.17.3-alpine as build-stage
 WORKDIR /app
 RUN apk update && apk upgrade && \
     apk add --no-cache git

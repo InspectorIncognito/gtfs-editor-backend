@@ -2,6 +2,7 @@ x-common: &common
   profiles:
     - default
     - prod
+    - dev
 services:
   web:
     <<: *common

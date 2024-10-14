@@ -4,15 +4,13 @@ services:
       - webserver-dev
     volumes:
       - ../:/app
-
   nginx:
     build:
       context: ..
-      dockerfile: nginx/Dockerfile
+      dockerfile: docker/nginx/Dockerfile
       target: dev
     ports:
       - "8000:80"
-
   db:
     ports:
       - "5431:5432"
