@@ -22,12 +22,25 @@ RUN apt-get update &&  \
     apt-get upgrade -y &&  \
     apt-get install -y netcat gettext wget
 
-RUN ARCH=$(dpkg --print-architecture) \
-    && if [ "$ARCH" = "arm64" ]; then JAVA_ARCH="aarch64"; else JAVA_ARCH="x64"; fi \
-    && wget "https://download.oracle.com/java/21/latest/jdk-21_linux-${JAVA_ARCH}_bin.deb" \
-    && dpkg -i jdk-21_linux-${JAVA_ARCH}_bin.deb \
-    && java --version \
-    && rm jdk-21_linux-${JAVA_ARCH}_bin.deb
+RUN set -x \
+    && ARCH=$(uname -m) \
+    && echo "Architecture: $ARCH" \
+    && if [ "$ARCH" = "aarch64" ]; then JAVA_ARCH="aarch64"; else JAVA_ARCH="x64"; fi \
+    && echo "Java Architecture: $JAVA_ARCH" \
+    && OS_TYPE=$(if [ "${JAVA_ARCH}" = "aarch64" ]; then echo "rpm"; elif [ "${JAVA_ARCH}" = "x64" ]; then echo "deb"; else echo "unknown"; fi) \
+    && echo "OS Type: $OS_TYPE" \
+    && JAVA_URL="https://download.oracle.com/java/21/latest/jdk-21_linux-${JAVA_ARCH}_bin.${OS_TYPE}" \
+    && echo "Java URL: $JAVA_URL" \
+    && wget --no-check-certificate -c --header "Cookie: oraclelicense=accept-securebackup-cookie" -O jdk.${OS_TYPE} $JAVA_URL \
+    && ls -l jdk.${OS_TYPE} \
+    && case "$OS_TYPE" in \
+         deb)     dpkg -i jdk.${OS_TYPE} ;; \
+         rpm)     rpm -ivh jdk.${OS_TYPE} ;; \
+         *)       echo "Unsupported package type" && exit 1 ;; \
+       esac \
+    && rm jdk.${OS_TYPE} \
+    && echo "Java installation complete" \
+    && java -version
 
 WORKDIR /app
 RUN mkdir ./static && \
