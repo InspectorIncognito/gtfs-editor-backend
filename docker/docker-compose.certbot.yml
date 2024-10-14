@@ -5,8 +5,10 @@ services:
       dockerfile: docker/nginx/Dockerfile
       target: certbot
     profiles: [ 'certbot' ]
-    expose:
-      - 80
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-root:/var/www/html
     ports:
       - "80:80"
   certbot:
