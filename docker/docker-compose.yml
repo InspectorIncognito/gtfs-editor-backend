@@ -1,5 +1,9 @@
+x-common: &common
+  profiles:
+    - default
 services:
   web:
+    <<: *common
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -20,6 +24,7 @@ services:
       - database_network
       - cache_network
   worker:
+    <<: *common
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -36,6 +41,7 @@ services:
       - database_network
       - cache_network
   nginx:
+    <<: *common
     build:
       context: ..
       dockerfile: nginx/Dockerfile
@@ -59,10 +65,12 @@ services:
       - nginx_network
 
   cache:
+    <<: *common
     image: redis:latest
     networks:
       - cache_network
   db:
+    <<: *common
     image: postgres:16.1-alpine
     volumes:
       - postgres_gtfseditor_data_v16:/var/lib/postgresql/data/
