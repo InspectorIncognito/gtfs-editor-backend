@@ -22,10 +22,12 @@ RUN apt-get update &&  \
     apt-get upgrade -y &&  \
     apt-get install -y netcat gettext wget
 
-RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.deb \
-    && dpkg -i jdk-21_linux-x64_bin.deb \
+RUN ARCH=$(dpkg --print-architecture) \
+    && if [ "$ARCH" = "arm64" ]; then JAVA_ARCH="aarch64"; else JAVA_ARCH="x64"; fi \
+    && wget "https://download.oracle.com/java/21/latest/jdk-21_linux-${JAVA_ARCH}_bin.deb" \
+    && dpkg -i jdk-21_linux-${JAVA_ARCH}_bin.deb \
     && java --version \
-    && rm jdk-21_linux-x64_bin.deb
+    && rm jdk-21_linux-${JAVA_ARCH}_bin.deb
 
 WORKDIR /app
 RUN mkdir ./static && \
