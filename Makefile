@@ -47,13 +47,10 @@ down:
 
 db:
 	$(COMPOSE_DEV) --profile dev up db
-
+prod_build:
+	$(COMPOSE_PROD) build
 prod_up:
-	@aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 992591977826.dkr.ecr.us-east-2.amazonaws.com
-	@$(COMPOSE_PROD) pull
 	@$(COMPOSE_PROD) up -d
-prod_up_cert:
-	$(COMPOSE_PROD) up -d
 build_nginx:
 	$(COMPOSE_DEV) build nginx --no-cache
 	# if it's running, restart it
