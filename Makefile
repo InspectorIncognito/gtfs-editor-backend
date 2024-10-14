@@ -1,15 +1,15 @@
 # Windows
 ifeq ($(OS),Window_NT)
 	TEST = docker compose -p gtfs-editor-test -f docker\docker-compose.yml --profile test
-	COMPOSE_DEV = docker compose -p gtfseditor-backend-dev -f docker\docker-compose.yml -f docker\docker-compose-dev.yml --profile dev
+	COMPOSE_DEV = docker compose -p gtfseditor-backend-dev -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile dev
 	COMPOSE_PROD = docker compose -p emov-backend-prod -f docker\docker-compose.yml --profile prod
 	MANAGE=python backend\manage.py
 # Linux
 else
 	TEST = docker compose -p gtfs-editor-test -f docker/docker-compose.yml --profile test
-	COMPOSE_DEV = docker compose -p gtfseditor-backend-dev -f docker/docker-compose.yml -f docker/docker-compose-dev.yml --profile dev
+	COMPOSE_DEV = docker compose -p gtfseditor-backend-dev -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --profile dev
 	COMPOSE_PROD = docker compose -p gtfseditor-backend-prod -f docker/docker-compose.yml --profile prod
-	COMPOSE_CERT = docker compose -p gtfseditor-backend-prod -f docker/docker-compose.yml -f docker/docker-compose-certbot.yml --profile certbot
+	COMPOSE_CERT = docker compose -p gtfseditor-backend-prod -f docker/docker-compose.yml -f docker/docker-compose.certbot.yml --profile certbot
 	MANAGE=python backend/manage.py
 endif
 PIP=pip install -r requirements-prod.txt
