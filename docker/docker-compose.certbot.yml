@@ -1,5 +1,5 @@
 services:
-  nginx:
+  nginx-certbot:
     build:
       context: ..
       dockerfile: docker/nginx/Dockerfile
