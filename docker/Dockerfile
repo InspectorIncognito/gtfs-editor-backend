@@ -35,7 +35,7 @@ RUN set -x \
     && ls -l jdk.${OS_TYPE} \
     && case "$OS_TYPE" in \
          deb)     dpkg -i jdk.${OS_TYPE} ;; \
-         rpm)     apt-get update && apt-get install alien && alien --scripts --to-deb jdk.${OS_TYPE} && dpkg -i jdk*.deb ;; \
+         rpm)     apt-get update && apt-get install alien -y && alien --scripts --to-deb jdk.${OS_TYPE} && dpkg -i jdk*.deb ;; \
          *)       echo "Unsupported package type" && exit 1 ;; \
        esac \
     && rm jdk.${OS_TYPE} \
