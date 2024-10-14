@@ -10,7 +10,7 @@ services:
   nginx:
     build:
       context: ..
-      dockerfile: docker/nginx/NginxDockerfile
+      dockerfile: nginx/Dockerfile
       target: dev
     ports:
       - "8000:80"

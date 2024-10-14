@@ -38,7 +38,7 @@ services:
   nginx:
     build:
       context: ..
-      dockerfile: docker/nginx/NginxDockerfile
+      dockerfile: nginx/Dockerfile
       target: prod
     expose:
       - 80
