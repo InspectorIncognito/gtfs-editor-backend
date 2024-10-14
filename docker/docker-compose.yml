@@ -46,7 +46,7 @@ services:
     <<: *common
     build:
       context: ..
-      dockerfile: nginx/Dockerfile
+      dockerfile: docker/nginx/Dockerfile
       target: prod
     expose:
       - 80
