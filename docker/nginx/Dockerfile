@@ -31,7 +31,7 @@ ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
 FROM nginx:1.17 as dev
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
-COPY ./docker/nginx/config/certbot.conf /etc/nginx/conf.d/local.conf
+COPY ./docker/nginx/config/dev.conf /etc/nginx/conf.d/local.conf
 COPY ./docker/nginx/config/status.conf /etc/nginx/conf.d/status.conf
 COPY ./docker/nginx/nginx_entrypoint.sh ./entrypoint.sh
 
