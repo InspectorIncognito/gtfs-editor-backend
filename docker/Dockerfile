@@ -35,7 +35,7 @@ RUN set -x \
     && ls -l jdk.${OS_TYPE} \
     && case "$OS_TYPE" in \
          deb)     dpkg -i jdk.${OS_TYPE} ;; \
-         rpm)     rpm -ivh jdk.${OS_TYPE} ;; \
+         rpm)     apt-get update && apt-get install -y rpm && rpm -ivh jdk.${OS_TYPE} ;; \
          *)       echo "Unsupported package type" && exit 1 ;; \
        esac \
     && rm jdk.${OS_TYPE} \
