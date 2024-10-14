@@ -18,5 +18,5 @@ services:
       - certbot-var:/var/lib/letsencrypt
       - web-root:/var/www/html
     depends_on:
-      - nginx
+      - nginx-certbot
     command: certonly --webroot --webroot-path=/var/www/html --email dgarcia@transapp.cl --agree-tos --no-eff-email -d gtfseditor.transapp.cl -d www.gtfseditor.transapp.cl -d gtfs-editor.transapp.cl -d www.gtfs-editor.transapp.cl --force-renewal
