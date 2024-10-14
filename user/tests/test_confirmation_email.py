@@ -1,13 +1,11 @@
 import uuid
+from datetime import timedelta
+from unittest.mock import patch, Mock
 
 from django.contrib.messages import get_messages
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-
-from unittest.mock import patch, Mock
-from datetime import timedelta
-
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -24,7 +22,7 @@ class ConfirmationEmailTest(TestCase):
         data = {
             'username': 'test',
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'DBM_uyh6ehj4njf.ehc',
             'name': 'testName',
             'last_name': 'testLastName'
         }
@@ -32,8 +30,9 @@ class ConfirmationEmailTest(TestCase):
         response = self.client.post(self.url, data, format='json')
         user = User.objects.get(username='test')
 
-        verification_url = ('http://testserver/user/email-verification/?verificationToken='
-                            + str(user.email_confirmation_token))
+        email_verification_url = reverse('user-confirmation-email')
+        verification_url = 'http://testserver{}?verificationToken={}'.format(email_verification_url,
+                                                                             str(user.email_confirmation_token))
 
         self.assertEqual(status.HTTP_201_CREATED, response.status_code)
         # Assert that enqueue was called correctly with the expected arguments
@@ -52,7 +51,7 @@ class ConfirmationEmailTest(TestCase):
 
         # Assert that the confirmation view returns a successful response and redirects to the login view
         self.assertEqual(response.status_code, status.HTTP_302_FOUND)
-        self.assertTrue(response.url.endswith(reverse('user-login')))
+        self.assertTrue(response.url.endswith('/login'))
 
         # Assert that the fields were modified correctly
         self.assertTrue(user.is_active)

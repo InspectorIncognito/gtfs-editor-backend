@@ -18,7 +18,7 @@ class RegisterTest(TestCase):
         data = {
             'username': 'test',
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'wnp3MQR@hvj8jmb6hfd',
             'name': 'testName',
             'last_name': 'testLastName'
         }
@@ -55,7 +55,7 @@ class RegisterTest(TestCase):
         data = {
             'username': self.user.username,
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'zka3YUN9fyd_dtz4zwf',
             'name': 'testName',
             'last_name': 'testLastName'
         }
@@ -68,7 +68,7 @@ class RegisterTest(TestCase):
         data = {
             'username': 'test',
             'email': self.user.email,
-            'password': 'testPassword',
+            'password': 'xgm8vcv6CBN*wzk7acu',
             'name': 'testName',
             'last_name': 'testLastName'
         }
@@ -149,7 +149,7 @@ class RegisterTest(TestCase):
         data = {
             'username': 'test',
             'email': 'test@email.com',
-            'password': 'testPassword',
+            'password': 'zka3YUN9fyd_dtz4zwf',
             'name': 'testName',
             'last_name': 'testLastName123'
         }
@@ -158,4 +158,3 @@ class RegisterTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response.data)
         self.assertEqual(response.data['detail'][0], 'Invalid format for last_name.')
-

@@ -27,43 +27,37 @@ class TestValidateGTFS(BaseTestCase):
 
         self.project_obj.refresh_from_db()
         self.assertIsNone(self.project_obj.gtfs_validation_error_number)
+        self.assertIsNone(self.project_obj.gtfs_validation_info_number)
         self.assertIsNone(self.project_obj.gtfs_validation_warning_number)
         self.assertEqual(self.project_obj.gtfs_validation_message, 'GTFS file does not exist')
         self.assertIsNotNone(self.project_obj.gtfs_validation_duration)
 
     @mock.patch('rqworkers.jobs.subprocess')
     @mock.patch('rqworkers.jobs.glob')
-    @mock.patch('rqworkers.jobs.open', mock.mock_open(
-        read_data=json.dumps({"results": [
-            {},
-            {"filename": "a.txt", "code": "1", "level": "WARNING",
-             "entityId": "no id", "title": "problem", "description": "there is a problem"},
-            {"filename": "b.txt", "code": "2", "level": "ERROR",
-             "entityId": "no id", "title": "problem", "description": "there is a problem"},
-            {"filename": "agency.txt", "code": "2", "level": "ERROR",
-             "entityId": "no id", "title": "problem", "description": "there is a problem"},
-            {"filename": "stop_times.txt", "code": "2", "level": "WARNING",
-             "entityId": "no id", "title": "problem", "description": "there is a problem"},
-        ]})))
-    def test_execution(self, mock_glob, mock_subprocess):
+    @mock.patch('rqworkers.jobs.open')
+    def test_execution(self, mock_open, mock_glob, mock_subprocess):
         self.project_obj.gtfs_file.save(self.project_obj.name, ContentFile('fake zip file'))
 
         mock_glob.glob.return_value = ['fake_filepath']
+
+        first_open_call = mock.mock_open(
+            read_data=json.dumps({"notices": [
+                {"severity": "WARNING", "totalNotices": 2},
+                {"severity": "INFO", "totalNotices": 20},
+                {"severity": "ERROR", "totalNotices": 3},
+            ]}))
+        second_open_call = mock.mock_open(read_data='<document></document>')
+        mock_open.side_effect = [first_open_call.return_value, second_open_call.return_value]
 
         validate_gtfs(self.project_obj)
 
         mock_subprocess.call.assert_called_once()
         self.project_obj.refresh_from_db()
-        expected_message = 'filename,code,level,entity id,title,description' + os.linesep + \
-                           'a.txt,1,WARNING,no id,problem,there is a problem' + os.linesep + \
-                           'b.txt,2,ERROR,no id,problem,there is a problem' + os.linesep + \
-                           'agency.txt,2,ERROR,no id,problem,there is a problem' + os.linesep + \
-                           'stop_times.txt,2,WARNING,no id,problem,there is a problem' + os.linesep
+        expected_message = '<document></document>'
         self.assertEqual(self.project_obj.gtfs_validation_message, expected_message)
-        self.assertEqual(self.project_obj.gtfs_validation_error_number, 2)
+        self.assertEqual(self.project_obj.gtfs_validation_error_number, 3)
+        self.assertEqual(self.project_obj.gtfs_validation_info_number, 20)
         self.assertEqual(self.project_obj.gtfs_validation_warning_number, 2)
-        self.assertEqual(self.project_obj.agency_error_number, 1)
-        self.assertEqual(self.project_obj.stop_times_warning_number, 1)
 
         # delete test files
         parent_path = os.path.sep.join(self.project_obj.gtfs_file.path.split(os.path.sep)[:-1])
@@ -182,7 +176,8 @@ class TestUploadGTFSWhenProjectIsCreated(BaseTestCase):
 
     def setUp(self):
         user = UserFactory()
-        self.project_obj = Project.objects.create(user=user, name='project', creation_status=Project.CREATION_STATUS_LOADING_GTFS)
+        self.project_obj = Project.objects.create(user=user, name='project',
+                                                  creation_status=Project.CREATION_STATUS_LOADING_GTFS)
         self.project_obj.loading_gtfs_job_id = uuid.uuid4()
         self.project_obj.save()
 

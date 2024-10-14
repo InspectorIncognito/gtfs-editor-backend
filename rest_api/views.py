@@ -9,17 +9,16 @@ from django.http import HttpResponse
 from django.shortcuts import redirect
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-
 from rest_framework.parsers import FileUploadParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from rest_api.renderers import BinaryRenderer
-from rest_api.serializers import *
-from rest_api.utils import log, create_foreign_key_hashmap
 from rest_api.permissions import (IsAuthenticatedViews, IsAuthenticatedProject,
                                   IsAuthenticatedTransferAndPathway, IsAuthenticatedStopTimesAndFrequency,
                                   IsAuthenticatedShapePoint, IsAuthenticatedRoute)
+from rest_api.renderers import BinaryRenderer
+from rest_api.serializers import *
+from rest_api.utils import log, create_foreign_key_hashmap
 from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file_when_project_is_created
 from rqworkers.utils import delete_job
 
@@ -73,6 +72,7 @@ class CSVDownloadMixin:
                                 status=status.HTTP_501_NOT_IMPLEMENTED)
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="{}.csv"'.format(filename)
+        response['Access-Control-Expose-Headers'] = 'Content-Disposition'
         self.write_to_file(response, self.Meta, qs)
         return response
 
@@ -94,7 +94,7 @@ class CSVUploadMixin:
     are not present in the CSV. The following attributes of the Meta class are used to configure it:
     model: the model associated with the viewset.
     chunk_size: how many rows are processed at once for the bulk operations, defaults to 1000.
-    use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise it will
+    use_internal_id: if the table has an internal id it will be used to check for existing entries. Otherwise, it will
       delete all entries and create them anew. Defaults to True, requires the model to have a InternalIDFilterManager
     upload_preprocess: dict that associates attribute names to functions that will be called on each row. An example is
       using it to convert the entries that correspond to a date into the correct format (YYYYMMDD instead of python's
@@ -282,11 +282,17 @@ class ConvertValuesMeta:
             v = values[k]
             if isinstance(v, datetime.date):
                 values[k] = v.strftime('%Y%m%d')
-            if isinstance(v, bool):
+            elif isinstance(v, bool):
                 if v:
                     values[k] = 1
                 else:
                     values[k] = 0
+            elif isinstance(v, datetime.timedelta):
+                total_seconds = int(v.total_seconds())
+                hours, remainder = divmod(total_seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                # return format HH:MM:SS
+                values[k] = '{:02}:{:02}:{:02}'.format(hours, minutes, seconds)
 
 
 class ProjectViewSet(MyModelViewSet):
@@ -317,9 +323,10 @@ class ProjectViewSet(MyModelViewSet):
 
     @action(methods=['POST'], detail=False)
     def create_project_from_gtfs(self, request, *args, **kwargs):
+        project_name = self.request.data['name']
         data = dict(
             creation_status=Project.CREATION_STATUS_LOADING_GTFS,
-            name=self.request.data['name'],
+            name=project_name if project_name != 'null' else '',
         )
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -358,6 +365,7 @@ class ProjectViewSet(MyModelViewSet):
             project_obj.gtfs_validation_message = None
             project_obj.gtfs_validation_error_number = None
             project_obj.gtfs_validation_warning_number = None
+            project_obj.gtfs_validation_info_number = None
             project_obj.gtfs_validation_duration = None
             project_obj.building_and_validation_job_id = None
             project_obj.save()
@@ -936,7 +944,7 @@ class StopTimeViewSet(CSVHandlerMixin,
                       'pickup_type',
                       'drop_off_type',
                       'continuous_pickup',
-                      'continuous_dropoff',
+                      'continuous_drop_off',
                       'shape_dist_traveled',
                       'timepoint']
         search_fields = ['trip__trip_id', 'stop__stop_id']
@@ -949,6 +957,14 @@ class StopTimeViewSet(CSVHandlerMixin,
         }
         model = StopTime
         filter_params = ['trip', 'stop', 'stop_sequence']
+        upload_preprocess = {
+            'arrival_time': lambda time_str: datetime.timedelta(hours=int(time_str.split(':')[0]),
+                                                                minutes=int(time_str.split(':')[1]),
+                                                                seconds=int(time_str.split(':')[2])),
+            'departure_time': lambda time_str: datetime.timedelta(hours=int(time_str.split(':')[0]),
+                                                                  minutes=int(time_str.split(':')[1]),
+                                                                  seconds=int(time_str.split(':')[2])),
+        }
 
     @staticmethod
     def get_qs(kwargs):
@@ -1052,6 +1068,7 @@ class FrequencyViewSet(CSVHandlerMixin,
 
 class ServiceViewSet(ViewSet):
     permission_classes = [IsAuthenticatedViews]
+
     def get_services(self, project_pk):
         calendars = Calendar.objects.filter(project=project_pk).values('service_id').annotate(
             type=Value('Calendar', output_field=TextField()))
@@ -1089,6 +1106,7 @@ class ServiceViewSet(ViewSet):
 
 class TablesViewSet(ViewSet):
     permission_classes = [IsAuthenticatedViews]
+
     def list(self, request, project_pk):
         tables = {
             'agency': AgencyViewSet,
@@ -1108,11 +1126,11 @@ class TablesViewSet(ViewSet):
             'stop_times': StopTimeViewSet,
         }
         response_data = dict()
-        project_obj = Project.objects.get(pk=project_pk)
+
         for (table, view) in tables.items():
             response_data[table] = self.get_count(view, project_pk)
-            response_data[table]['error_number'] = getattr(project_obj, '{0}_error_number'.format(table))
-            response_data[table]['warning_number'] = getattr(project_obj, '{0}_warning_number'.format(table))
+            response_data[table]['error_number'] = 0
+            response_data[table]['warning_number'] = 0
         return Response(response_data)
 
     def get_count(self, view, project_pk):

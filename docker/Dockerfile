@@ -1,6 +1,6 @@
-FROM python:3.11-slim-buster as base
+FROM python:3.11-slim-buster AS base
 
-FROM base as builder
+FROM base AS builder
 
 RUN mkdir /install
 RUN apt-get update &&  \
@@ -12,15 +12,20 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
 FROM base
 
 # Prevents Python from writing pyc files to disc
-ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONDONTWRITEBYTECODE=1
 # Prevents Python from buffering stdout and stderr
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONUNBUFFERED=1
 
 COPY --from=builder /install /usr/local
 
 RUN apt-get update &&  \
     apt-get upgrade -y &&  \
-    apt-get install -y netcat
+    apt-get install -y netcat gettext wget
+
+RUN wget https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.deb \
+    && dpkg -i jdk-21_linux-x64_bin.deb \
+    && java --version \
+    && rm jdk-21_linux-x64_bin.deb
 
 WORKDIR /app
 RUN mkdir ./static && \

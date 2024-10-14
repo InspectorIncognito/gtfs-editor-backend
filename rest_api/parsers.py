@@ -1,7 +1,3 @@
-import operator
-from functools import reduce
-
-from django.contrib.postgres.search import SearchVector
 from django.db.models import Q
 from rest_framework import filters
 from rest_framework.pagination import PageNumberPagination
@@ -15,7 +11,7 @@ class ResultsSetPagination(PageNumberPagination):
 
     def paginate_queryset(self, queryset, request, view=None):
         if 'no_page' in request.query_params:
-             return None
+            return None
         return super().paginate_queryset(queryset, request, view)
 
     def get_paginated_response(self, data):
@@ -54,7 +50,12 @@ class MultiSearchFilter(filters.BaseFilterBackend):
         meta = getattr(view, 'Meta', {})
         search_fields = getattr(meta, 'search_fields', ['id'])
         lookup = request.query_params.get('search', '')
+
         if lookup != '':
-            search_vector = SearchVector(*search_fields)
-            queryset = queryset.annotate(search=search_vector).filter(search=lookup)
+            query = Q()
+            for field in search_fields:
+                query |= Q(**{f'{field}__icontains': lookup})
+
+            queryset = queryset.filter(query)
+
         return queryset

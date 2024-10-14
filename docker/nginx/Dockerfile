@@ -1,9 +1,10 @@
 # Use node 14.17.3 if RUN npm install have problems
-FROM node:14.17.3-alpine as build-stage
+FROM node:16.14.2-alpine3.15 AS build-stage
 WORKDIR /app
 RUN apk update && apk upgrade && \
     apk add --no-cache git
 
+RUN npm install -g npm@8.18.0
 
 RUN git clone https://github.com/InspectorIncognito/gtfs-editor-frontend.git && \
     cd gtfs-editor-frontend && git checkout dev && cd .. && \
@@ -14,10 +15,7 @@ RUN npm install
 RUN touch '.env.production' && \
   echo 'NODE_ENV=production' >> '.env.production' && \
   echo 'VUE_APP_MAPBOX_TOKEN=pk.eyJ1Ijoiam9yb21lcm8iLCJhIjoiY2toa2t2NnBjMDJkYTJzcXQyZThhZTNyNSJ9.Wx6qT7xWJ-hhKHyLMNbnAQ' >> '.env.production' && \
-  echo 'VUE_APP_BASE_URL=http://localhost:8000/backend' >> '.env.production' && \
-  echo 'VUE_APP_I18N_LOCALE=es' >> '.env.production' && \
-  echo 'VUE_APP_I18N_FALLBACK_LOCALE=en' >> '.env.production' && \
-  echo 'VUE_APP_I18N_SUPPORTED_LOCALE=en,es' >> '.env.production'
+  echo 'VUE_APP_BASE_URL=http://localhost:8000/backend' >> '.env.production'
 RUN npm run build
 
 FROM nginx:1.17 as prod

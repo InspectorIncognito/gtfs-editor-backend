@@ -1,11 +1,9 @@
-from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from rest_api import validators
 from rest_api.models import *
-
 
 
 class NestedModelSerializer(serializers.ModelSerializer):
@@ -257,7 +255,7 @@ class SimpleStopTimeSerializer(serializers.ModelSerializer):
                   'pickup_type',
                   'drop_off_type',
                   'continuous_pickup',
-                  'continuous_dropoff',
+                  'continuous_drop_off',
                   'shape_dist_traveled',
                   'timepoint']
         read_only = ['id']
@@ -356,7 +354,7 @@ class StopTimeSerializer(serializers.ModelSerializer):
                   'pickup_type',
                   'drop_off_type',
                   'continuous_pickup',
-                  'continuous_dropoff',
+                  'continuous_drop_off',
                   'shape_dist_traveled',
                   'timepoint']
         read_only = ['id', 'trip_id']
@@ -373,12 +371,16 @@ class FrequencySerializer(serializers.ModelSerializer):
 
 
 class ProjectSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(max_length=50, allow_blank=False, allow_null=False)
     feedinfo = FeedInfoSerializer(read_only=True)
     gtfs_validation = serializers.SerializerMethodField('get_gtfs_validation')
 
     def get_gtfs_validation(self, obj):
-        result = dict(error_number=obj.gtfs_validation_error_number, message=obj.gtfs_validation_message,
-                      warning_number=obj.gtfs_validation_warning_number, duration=obj.gtfs_validation_duration)
+        result = dict(error_number=obj.gtfs_validation_error_number,
+                      warning_number=obj.gtfs_validation_warning_number,
+                      info_number=obj.gtfs_validation_info_number,
+                      message=obj.gtfs_validation_message,
+                      duration=obj.gtfs_validation_duration)
         return result
 
     class Meta:

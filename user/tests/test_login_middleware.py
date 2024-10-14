@@ -36,8 +36,8 @@ class UserLoginMiddlewareTest(TestCase):
         response = middleware(request)
 
         self.assertIsInstance(request.app.user, AnonymousUser)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_invalid_session_token(self):
         get_response = mock.MagicMock()
@@ -50,5 +50,5 @@ class UserLoginMiddlewareTest(TestCase):
         response = middleware(request)
 
         self.assertIsInstance(request.app.user, AnonymousUser)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
-        self.assertEqual(response.data['detail'], 'Unauthorized Access.')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')

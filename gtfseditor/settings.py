@@ -50,7 +50,6 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    'gtfseditor',
     'rest_api',
     'user',
 ]
@@ -59,10 +58,10 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     'user.middleware.UserLoginMiddleware',
-    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -127,7 +126,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/3.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'en'
 
 LANGUAGES = [
     ('en', _('English')),
@@ -158,13 +157,11 @@ MEDIA_URL = '/media/'
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': (
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     'DEFAULT_FILTER_BACKENDS': (
         'rest_api.parsers.MultiSearchFilter',
         'rest_api.parsers.SortFilter',
     ),
-
     'DEFAULT_PAGINATION_CLASS': 'rest_api.parsers.ResultsSetPagination',
     'PAGE_SIZE': 50,
 }
@@ -247,7 +244,7 @@ if TESTING:
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000']
 CORS_ALLOW_HEADERS = ('content-disposition', 'accept-encoding',
-                      'content-type', 'accept', 'origin', 'authorization')
+                      'content-type', 'accept', 'origin', 'authorization', 'user-id', 'user-token')
 
 FILE_UPLOAD_HANDLERS = (
     'django.core.files.uploadhandler.TemporaryFileUploadHandler',
@@ -260,3 +257,5 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_PASSWORD')
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'

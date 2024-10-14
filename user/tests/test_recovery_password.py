@@ -1,12 +1,10 @@
 import uuid
+from datetime import timedelta
+from unittest.mock import patch, Mock
 
 from django.test import TestCase
 from django.urls import reverse
-
-from unittest.mock import patch, Mock
 from django.utils import timezone
-from datetime import timedelta
-
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -48,15 +46,12 @@ class TestRecoveryPassword(TestCase):
 
         response = self.client.put(self.url_mail, data, headers=self.custom_headers, format='json')
         self.user.refresh_from_db()
-        recovery_url = ('http://testserver/user/recover-password/?recoveryToken='
+        recovery_url = ('http://testserver/api/user/recover-password/?recoveryToken='
                         + str(self.user.password_recovery_token))
 
         self.assertEqual(status.HTTP_200_OK, response.status_code)
         # Assert that enqueue was called correctly with the expected arguments
-        mock_email_job.assert_called_once_with(
-            self.user.username,
-            recovery_url
-        )
+        mock_email_job.assert_called_once_with(self.user.username, recovery_url)
 
     def test_recovery_password_request_invalid_username(self):
         data = {'username': 'test '}
@@ -99,7 +94,8 @@ class TestRecoveryPassword(TestCase):
         self.assertEqual(response_post.data['detail'], 'Recovery link expired.')
 
     def test_recovery_password_link_invalid_token(self):
-        response_post = self.client.post(self.url_pw + '?recoveryToken=' + str(uuid.uuid4()), headers=self.custom_headers)
+        response_post = self.client.post(self.url_pw + '?recoveryToken=' + str(uuid.uuid4()),
+                                         headers=self.custom_headers)
 
         self.assertEqual(response_post.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertIn('detail', response_post.data)
@@ -119,4 +115,3 @@ class TestRecoveryPassword(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response.data)
         self.assertEqual(response.data['detail'][0], 'Invalid format for password.')
-

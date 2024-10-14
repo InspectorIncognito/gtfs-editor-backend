@@ -1,11 +1,11 @@
 import os
 
 from django.core.validators import MaxValueValidator, MinValueValidator
-
 from django.utils import timezone
 from shapely.geometry import MultiPoint
-from user.models import User
+
 from rest_api.managers import *
+from user.models import User
 
 
 def gtfs_update_to(instance, filename):
@@ -64,41 +64,10 @@ class Project(models.Model):
     gtfs_validation_message = models.TextField(default=None, null=True)
     gtfs_validation_error_number = models.IntegerField(default=None, null=True)
     gtfs_validation_warning_number = models.IntegerField(default=None, null=True)
+    gtfs_validation_info_number = models.IntegerField(default=None, null=True)
     gtfs_validation_duration = models.DurationField(default=None, null=True)
     building_and_validation_job_id = models.UUIDField(null=True)
     envelope = models.JSONField(default=get_empty_envelope)
-    # validation error message per table
-    agency_error_number = models.IntegerField(default=0)
-    stops_error_number = models.IntegerField(default=0)
-    routes_error_number = models.IntegerField(default=0)
-    trips_error_number = models.IntegerField(default=0)
-    stop_times_error_number = models.IntegerField(default=0)
-    calendar_error_number = models.IntegerField(default=0)
-    calendar_dates_error_number = models.IntegerField(default=0)
-    fare_attributes_error_number = models.IntegerField(default=0)
-    fare_rules_error_number = models.IntegerField(default=0)
-    shapes_error_number = models.IntegerField(default=0)
-    frequencies_error_number = models.IntegerField(default=0)
-    transfers_error_number = models.IntegerField(default=0)
-    pathways_error_number = models.IntegerField(default=0)
-    levels_error_number = models.IntegerField(default=0)
-    feed_info_error_number = models.IntegerField(default=0)
-    # validation warning message number per table
-    agency_warning_number = models.IntegerField(default=0)
-    stops_warning_number = models.IntegerField(default=0)
-    routes_warning_number = models.IntegerField(default=0)
-    trips_warning_number = models.IntegerField(default=0)
-    stop_times_warning_number = models.IntegerField(default=0)
-    calendar_warning_number = models.IntegerField(default=0)
-    calendar_dates_warning_number = models.IntegerField(default=0)
-    fare_attributes_warning_number = models.IntegerField(default=0)
-    fare_rules_warning_number = models.IntegerField(default=0)
-    shapes_warning_number = models.IntegerField(default=0)
-    frequencies_warning_number = models.IntegerField(default=0)
-    transfers_warning_number = models.IntegerField(default=0)
-    pathways_warning_number = models.IntegerField(default=0)
-    levels_warning_number = models.IntegerField(default=0)
-    feed_info_warning_number = models.IntegerField(default=0)
 
     def get_envelope(self):
         stop_points = list(Stop.objects.filter(project=self).values_list('stop_lon', 'stop_lat'))
@@ -382,7 +351,7 @@ class StopTime(models.Model):
     pickup_type = models.IntegerField(null=True, blank=True)
     drop_off_type = models.IntegerField(null=True, blank=True)
     continuous_pickup = models.IntegerField(null=True, blank=True)
-    continuous_dropoff = models.IntegerField(null=True, blank=True)
+    continuous_drop_off = models.IntegerField(null=True, blank=True)
     shape_dist_traveled = models.FloatField(null=True, blank=True)
     timepoint = models.IntegerField(null=True, blank=True)
 
