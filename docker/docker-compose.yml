@@ -1,5 +1,3 @@
-version: '3.7'
-
 services:
   web:
     build:
@@ -21,7 +19,6 @@ services:
       - nginx_network
       - database_network
       - cache_network
-
   worker:
     build:
       context: ..
@@ -38,7 +35,6 @@ services:
     networks:
       - database_network
       - cache_network
-
   nginx:
     build:
       context: ..
@@ -66,7 +62,6 @@ services:
     image: redis:latest
     networks:
       - cache_network
-
   db:
     image: postgres:16.1-alpine
     volumes:
@@ -76,7 +71,6 @@ services:
     networks:
       - cache_network
       - database_network
-
 networks:
   nginx_network:
     driver: bridge
