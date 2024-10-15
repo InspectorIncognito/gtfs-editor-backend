@@ -273,7 +273,7 @@ class Route(models.Model):
     route_id = models.CharField(max_length=50)
     route_short_name = models.CharField(max_length=50, null=True, blank=True)
     route_long_name = models.CharField(max_length=200, null=True, blank=True)
-    route_desc = models.CharField(max_length=50, null=True, blank=True)
+    route_desc = models.CharField(max_length=200, null=True, blank=True)
     route_type = models.IntegerField()
     route_url = models.URLField(null=True, blank=True)
     route_color = models.CharField(max_length=10, null=True, blank=True)
