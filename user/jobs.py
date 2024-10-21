@@ -15,8 +15,9 @@ def send_confirmation_email(username, verification_url, language_code):
     with translation.override(language_code):
         subject, to = _("Email Verification"), user.email
         text_content = ''
+        username = user.email.split('@')[0]
         html_content = render_to_string('confirmation_email.html',
-                                        context={'username': user.username,
+                                        context={'username': username,
                                                  'link_url': verification_url})
         msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
         msg.attach_alternative(html_content, "text/html")
@@ -28,8 +29,9 @@ def send_pw_recovery_email(username, recovery_url):
     user = User.objects.get(username=username)
     subject, to = _("Password Recovery"), user.email
     text_content = ''
+    username = user.email.split('@')[0]
     html_content = render_to_string('recover_password.html',
-                                    context={'username': user.username,
+                                    context={'username': username,
                                              'link_url': recovery_url})
     msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
     msg.attach_alternative(html_content, "text/html")
