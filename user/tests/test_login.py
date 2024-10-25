@@ -14,6 +14,8 @@ class LoginTest(TestCase):
         self.url = reverse('user-login')
 
     def test_user_login_success(self):
+        self.user.is_active = True
+        self.user.save()
         data = {
             'username': self.user.username,
             'password': self.password
