@@ -19,3 +19,6 @@ CORS_ALLOWED_ORIGINS=http://localhost:8080,http://localhost:9000
 
 EMAIL_USER=
 EMAIL_PASSWORD=
+
+# Frontend Variables
+RECOVER_PASSWORD_URL=/user/recover-password

@@ -259,3 +259,6 @@ EMAIL_HOST_USER = config('EMAIL_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_PASSWORD')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Frontend Variables
+RECOVER_PASSWORD_URL = config('RECOVER_PASSWORD_URL')

@@ -3,12 +3,14 @@ import uuid
 from datetime import timedelta
 
 from django.contrib import messages
+from django.contrib.auth.hashers import make_password
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework import status
 from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -53,6 +55,10 @@ class UserLoginView(APIView):
         serializer.is_valid(raise_exception=True)
 
         user = serializer.validated_data['user']
+
+        if not user.is_active:
+            return Response({'detail': 'User is not active'}, status=status.HTTP_400_BAD_REQUEST)
+
         user.session_token = uuid.uuid4()
         user.save()
 
@@ -98,33 +104,33 @@ class UserConfirmationEmailView(APIView):
                             status=status.HTTP_401_UNAUTHORIZED)
 
 
-class UserRecoverPasswordRequestView(UpdateAPIView):
-    permission_classes = [IsAuthenticated]
+class UserRecoverPasswordRequestView(APIView):
+    permission_classes = [AllowAny]
     serializer_class = UserRecoverPasswordRequestSerializer
     queryset = User.objects.all()
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer, instance)
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        if not username:
+            return Response({'detail': 'Username is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        if getattr(instance, '_prefetched_objects_cache', None):
-            # If 'prefetch_related' has been applied to a queryset, we need to
-            # forcibly invalidate the prefetch cache on the instance.
-            instance._prefetched_objects_cache = {}
+        user = get_object_or_404(User, username=username)
 
-        return Response(serializer.data)
+        serializer = self.serializer_class(data=request.data)
+        if serializer.is_valid():
+            self.perform_update(serializer, user)
+            return Response({'message': 'Password recovery initiated'}, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def perform_update(self, serializer, user):
         # Generate recovery_url
         recovery_token = uuid.uuid4()
-        serializer.validated_data['password_recovery_token'] = recovery_token
-        serializer.validated_data['recovery_timestamp'] = timezone.now()
-        serializer.save()
+        user.password_recovery_token = recovery_token
+        user.recovery_timestamp = timezone.now()
+        user.save()
 
-        recovery_url = self.request.build_absolute_uri(reverse('recover-password'))
+        recovery_url = self.request.build_absolute_uri(settings.RECOVER_PASSWORD_URL)
         recovery_url = recovery_url + '?recoveryToken=' + str(recovery_token)
 
         # Task queue and adding a job to the queue
@@ -133,14 +139,9 @@ class UserRecoverPasswordRequestView(UpdateAPIView):
         # Tracks this event
         logger.info(f'User with username: {user.username} started a password change process')
 
-    def get_object(self):
-        username = self.request.data.get('username')
-        user = get_object_or_404(self.get_queryset(), username=username)
-        return user
-
 
 class UserRecoverPasswordView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
     serializer_class = UserRecoverPasswordSerializer
 
     def post(self, request, *args, **kwargs):
@@ -159,6 +160,7 @@ class UserRecoverPasswordView(APIView):
                 user.password_recovery_token = None
                 user.recovery_timestamp = None
                 user.password = new_password
+                user.save()
 
                 return Response(status=status.HTTP_200_OK)
 

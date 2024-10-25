@@ -50,3 +50,17 @@ class LoginTest(TestCase):
         self.assertEqual(response_password_invalid.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response_password_invalid.data)
         self.assertEqual(response_password_invalid.data['detail'][0], 'Invalid username or password.')
+
+    def test_user_not_validated(self):
+        self.user.is_active = False
+        self.user.save()
+        data = {
+            'username': self.user.username,
+            'password': self.password
+        }
+
+        response = self.client.post(self.url, data, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('detail', response.data)
+        self.assertEqual(response.data['detail'], 'User is not active')
