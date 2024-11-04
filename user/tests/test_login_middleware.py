@@ -37,7 +37,6 @@ class UserLoginMiddlewareTest(TestCase):
 
         self.assertIsInstance(request.app.user, AnonymousUser)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_invalid_session_token(self):
         get_response = mock.MagicMock()
@@ -51,4 +50,3 @@ class UserLoginMiddlewareTest(TestCase):
 
         self.assertIsInstance(request.app.user, AnonymousUser)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')

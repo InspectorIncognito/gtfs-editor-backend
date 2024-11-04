@@ -59,6 +59,12 @@ class UserLoginView(APIView):
         if not user.is_active:
             return Response({'detail': 'User is not active'}, status=status.HTTP_400_BAD_REQUEST)
 
+        if user.session_token:
+            return Response(
+                {'detail': 'User is already logged in.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         user.session_token = uuid.uuid4()
         user.save()
 

@@ -34,6 +34,16 @@ class LogoutTest(TestCase):
     def test_user_logout_success(self):
         self.assertIsNotNone(self.user.session_token)
 
+        login_url = reverse('user-login')
+        test_user = UserFactory(password='xgm8vcv6CBN*wzk7acu', username='test3@email.com', email='test3@email.com')
+        test_user.is_active = True
+        test_user.save()
+        data = {
+            'username': test_user.username,
+            'password': 'xgm8vcv6CBN*wzk7acu'
+        }
+        self.client.post(login_url, data, format='json')
+
         response = self.client.post(self.url, dict(), headers=self.custom_headers, format='json')
         self.user.refresh_from_db()
 

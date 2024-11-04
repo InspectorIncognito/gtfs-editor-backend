@@ -20,15 +20,15 @@ class ConfirmationEmailTest(TestCase):
     @patch('user.views.send_confirmation_email.delay')
     def test_user_registration_enqueue_task(self, mock_email_job):
         data = {
-            'username': 'test',
-            'email': 'test@email.com',
+            'username': 'test@transapp.cl',
+            'email': 'test@transapp.cl',
             'password': 'DBM_uyh6ehj4njf.ehc',
             'name': 'testName',
             'last_name': 'testLastName'
         }
 
         response = self.client.post(self.url, data, format='json')
-        user = User.objects.get(username='test')
+        user = User.objects.get(username='test@transapp.cl')
 
         email_verification_url = reverse('user-confirmation-email')
         verification_url = 'http://testserver{}?verificationToken={}'.format(email_verification_url,
@@ -38,7 +38,8 @@ class ConfirmationEmailTest(TestCase):
         # Assert that enqueue was called correctly with the expected arguments
         mock_email_job.assert_called_once_with(
             user.username,
-            verification_url
+            verification_url,
+            None
         )
 
     @patch('user.views.User.objects.get')

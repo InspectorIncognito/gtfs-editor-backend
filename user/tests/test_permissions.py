@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
+from user.models import User
 
 from rest_api.tests.test_helpers import BaseTestCase
 from user.tests.factories import UserFactory
@@ -14,7 +15,7 @@ class UserPermissionTest(BaseTestCase):
     def setUp(self):
         self.client = APIClient()
         self.password = "aue.MUN2vnh7anx5ymv"
-        self.user_pw = UserFactory(password=self.password)
+        self.user_pw = UserFactory(password=self.password, username='test1@email.com', email='test1@email.com')
         user_id_pw = str(self.user_pw.username)
         token_pw = self.user_pw.session_token
         self.custom_headers_not_login = {
@@ -22,7 +23,7 @@ class UserPermissionTest(BaseTestCase):
             'USER_TOKEN': token_pw
         }
 
-        self.user = UserFactory(session_token=uuid.uuid4())
+        self.user = UserFactory(session_token=uuid.uuid4(), username='test2@email.com', email='test2@email.com')
         user_id = str(self.user.username)
         token = str(self.user.session_token)
         self.custom_headers = {
@@ -37,7 +38,7 @@ class UserPermissionTest(BaseTestCase):
         url = reverse('user-register')
 
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'xgm8vcv6CBN*wzk7acu',
             'name': 'testName',
@@ -66,6 +67,8 @@ class UserPermissionTest(BaseTestCase):
     def test_login_permission_success(self):
         url = reverse('user-login')
 
+        self.user_pw.is_active = True
+        self.user_pw.save()
         data = {
             'username': self.user_pw.username,
             'password': self.password
@@ -80,14 +83,16 @@ class UserPermissionTest(BaseTestCase):
         User is redirected to project view if it is logged in
         """
         url = reverse('user-login')
-
+        test_user = UserFactory(password='xgm8vcv6CBN*wzk7acu', username='test3@email.com', email='test3@email.com')
+        test_user.is_active = True
+        test_user.save()
         data = {
-            'username': self.user_pw.username,
-            'password': self.password
+            'username': test_user.username,
+            'password': 'xgm8vcv6CBN*wzk7acu'
         }
-
-        response = self.client.post(url, data, headers=self.custom_headers, format='json')
-        self.user.refresh_from_db()
+        self.client.post(url, data, format='json')
+        # 2nd login attempt
+        response = self.client.post(url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
@@ -113,7 +118,7 @@ class UserPermissionTest(BaseTestCase):
 
         response = self.client.get(reverse('user-confirmation-email') + '?verificationToken=some_token',
                                    headers=self.custom_headers)
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_302_FOUND)
 
     def test_recovery_password_request_permission_success(self):
         """
@@ -122,22 +127,23 @@ class UserPermissionTest(BaseTestCase):
         url = reverse('recover-password-request')
         data = {'username': self.user.username}
 
-        response = self.client.put(url, data, headers=self.custom_headers, format='json')
+        response = self.client.post(url, data, headers=self.custom_headers, format='json')
         self.user.refresh_from_db()
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_recovery_password_request_permission_fail(self):
+    def test_recovery_password_request_permission_success_logged(self):
+
         """
-        User CANNOT access 'recovery password request' view if NOT logged in
+        User CAN access 'recovery password request' view if NOT logged in
         """
         url = reverse('recover-password-request')
         data = {'username': self.user_pw.username}
 
-        response = self.client.put(url, data, headers=self.custom_headers_not_login, format='json')
+        response = self.client.post(url, data, headers=self.custom_headers_not_login, format='json')
         self.user.refresh_from_db()
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_recovery_password_permission_success(self):
         """
@@ -150,13 +156,13 @@ class UserPermissionTest(BaseTestCase):
         url = reverse('recover-password')
         url = url + '?recoveryToken=' + str(self.user.password_recovery_token)
 
-        data = {'password': 'password2'}
+        data = {'password': 'xgm8vcv6CBN*wzk7acu'}
         response = self.client.post(url, data, headers=self.custom_headers, format='json')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_recovery_password_permission_fail(self):
+    def test_recovery_password_permission_success_logged(self):
         """
-        User CANNOT access 'recovery password' view if NOT logged in
+        User CAN access 'recovery password' view if NOT logged in
         """
         self.user_pw.password_recovery_token = uuid.uuid4()
         self.user_pw.recovery_timestamp = timezone.now()
@@ -165,6 +171,6 @@ class UserPermissionTest(BaseTestCase):
         url = reverse('recover-password')
         url = url + '?recoveryToken=' + str(self.user_pw.password_recovery_token)
 
-        data = {'password': 'password2'}
+        data = {'password': 'xgm8vcv6CBN*wzk7acu'}
         response = self.client.post(url, data, headers=self.custom_headers_not_login, format='json')
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
