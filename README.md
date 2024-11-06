@@ -65,6 +65,8 @@ LOG_PATH=./file.log
 CORS_ALLOWED_ORIGINS=http://localhost:8080
 
 # mailgun user to send emails
+EMAIL_SENDER_USER=
+EMAIL_HOST=
 EMAIL_USER=
 EMAIL_PASSWORD=
 ```

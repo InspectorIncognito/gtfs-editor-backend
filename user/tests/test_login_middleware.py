@@ -14,7 +14,8 @@ class UserLoginMiddlewareTest(TestCase):
         self.user = UserFactory(session_token=self.token)
 
     def test_valid_user_and_valid_session_token(self):
-        get_response = mock.MagicMock()
+        def get_response(test_request):
+            return test_request
 
         request = HttpRequest()
         request.META['HTTP_USER_ID'] = str(self.user.username)
@@ -26,29 +27,27 @@ class UserLoginMiddlewareTest(TestCase):
         self.assertEqual(request.app.user, self.user)
 
     def test_invalid_user(self):
-        get_response = mock.MagicMock()
+        def get_response(test_request):
+            return test_request
 
         request = HttpRequest()
         request.META['HTTP_USER_ID'] = '999'  # non-existent user
         request.META['HTTP_USER_TOKEN'] = str(self.token)
 
         middleware = UserLoginMiddleware(get_response)
-        response = middleware(request)
+        middleware(request)
 
         self.assertIsInstance(request.app.user, AnonymousUser)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')
 
     def test_invalid_session_token(self):
-        get_response = mock.MagicMock()
+        def get_response(test_request):
+            return test_request
 
         request = HttpRequest()
         request.META['HTTP_USER_ID'] = str(self.user.username)
         request.META['HTTP_USER_TOKEN'] = 'invalid_token'
 
         middleware = UserLoginMiddleware(get_response)
-        response = middleware(request)
+        middleware(request)
 
         self.assertIsInstance(request.app.user, AnonymousUser)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')

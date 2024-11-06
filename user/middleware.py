@@ -1,3 +1,5 @@
+import uuid
+
 from django.urls import reverse
 
 from user.models import User
@@ -34,10 +36,10 @@ class UserLoginMiddleware:
         if user_id and user_token and request.path not in [reverse('user-login')]:
             try:
                 user = User.objects.get(username=user_id)
+                uuid.UUID(str(user_token))
                 if str(user.session_token) == user_token:
                     request.app.user = user
-            except User.DoesNotExist:
+            except (User.DoesNotExist, ValueError):
                 pass
-
         response = self.get_response(request)
         return response

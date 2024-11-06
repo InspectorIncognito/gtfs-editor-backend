@@ -55,13 +55,16 @@
         }
 
         .message span {
+            color: #179A2D;
+        }
+
+        .message b {
             color: #4E5F68;
         }
 
         .button-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: block;
+            text-align: center;
             padding-bottom: 20px;
         }
 
@@ -74,9 +77,7 @@
             padding: 16px 29px;
             width: 30%;
             border-radius: 30px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            display: inline-block;
             cursor: pointer;
         }
 
@@ -94,7 +95,7 @@
 <div>
     <div class="container">
         <div class="logo">
-            <img src="https://transapp-static.s3.us-east-2.amazonaws.com/logo-gtfs-editor.svg" alt="logo">
+            <img src="https://transappimg.s3.sa-east-1.amazonaws.com/logo-blanco-tansapp.png" alt="logo">
         </div>
         <div class="message-container">
             <div class="greeting">
@@ -103,8 +104,8 @@
             <div class="message">
                 {% blocktranslate %}
                 <p><b>Welcome to the <span>GTFS editor</span> of <span>TranSapp.</span></b></p>
-                <p>As a final step, we need to verify your <b>email address</b> to ensure everything is in order.</p>
-                <p>Please take a moment to click the button below and confirm your <b>email address:</b></p>
+                <p>As a final step, we need to verify your <b>email address</b> to ensure everything is in order.
+                Please take a moment to click the button below and confirm your <b>email address:</b></p>
                 {% endblocktranslate %}
             </div>
             <div class="button-container">

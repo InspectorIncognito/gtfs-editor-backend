@@ -33,7 +33,7 @@ class TestRecoveryPassword(TestCase):
         self.assertIsNone(self.user.password_recovery_token)
         self.assertIsNone(self.user.recovery_timestamp)
 
-        response = self.client.put(self.url_mail, data, headers=self.custom_headers, format='json')
+        response = self.client.post(self.url_mail, data, headers=self.custom_headers, format='json')
         self.user.refresh_from_db()
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -44,9 +44,9 @@ class TestRecoveryPassword(TestCase):
     def test_recovery_password_request_enqueue_task(self, mock_email_job):
         data = {'username': self.user.username}
 
-        response = self.client.put(self.url_mail, data, headers=self.custom_headers, format='json')
+        response = self.client.post(self.url_mail, data, headers=self.custom_headers, format='json')
         self.user.refresh_from_db()
-        recovery_url = ('http://testserver/api/user/recover-password/?recoveryToken='
+        recovery_url = ('http://testserver/user/recover-password?recoveryToken='
                         + str(self.user.password_recovery_token))
 
         self.assertEqual(status.HTTP_200_OK, response.status_code)
@@ -56,7 +56,7 @@ class TestRecoveryPassword(TestCase):
     def test_recovery_password_request_invalid_username(self):
         data = {'username': 'test '}
 
-        response = self.client.put(self.url_mail, data, headers=self.custom_headers, format='json')
+        response = self.client.post(self.url_mail, data, headers=self.custom_headers, format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     @patch('user.views.IsAuthenticated.has_permission')
@@ -67,7 +67,7 @@ class TestRecoveryPassword(TestCase):
         mock_get.return_value = user
         mock_has_permission.return_value = True
 
-        data = {'password': 'password2'}
+        data = {'password': 'xgm8vcv6CBN*wzk7acu'}
 
         response = self.client.post(self.url_pw + '?recoveryToken=some_token', data, format='json')
 
@@ -77,7 +77,7 @@ class TestRecoveryPassword(TestCase):
         # Assert that the fields were modified correctly
         self.assertIsNone(user.password_recovery_token)
         self.assertIsNone(user.recovery_timestamp)
-        self.assertEqual(user.password, 'password2')
+        self.assertEqual(user.password, 'xgm8vcv6CBN*wzk7acu')
 
     @patch('user.views.IsAuthenticated.has_permission')
     @patch('user.views.User.objects.get')
@@ -114,4 +114,4 @@ class TestRecoveryPassword(TestCase):
         response = self.client.post(self.url_pw + '?recoveryToken=some_token', data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response.data)
-        self.assertEqual(response.data['detail'][0], 'Invalid format for password.')
+        self.assertEqual(response.data['detail'][0].title(), 'Invalid Format For Password.')

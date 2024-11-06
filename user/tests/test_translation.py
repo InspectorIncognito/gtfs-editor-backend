@@ -12,13 +12,13 @@ class ConfirmationEmailTest(TestCase):
     def setUp(self):
         self.register_url = reverse('user-register')
         self.url_pw = reverse('recover-password-request')
-        self.user = UserFactory()
+        self.user = UserFactory(username='test1@email.com', email='test1@email.com')
 
     @patch('user.jobs.EmailMultiAlternatives.attach_alternative')
     @patch('user.jobs.EmailMultiAlternatives.send')
     def test_send_confirmation_email_with_accept_language_spanish_header(self, mock_send_mail, mock_mail):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'ZYW1abk9pmb!ufy5hqb',
             'name': 'testName',
@@ -39,7 +39,7 @@ class ConfirmationEmailTest(TestCase):
     @patch('user.jobs.EmailMultiAlternatives.send')
     def test_send_confirmation_email_with_accept_language_english_header(self, mock_send_mail, mock_mail):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'ZYW1abk9pmb!ufy5hqb',
             'name': 'testName',
@@ -65,7 +65,7 @@ class ConfirmationEmailTest(TestCase):
         mock_has_permission.return_value = True
 
         client = APIClient(HTTP_ACCEPT_LANGUAGE='es')
-        response = client.put(self.url_pw, data, format='json')
+        response = client.post(self.url_pw, data, format='json')
         self.assertEqual(200, response.status_code)
         self.user.refresh_from_db()
 
@@ -84,7 +84,7 @@ class ConfirmationEmailTest(TestCase):
         mock_has_permission.return_value = True
 
         client = APIClient(HTTP_ACCEPT_LANGUAGE='en')
-        response = client.put(self.url_pw, data, format='json')
+        response = client.post(self.url_pw, data, format='json')
         self.assertEqual(200, response.status_code)
         self.user.refresh_from_db()
 

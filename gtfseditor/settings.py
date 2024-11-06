@@ -253,9 +253,13 @@ FILE_UPLOAD_HANDLERS = (
 # Email Credentials Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = config('EMAIL_HOST')
+EMAIL_SENDER_USER = config('EMAIL_SENDER_USER')
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config('EMAIL_USER')
 EMAIL_HOST_PASSWORD = config('EMAIL_PASSWORD')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Frontend Variables
+RECOVER_PASSWORD_URL = config('RECOVER_PASSWORD_URL')

@@ -12,11 +12,11 @@ class RegisterTest(TestCase):
         self.client = APIClient()
         self.url = reverse('user-register')
         self.password = "password"
-        self.user = UserFactory(password=self.password)
+        self.user = UserFactory(password=self.password, username='test1@email.com', email='test1@email.com')
 
     def test_user_register_success(self):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'wnp3MQR@hvj8jmb6hfd',
             'name': 'testName',
@@ -27,7 +27,7 @@ class RegisterTest(TestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(User.objects.count(), 2)
 
-        user = User.objects.get(username='test')
+        user = User.objects.get(username='test@email.com')
         self.assertEqual(user.is_active, False)
 
         email_confirmation_token = str(user.email_confirmation_token)
@@ -54,7 +54,7 @@ class RegisterTest(TestCase):
     def test_user_registration_with_existing_username(self):
         data = {
             'username': self.user.username,
-            'email': 'test@email.com',
+            'email': self.user.username,
             'password': 'zka3YUN9fyd_dtz4zwf',
             'name': 'testName',
             'last_name': 'testLastName'
@@ -62,11 +62,11 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data['username'][0], 'user with this username already exists.')
+        self.assertEqual(response.data['detail'][0], 'This email is already registered.')
 
     def test_user_registration_with_existing_email(self):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': self.user.email,
             'password': 'xgm8vcv6CBN*wzk7acu',
             'name': 'testName',
@@ -76,11 +76,11 @@ class RegisterTest(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response.data)
-        self.assertEqual(response.data['detail'][0], 'This email is already registered.')
+        self.assertEqual(response.data['detail'][0].title(), 'This Email Is Already Registered.')
 
     def test_user_registration_with_min_length_password(self):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'test',
             'name': 'testName',
@@ -93,7 +93,7 @@ class RegisterTest(TestCase):
 
     def test_user_registration_with_invalid_username(self):
         data = {
-            'username': '12 -de',
+            'username': '12 }{}-de',
             'email': 'test@email.com',
             'password': 'testPassword',
             'name': 'testName',
@@ -102,12 +102,11 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('detail', response.data)
-        self.assertEqual(response.data['detail'][0], 'Invalid format for username.')
+        self.assertEqual(response.data['username'][0].title(), 'Enter A Valid Email Address.')
 
     def test_user_registration_with_invalid_email(self):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test.email.xl',
             'password': 'testPassword',
             'name': 'testName',
@@ -120,7 +119,7 @@ class RegisterTest(TestCase):
 
     def test_user_registration_with_invalid_password(self):
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'test Password',
             'name': 'testName',
@@ -129,32 +128,32 @@ class RegisterTest(TestCase):
         response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn('detail', response.data)
-        self.assertEqual(response.data['detail'][0], 'Invalid format for password.')
+        self.assertEqual(response.data['detail'][0].title(), 'Invalid Format For Password.')
 
     def test_user_registration_with_invalid_name(self):
+        #TODO: Check name validator, it should not allow numbers o special characters
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
-            'password': 'testPassword',
-            'name': 'testName234',
+            'password': 'xgm8vcv6CBN*wzk7acu',
+            'name': '1-',
             'last_name': 'testLastName'
         }
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('detail', response.data)
-        self.assertEqual(response.data['detail'][0], 'Invalid format for name.')
+        self.assertEqual(response.data['name'][0].title(), 'Ensure This Field Has At Least 3 Characters.')
 
     def test_user_registration_with_invalid_lastname(self):
+        #TODO: Check last_name validator, it should not allow numbers o special characters
         data = {
-            'username': 'test',
+            'username': 'test@email.com',
             'email': 'test@email.com',
             'password': 'zka3YUN9fyd_dtz4zwf',
             'name': 'testName',
-            'last_name': 'testLastName123'
+            'last_name': '-'
         }
         response = self.client.post(self.url, data, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn('detail', response.data)
-        self.assertEqual(response.data['detail'][0], 'Invalid format for last_name.')
+        self.assertEqual(response.data['last_name'][0], 'Ensure this field has at least 2 characters.')

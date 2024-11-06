@@ -14,8 +14,7 @@ RUN sed -i 's|git+ssh://git@github.com|https://github.com|g' package-lock.json
 RUN npm install
 RUN touch '.env.production' && \
   echo 'NODE_ENV=production' >> '.env.production' && \
-  echo 'VUE_APP_MAPBOX_TOKEN=pk.eyJ1Ijoiam9yb21lcm8iLCJhIjoiY2toa2t2NnBjMDJkYTJzcXQyZThhZTNyNSJ9.Wx6qT7xWJ-hhKHyLMNbnAQ' >> '.env.production' && \
-  echo 'VUE_APP_BASE_URL=/backend' >> '.env.production'
+  echo 'VUE_APP_MAPBOX_TOKEN=pk.eyJ1Ijoiam9yb21lcm8iLCJhIjoiY2toa2t2NnBjMDJkYTJzcXQyZThhZTNyNSJ9.Wx6qT7xWJ-hhKHyLMNbnAQ' >> '.env.production'
 RUN npm run build
 
 FROM nginx:1.17 as prod
