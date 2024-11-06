@@ -19,7 +19,7 @@ def send_confirmation_email(username, verification_url, language_code):
         html_content = render_to_string('confirmation_email.html',
                                         context={'username': username,
                                                  'link_url': verification_url})
-        msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
+        msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_SENDER_USER, [to])
         msg.attach_alternative(html_content, "text/html")
         msg.send()
 
@@ -33,6 +33,6 @@ def send_pw_recovery_email(username, recovery_url):
     html_content = render_to_string('recover_password.html',
                                     context={'username': username,
                                              'link_url': recovery_url})
-    msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_HOST_USER, [to])
+    msg = EmailMultiAlternatives(subject, text_content, settings.EMAIL_SENDER_USER, [to])
     msg.attach_alternative(html_content, "text/html")
     msg.send()
