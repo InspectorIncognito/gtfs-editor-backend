@@ -389,7 +389,7 @@ class ProjectAPITest(BaseTestCase):
             'name': name,
             'creation_status': Project.CREATION_STATUS_EMPTY
         }
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             json_response = self.projects_create(self.client, fields, custom_headers)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
@@ -408,7 +408,7 @@ class ProjectAPITest(BaseTestCase):
             'name': name,
             'creation_status': Project.CREATION_STATUS_LOADING_GTFS
         }
-        with self.assertNumQueries(4):
+        with self.assertNumQueries(3):
             json_response = self.projects_create(self.client, fields, custom_headers)
         self.assertEqual(Project.objects.count(), 3)
         self.assertDictEqual(json_response, ProjectSerializer(list(Project.objects.filter(name=name))[0]).data)
@@ -427,7 +427,7 @@ class ProjectAPITest(BaseTestCase):
 
     def test_patch(self):
         # One to get one to update
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):
             name = "New Name"
             update_data = {
                 "name": name

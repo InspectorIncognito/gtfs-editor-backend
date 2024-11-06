@@ -1,7 +1,6 @@
 import uuid
 
 from django.urls import reverse
-from rest_framework import status
 
 from user.models import User
 
@@ -32,7 +31,6 @@ class UserLoginMiddleware:
         # Code to be executed for each request before
         # the view (and later middleware) are called.
         request.app = AppRequest()
-        response = self.get_response(request)
         user_id, user_token = self.__get_user_params_from_header(request)
 
         if user_id and user_token and request.path not in [reverse('user-login')]:
@@ -42,6 +40,6 @@ class UserLoginMiddleware:
                 if str(user.session_token) == user_token:
                     request.app.user = user
             except (User.DoesNotExist, ValueError):
-                response.status_code = status.HTTP_403_FORBIDDEN
-
+                pass
+        response = self.get_response(request)
         return response
