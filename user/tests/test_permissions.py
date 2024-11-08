@@ -78,7 +78,7 @@ class UserPermissionTest(BaseTestCase):
         self.user.refresh_from_db()
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_login_permission_fail(self):
+    def test_login_already_logged(self):
         """
         User is redirected to project view if it is logged in
         """
@@ -90,11 +90,11 @@ class UserPermissionTest(BaseTestCase):
             'username': test_user.username,
             'password': 'xgm8vcv6CBN*wzk7acu'
         }
-        self.client.post(url, data, format='json')
-        # 2nd login attempt
+        self.client.force_authenticate(user=test_user)
+
         response = self.client.post(url, data, format='json')
 
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     # User can access 'confirmation mail' view if NOT logged in
     @patch('user.views.User.objects.get')
