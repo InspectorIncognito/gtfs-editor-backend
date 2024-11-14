@@ -70,6 +70,12 @@ EMAIL_HOST=
 EMAIL_USER=
 EMAIL_PASSWORD=
 ```
+### For production environment
+We need to create a .dd.env.production file with the following content:
+
+```
+DD_API_KEY=<your_datadog_api_key>
+```
 
 ## 3. Run tests in dev environment
 
