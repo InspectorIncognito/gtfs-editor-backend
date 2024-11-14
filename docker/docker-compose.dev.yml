@@ -4,6 +4,8 @@ services:
       - webserver-dev
     volumes:
       - ../:/app
+    ports:
+      - "8001:8000"
   nginx:
     build:
       context: ..

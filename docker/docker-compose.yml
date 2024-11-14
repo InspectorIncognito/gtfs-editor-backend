@@ -1,47 +1,70 @@
+x-logging:
+  &logging-defaults
+  driver: json-file
+  options:
+    max-size: 50m
 x-common: &common
   profiles:
     - default
     - prod
     - dev
+x-django-settings:
+  &django-settings
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  volumes:
+    - static_volume:/app/static
+    - media_volume:/app/media
+  env_file:
+    - ./docker_env
+    - ./dd_env
+  restart: on-failure
+  depends_on:
+    - db
+    - cache
+  logging: *logging-defaults
 services:
-  web:
-    <<: *common
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    command: webserver
-    ports:
-      - "8001:8000"
-    volumes:
-      - static_volume:/app/static
-      - media_volume:/app/media
+  datadog-agent:
+    image: datadog/agent:latest
+    shm_size: '2gb'
+    profiles:
+      - prod
+    environment:
+      - DD_APM_ENABLED=true
+      - DD_HOSTNAME=gtfs-editor-host
+      - DD_ENV=gtfs-editor
     env_file:
-      - ./docker_env
-      - ./docker_env
-    depends_on:
-      - db
-      - cache
+      - ../.dd.env.production
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     networks:
       - nginx_network
       - database_network
       - cache_network
+    restart: on-failure
+    logging: *logging-defaults
+  web:
+    <<: *common
+    <<: *django-settings
+    command: webserver
+    networks:
+      - nginx_network
+      - database_network
+      - cache_network
+    environment:
+      - DD_SERVICE=web
   worker:
     <<: *common
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    command: worker
-    volumes:
-      - static_volume:/app/static
-      - media_volume:/app/media
-    env_file:
-      - ./docker_env
-    depends_on:
-      - cache
-      - db
+    <<: *django-settings
     networks:
       - database_network
       - cache_network
+    command: worker
+    environment:
+      - DD_SERVICE=worker
   nginx:
     <<: *common
     build:
@@ -65,7 +88,6 @@ services:
       - web
     networks:
       - nginx_network
-
   cache:
     <<: *common
     image: redis:latest
