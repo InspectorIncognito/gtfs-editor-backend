@@ -30,9 +30,8 @@ case "$1" in
     echo "starting webserver"
     python manage.py migrate
     python manage.py collectstatic --no-input
-    python manage.py compilemessages
 
-    gunicorn --chdir gtfseditor --access-logfile - --bind :8000 gtfseditor.wsgi:application -t 1200
+    ddtrace-run gunicorn --chdir gtfseditor --access-logfile - --bind :8000 gtfseditor.wsgi:application -t 1200
   ;;
   webserver-dev)
     echo "starting webserver"
@@ -44,7 +43,6 @@ case "$1" in
   ;;
   worker)
     echo "starting worker"
-    python manage.py compilemessages
-    python manage.py rqworker default gtfseditor --worker-class rqworkers.gtfseditorWorker.GTFSEditorWorker
+    ddtrace-run python manage.py rqworker default gtfseditor --worker-class rqworkers.gtfseditorWorker.GTFSEditorWorker
   ;;
 esac
