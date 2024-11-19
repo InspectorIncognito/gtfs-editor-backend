@@ -107,7 +107,7 @@ def validate_gtfs(project_obj):
         if not project_obj.gtfs_file:
             raise ValueError('GTFS file does not exist')
 
-        arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-5.0.1-cli.jar'),
+        arguments = ['java', '-jar', os.path.join('gtfsvalidators', 'gtfs-validator-6.0.0-cli.jar'),
                      '-i', project_obj.gtfs_file.path,
                      '-o', os.path.join('tmp', str(project_obj.pk))]
         # call gtfs validator
