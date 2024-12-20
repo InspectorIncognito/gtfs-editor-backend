@@ -28,13 +28,22 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         read_only = ['id']
 
     def validate(self, data):
-        validate_field(_('Password'), data['password'], r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
+        password = data.get('password')
+        email = data.get('email')
+        username = data.get('username')
 
-        if User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({'detail': _('This email is already registered.')})
+        if not password:
+            raise serializers.ValidationError({'detail': _('Password is required.')})
+        if not email:
+            raise serializers.ValidationError({'detail': _('Email is required.')})
+        if not username:
+            raise serializers.ValidationError({'detail': _('Username is required.')})
+        validate_field(_('Password'), password, r'^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$')
 
-        if User.objects.filter(email=data['username']).exists():
+        if User.objects.filter(email=email).exists():
             raise serializers.ValidationError({'detail': _('This email is already registered.')})
+        if User.objects.filter(username=username).exists():
+            raise serializers.ValidationError({'detail': _('This username is already registered.')})
         return data
 
     def create(self, validated_data):
@@ -52,19 +61,17 @@ class UserLoginSerializer(serializers.Serializer):
         username = data.get('username')
         password = data.get('password')
 
-        if username and password:
-            try:
-                user = User.objects.get(username=username)
-            except ObjectDoesNotExist:
-                user = None
-
-            if user and user.authenticate(password=password):
-                data['user'] = user
-            else:
-                raise serializers.ValidationError({'detail': _('Invalid username or password.')})
-        else:
+        if not all([username, password]):
             raise serializers.ValidationError({'detail': _('Both username and password are required.')})
 
+        try:
+            user = User.objects.get(username=username)
+            if not user.authenticate(password):
+                raise serializers.ValidationError({'detail': _('Invalid username or password.')})
+        except ObjectDoesNotExist:
+            user = None
+
+        data['user'] = user
         return data
 
 

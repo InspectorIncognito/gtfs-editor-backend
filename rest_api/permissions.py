@@ -1,17 +1,13 @@
-from rest_framework.permissions import BasePermission
-from user.models import User
-
+from user.permissions import IsAuthenticated
 """
 Classes extending BasePermission that allow access to certain views depending on user authentication.
 """
 
 
-class IsAuthenticatedProject(BasePermission):
-    def has_permission(self, request, view):
-        return isinstance(request.app.user, User)
+class IsAuthenticatedProject(IsAuthenticated):
 
     def has_object_permission(self, request, view, obj):
-        return isinstance(request.app.user, User) and request.app.user == obj.user
+        return request.app.user == obj.user
 
 
 class IsAuthenticatedViews(IsAuthenticatedProject):

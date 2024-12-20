@@ -1,8 +1,8 @@
-import uuid
-
 from django.urls import reverse
-
 from user.models import User
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AnonymousUser(object):
@@ -18,9 +18,11 @@ class AppRequest(object):
 class UserLoginMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        self.login_url = reverse('user-login')
         # One-time configuration and initialization.
 
-    def __get_user_params_from_header(self, request):
+    @staticmethod
+    def __get_user_params_from_header(request):
         # this method should be used when the change has been made in the app.
         user_id = request.META.get('HTTP_USER_ID')
         user_token = request.META.get('HTTP_USER_TOKEN')
@@ -33,13 +35,15 @@ class UserLoginMiddleware:
         request.app = AppRequest()
         user_id, user_token = self.__get_user_params_from_header(request)
 
-        if user_id and user_token and request.path not in [reverse('user-login')]:
-            try:
-                user = User.objects.get(username=user_id)
-                uuid.UUID(str(user_token))
-                if str(user.session_token) == user_token:
-                    request.app.user = user
-            except (User.DoesNotExist, ValueError):
-                pass
-        response = self.get_response(request)
-        return response
+        if not user_id or not user_token or request.path == self.login_url:
+            return self.get_response(request)
+
+        try:
+            user = User.objects.filter(username=user_id, session_token=user_token).first()
+            if user:
+                request.app.user = user
+
+        except Exception as e:
+            logger.error(f'User authentication error: {e}')
+
+        return self.get_response(request)

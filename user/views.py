@@ -3,13 +3,12 @@ import uuid
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth.hashers import make_password
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework import status
-from rest_framework.generics import CreateAPIView, UpdateAPIView, get_object_or_404
+from rest_framework.generics import CreateAPIView, get_object_or_404
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
