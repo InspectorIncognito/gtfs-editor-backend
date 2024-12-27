@@ -264,8 +264,7 @@ class CSVUploadMixin:
 
 # This class bundles up the CSVUploadMixin and CSVDownloadMixin,
 # adding a few methods that are common to many models
-class CSVHandlerMixin(CSVUploadMixin,
-                      CSVDownloadMixin):
+class CSVHandlerMixin(CSVUploadMixin, CSVDownloadMixin):
 
     def get_queryset(self):
         return self.get_qs(self.kwargs)
@@ -927,8 +926,7 @@ class TripViewSet(CSVHandlerMixin,
             .prefetch_related(Prefetch('stop_times', queryset=StopTime.objects.order_by('stop_sequence')))
 
 
-class StopTimeViewSet(CSVHandlerMixin,
-                      MyModelViewSet):
+class StopTimeViewSet(CSVHandlerMixin, MyModelViewSet):
     permission_classes = [IsAuthenticatedStopTimesAndFrequency]
     serializer_class = StopTimeSerializer
     CHUNK_SIZE = 100000
@@ -976,16 +974,21 @@ class StopTimeViewSet(CSVHandlerMixin,
         trip_ids = set(map(lambda entry: entry['trip_id'], chunk))
         stop_ids = set(map(lambda entry: entry['stop_id'], chunk))
         trip_id_map = dict()
+        stop_id_map = dict()
+
         for row in Trip.objects.filter_by_project(project_pk).filter(trip_id__in=trip_ids).values_list('trip_id', 'id'):
             trip_id_map[row[0]] = row[1]
-        stop_id_map = dict()
         for row in Stop.objects.filter_by_project(project_pk).filter(stop_id__in=stop_ids).values_list('stop_id', 'id'):
             stop_id_map[row[0]] = row[1]
+
         sts = list()
         for row in chunk:
-            row['trip_id'] = trip_id_map[row['trip_id']]
-            row['stop_id'] = stop_id_map[row['stop_id']]
-            sts.append(StopTime(**row))
+            try:
+                row['trip_id'] = trip_id_map[row['trip_id']]
+                row['stop_id'] = stop_id_map[row['stop_id']]
+                sts.append(StopTime(**row))
+            except KeyError:
+                continue
         t1 = time.time()
         StopTime.objects.bulk_create(sts, batch_size=1000)
         t2 = time.time()
@@ -1013,9 +1016,13 @@ class StopTimeViewSet(CSVHandlerMixin,
             chunk = list()
 
             for entry in reader:
-                for k in entry:
-                    if entry[k] == '':
+                for k in self.Meta.csv_header:
+                    try:
+                        if entry[k] == '':
+                            entry[k] = None
+                    except KeyError:
                         entry[k] = None
+
                 chunk.append(entry)
                 if len(chunk) >= self.CHUNK_SIZE:
                     log("Chunk Number", chunk_num)

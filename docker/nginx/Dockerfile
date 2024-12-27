@@ -17,7 +17,7 @@ RUN touch '.env.production' && \
   echo 'VUE_APP_MAPBOX_TOKEN=pk.eyJ1Ijoiam9yb21lcm8iLCJhIjoiY2toa2t2NnBjMDJkYTJzcXQyZThhZTNyNSJ9.Wx6qT7xWJ-hhKHyLMNbnAQ' >> '.env.production'
 RUN npm run build
 
-FROM nginx:1.17 as prod
+FROM nginx:1.17 AS prod
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY ./docker/nginx/config/local.conf /etc/nginx/conf.d/local.conf
@@ -28,7 +28,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 
 ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
 
-FROM nginx:1.17 as dev
+FROM nginx:1.17 AS dev
 
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 COPY ./docker/nginx/config/dev.conf /etc/nginx/conf.d/local.conf
@@ -39,7 +39,7 @@ RUN rm /etc/nginx/conf.d/default.conf
 
 ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
 
-FROM nginx:1.17 as certbot
+FROM nginx:1.17 AS certbot
 
 COPY ./docker/nginx/config/certbot.conf /etc/nginx/conf.d/local.conf
 COPY ./docker/nginx/nginx_entrypoint.sh ./entrypoint.sh
