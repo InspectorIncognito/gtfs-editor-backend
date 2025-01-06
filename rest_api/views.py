@@ -982,13 +982,29 @@ class StopTimeViewSet(CSVHandlerMixin, MyModelViewSet):
             stop_id_map[row[0]] = row[1]
 
         sts = list()
+        trip_id_set = set()
+        stop_id_set = set()
         for row in chunk:
+            trip_id = row['trip_id']
+            stop_id = row['stop_id']
             try:
-                row['trip_id'] = trip_id_map[row['trip_id']]
-                row['stop_id'] = stop_id_map[row['stop_id']]
-                sts.append(StopTime(**row))
+                row['trip_id'] = trip_id_map[trip_id]
             except KeyError:
+                trip_id_set.add(trip_id)
+            try:
+                row['stop_id'] = stop_id_map[stop_id]
+            except KeyError:
+                stop_id_set.add(stop_id)
                 continue
+            sts.append(StopTime(**row))
+        if not trip_id_set or not stop_id_set:
+            detail = dict(
+                detail="Foreign keys trip_id or stop_id missing",
+                trip_keys=list(trip_id_set),
+                stop_keys=list(stop_id_set),
+            )
+            raise Exception(detail)
+
         t1 = time.time()
         StopTime.objects.bulk_create(sts, batch_size=1000)
         t2 = time.time()
@@ -1016,12 +1032,15 @@ class StopTimeViewSet(CSVHandlerMixin, MyModelViewSet):
             chunk = list()
 
             for entry in reader:
+                missing_keys = set()
                 for k in self.Meta.csv_header:
                     try:
                         if entry[k] == '':
                             entry[k] = None
                     except KeyError:
-                        entry[k] = None
+                        missing_keys.add(k)
+                if missing_keys:
+                    raise Exception(dict(detail="stop_times.txt is missing some header columns", cols=list(missing_keys)))
 
                 chunk.append(entry)
                 if len(chunk) >= self.CHUNK_SIZE:
