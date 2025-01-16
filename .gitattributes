@@ -1,0 +1,2 @@
+# Entrypoint scripts for the Docker
+*.sh text eol=lf
