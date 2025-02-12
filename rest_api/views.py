@@ -18,7 +18,8 @@ from rest_api.permissions import (IsAuthenticatedViews, IsAuthenticatedProject,
                                   IsAuthenticatedShapePoint, IsAuthenticatedRoute)
 from rest_api.renderers import BinaryRenderer
 from rest_api.serializers import *
-from rest_api.utils import log, create_foreign_key_hashmap
+from rest_api.services.process import process_model_rows, create_and_update_chunk
+from rest_api.utils import log, create_foreign_key_hashmap, normalize_time
 from rqworkers.jobs import build_and_validate_gtfs_file, upload_gtfs_file_when_project_is_created
 from rqworkers.utils import delete_job
 
@@ -118,30 +119,16 @@ class CSVUploadMixin:
         params = getattr(meta, 'csv_fields', meta.csv_header)
         model = meta.model
         rename_fields = getattr(meta, 'rename_fields', dict())
-        # For each foreign key we create a hashmap that maps the GTFS IDs into django model IDs
-        for fk in foreign_key_mappings:
-            foreign_key_maps[fk['csv_key']] = create_foreign_key_hashmap(chunk,
-                                                                         fk['model'],
-                                                                         project_pk,
-                                                                         fk['csv_key'],
-                                                                         fk['model_key'])
-            if 'internal_key' not in fk:
-                fk['internal_key'] = fk['model_key']
+
+        rows_with_foreign_key = list()
+        rows_without_foreign_key = list()
+
+        # Splitting chunk (with and without foreign keys)
         for row in chunk:
             # if column is not present in csv_header is deleted
             for attr in row.copy():
                 if attr not in self.Meta.csv_header:
                     del row[attr]
-            # First we replace the foreign keys
-            for fk in foreign_key_mappings:
-                k = fk['csv_key']
-                id_map = foreign_key_maps[k]
-                if k not in row:
-                    continue
-                val = id_map[row[k]]
-                if fk['csv_key'] != fk['internal_key']:
-                    del row[k]
-                row[fk['internal_key']] = val
             # Then we do all processing required on the data (like date formatting)
             for k in preprocess_funcs:
                 if k in row and row[k] is not None:
@@ -155,40 +142,43 @@ class CSVUploadMixin:
             if include_project_id:
                 row['project_id'] = project_pk
 
-        to_create = list()
-        to_update = list()
-        # if using internal IDs we have to choose whether we create or update each row
-        if use_internal_id:
-            # using the name of the GTFS ID we create a map for the model itself, to be used in the update
-            internal_id = model.objects.get_internal_id_name()
-            id_map = create_foreign_key_hashmap(chunk, model, project_pk, internal_id, internal_id)
+            added = False
+            for fk in foreign_key_mappings:
+                fk_csv_key = fk['csv_key']
+                if fk_csv_key in row and row[fk_csv_key] is not None:
+                    rows_with_foreign_key.append(row)
+                    added = True
+                    break
+            if not added:
+                rows_without_foreign_key.append(row)
 
-            for row in chunk:
-                # We store the internal ID so we don't delete the entries afterwards
-                id_set.add(row[internal_id])
-                if row[internal_id] in id_map:
-                    row['id'] = id_map[row[internal_id]]
-                # Create a model but don't save it! we don't want to perform one SQL operation per entry
-                obj = model(**row)
-                # if the row already existed we prepare it for updating
-                if row[internal_id] in id_map:
-                    to_update.append(obj)
-                # otherwise we prepare it for creation
-                else:
-                    to_create.append(obj)
-        # If not using internal IDs we just create every row
-        else:
-            for row in chunk:
-                to_create.append(model(**row))
-        # Then we simply create the new objects and update the existing ones
-        t1 = time.time()
-        model.objects.bulk_create(to_create, batch_size=1000)
-        t2 = time.time()
-        log("Time to create:", t2 - t1)
-        if use_internal_id:
-            model.objects.bulk_update(to_update, params, batch_size=1000)
-            t3 = time.time()
-            log("Time to update:", t3 - t2)
+        to_create, to_update = process_model_rows(rows_without_foreign_key, id_set, model, use_internal_id, project_pk)
+        create_and_update_chunk(to_create, to_update, params, model, use_internal_id)
+
+        # Handling rows with foreign keys
+        for fk in foreign_key_mappings:
+            foreign_key_maps[fk['csv_key']] = create_foreign_key_hashmap(rows_with_foreign_key,
+                                                                         fk['model'],
+                                                                         project_pk,
+                                                                         fk['csv_key'],
+                                                                         fk['model_key'])
+            if 'internal_key' not in fk:
+                fk['internal_key'] = fk['model_key']
+
+        for row in rows_with_foreign_key:
+            for fk in foreign_key_mappings:
+                k = fk['csv_key']
+                id_map = foreign_key_maps[k]
+                if k not in row:
+                    continue
+                val = id_map[row[k]]
+                if fk['csv_key'] != fk['internal_key']:
+                    del row[k]
+                row[fk['internal_key']] = val
+
+        to_create_fk, to_update_fk = process_model_rows(rows_with_foreign_key, id_set, model, use_internal_id,
+                                                        project_pk)
+        create_and_update_chunk(to_create_fk, to_update_fk, params, model, use_internal_id)
 
     @action(methods=['put'], detail=False, parser_classes=(MultiPartParser, FileUploadParser))
     @transaction.atomic()
@@ -628,7 +618,7 @@ class StopViewSet(CSVHandlerMixin,
                 'csv_key': 'parent_station',
                 'model': Stop,
                 'model_key': 'stop_id',
-                'internal_key': 'parent_station'
+                'internal_key': 'parent_station_id'
             },
             {
                 'csv_key': 'level_id',
@@ -662,10 +652,14 @@ class PathwayViewSet(CSVHandlerMixin,
     class Meta(ConvertValuesMeta):
         csv_filename = 'pathways'
         csv_header = ['pathway_id',
-                      'from_stop',
-                      'to_stop',
+                      'from_stop_id',
+                      'to_stop_id',
                       'pathway_mode',
                       'is_bidirectional']
+        csv_fields = [
+            'from_stop',
+            'to_stop',
+        ]
         model = Pathway
         filter_params = ['pathway_id']
         csv_field_mappings = {'from_stop': 'from_stop__stop_id',
@@ -674,13 +668,13 @@ class PathwayViewSet(CSVHandlerMixin,
         include_project_id = False
         foreign_key_mappings = [
             {
-                'csv_key': 'from_stop',
+                'csv_key': 'from_stop_id',
                 'model': Stop,
                 'model_key': 'stop_id',
                 'internal_key': 'from_stop_id'
             },
             {
-                'csv_key': 'to_stop',
+                'csv_key': 'to_stop_id',
                 'model': Stop,
                 'model_key': 'stop_id',
                 'internal_key': 'to_stop_id'
@@ -982,29 +976,12 @@ class StopTimeViewSet(CSVHandlerMixin, MyModelViewSet):
             stop_id_map[row[0]] = row[1]
 
         sts = list()
-        trip_id_set = set()
-        stop_id_set = set()
         for row in chunk:
             trip_id = row['trip_id']
             stop_id = row['stop_id']
-            try:
-                row['trip_id'] = trip_id_map[trip_id]
-            except KeyError:
-                trip_id_set.add(trip_id)
-            try:
-                row['stop_id'] = stop_id_map[stop_id]
-            except KeyError:
-                stop_id_set.add(stop_id)
-                continue
+            row['trip_id'] = trip_id_map[trip_id]
+            row['stop_id'] = stop_id_map[stop_id]
             sts.append(StopTime(**row))
-        if not trip_id_set or not stop_id_set:
-            detail = dict(
-                detail="Foreign keys trip_id or stop_id missing",
-                trip_keys=list(trip_id_set),
-                stop_keys=list(stop_id_set),
-            )
-            raise Exception(detail)
-
         t1 = time.time()
         StopTime.objects.bulk_create(sts, batch_size=1000)
         t2 = time.time()
@@ -1032,16 +1009,10 @@ class StopTimeViewSet(CSVHandlerMixin, MyModelViewSet):
             chunk = list()
 
             for entry in reader:
-                missing_keys = set()
                 for k in self.Meta.csv_header:
-                    try:
-                        if entry[k] == '':
-                            entry[k] = None
-                    except KeyError:
-                        missing_keys.add(k)
-                if missing_keys:
-                    raise Exception(dict(detail="stop_times.txt is missing some header columns", cols=list(missing_keys)))
-
+                    val = entry.get(k, None)
+                    if val == '':
+                        entry[k] = None
                 chunk.append(entry)
                 if len(chunk) >= self.CHUNK_SIZE:
                     log("Chunk Number", chunk_num)
@@ -1077,6 +1048,9 @@ class FrequencyViewSet(CSVHandlerMixin,
         filter_params = ['trip',
                          'start_time']
         csv_field_mappings = {'trip': 'trip__trip_id'}
+        upload_preprocess = {
+            'end_time': lambda time_value: normalize_time(time_value),
+        }
         foreign_key_mappings = [
             {
                 'csv_key': 'trip_id',

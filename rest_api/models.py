@@ -70,8 +70,12 @@ class Project(models.Model):
     envelope = models.JSONField(default=get_empty_envelope)
 
     def get_envelope(self):
-        stop_points = list(Stop.objects.filter(project=self).values_list('stop_lon', 'stop_lat'))
-        shape_points = list(ShapePoint.objects.filter(shape__project=self).values_list('shape_pt_lon', 'shape_pt_lat'))
+        stop_points = list(
+            Stop.objects.filter(project=self, stop_lon__isnull=False, stop_lat__isnull=False).values_list('stop_lon',
+                                                                                                          'stop_lat'))
+        shape_points = list(ShapePoint.objects.filter(shape__project=self, shape_pt_lon__isnull=False,
+                                                      shape_pt_lat__isnull=False).values_list('shape_pt_lon',
+                                                                                              'shape_pt_lat'))
         envelope_obj = MultiPoint(stop_points + shape_points).envelope
 
         try:
@@ -165,9 +169,9 @@ class Stop(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     stop_id = models.CharField(max_length=50)
     stop_code = models.CharField(max_length=50, null=True, blank=True)
-    stop_name = models.CharField(max_length=200)
-    stop_lat = models.FloatField()
-    stop_lon = models.FloatField()
+    stop_name = models.CharField(max_length=200, blank=True, null=True)
+    stop_lat = models.FloatField(null=True, blank=True, default=None)
+    stop_lon = models.FloatField(null=True, blank=True, default=None)
     stop_url = models.URLField(null=True, blank=True)
     stop_desc = models.CharField(max_length=200, null=True, blank=True)
     zone_id = models.CharField(max_length=50, null=True, blank=True)
@@ -244,9 +248,6 @@ class Transfer(models.Model):
 
     def __str__(self):
         return "Transfer {0}--{1}".format(str(self.from_stop), str(self.to_stop))
-
-    class Meta:
-        unique_together = ['from_stop', 'to_stop']
 
 
 class Agency(models.Model):

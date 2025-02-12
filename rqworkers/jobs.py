@@ -49,10 +49,11 @@ def upload_gtfs_file(project_pk, zip_file):
             try:
                 with transaction.atomic():
                     # file order matters
-                    for uploader_filename in ['agency.txt', 'stops.txt', 'routes.txt', 'shapes.txt', 'trips.txt',
-                                              'stop_times.txt', 'calendar.txt', 'calendar_dates.txt', 'fare_rules.txt',
-                                              'fare_attributes.txt', 'frequencies.txt', 'transfers.txt', 'pathways.txt',
-                                              'levels.txt', 'feed_info.txt']:
+                    for uploader_filename in [
+                        "agency.txt", "calendar.txt", "routes.txt", "shapes.txt", "trips.txt", "frequencies.txt",
+                        "calendar_dates.txt", "levels.txt", "stops.txt", "stop_times.txt", "transfers.txt",
+                        "pathways.txt", "fare_attributes.txt", "fare_rules.txt"
+                    ]:
                         uploader = uploaders[uploader_filename]
                         try:
                             with zip_file_obj.open(uploader_filename, 'r') as file_obj:
