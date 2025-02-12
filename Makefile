@@ -1,17 +1,22 @@
+DOCKER_COMPOSE_DEV = docker compose -p gtfseditor-backend-dev
+DOCKER_COMPOSE_PROD = docker compose -p gtfseditor-backend-prod
+
 # Windows
 ifeq ($(OS),Window_NT)
-	DOCKER_COMPOSE = docker compose -p gtfseditor-backend-dev
+	COMPOSE_DEV = $(DOCKER_COMPOSE_DEV) -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile dev
+	COMPOSE_PROD = $(DOCKER_COMPOSE_PROD) -f docker\docker-compose.yml --profile prod
+	COMPOSE_TEST = $(DOCKER_COMPOSE_DEV) -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile test
+	COMPOSE_CERT = $(DOCKER_COMPOSE_PROD) -f docker\docker-compose.yml -f docker\docker-compose.certbot.yml --profile certbot
 # Linux
 else
-	DOCKER_COMPOSE = docker compose -p gtfseditor-backend-dev
+	COMPOSE_DEV = $(DOCKER_COMPOSE_DEV) -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --profile dev
+	COMPOSE_PROD = $(DOCKER_COMPOSE_PROD) -f docker/docker-compose.yml --profile prod
+	COMPOSE_TEST = $(DOCKER_COMPOSE_DEV) -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --profile test
+	COMPOSE_CERT = $(DOCKER_COMPOSE_PROD) -f docker/docker-compose.yml -f docker/docker-compose.certbot.yml --profile certbot
 endif
 
-COMPOSE_PROD = $(DOCKER_COMPOSE) -f docker\docker-compose.yml --profile prod
-COMPOSE_DEV = $(DOCKER_COMPOSE) -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile dev
-COMPOSE_TEST = $(DOCKER_COMPOSE) -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile test
 MANAGE = python manage.py
 PIP = pip install -r requirements-prod.txt
-
 
 test:
 	$(COMPOSE_TEST) build
