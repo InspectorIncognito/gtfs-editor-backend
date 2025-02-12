@@ -339,7 +339,8 @@ class ProjectViewSet(MyModelViewSet):
 
         project_obj.creation_status = Project.CREATION_STATUS_LOADING_GTFS
         project_obj.save()
-        upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
+        #upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
+        upload_gtfs_file_when_project_is_created(project_obj.pk, gtfs_content)
         return Response(ProjectSerializer(project_obj).data, status.HTTP_200_OK)
 
     @action(detail=True, methods=['POST'])
@@ -970,10 +971,21 @@ class StopTimeViewSet(CSVHandlerMixin, MyModelViewSet):
         trip_id_map = dict()
         stop_id_map = dict()
 
+        existing_trip_ids = set()
+        existing_stop_ids = set()
+
         for row in Trip.objects.filter_by_project(project_pk).filter(trip_id__in=trip_ids).values_list('trip_id', 'id'):
             trip_id_map[row[0]] = row[1]
+            existing_trip_ids.add(row[0])
         for row in Stop.objects.filter_by_project(project_pk).filter(stop_id__in=stop_ids).values_list('stop_id', 'id'):
             stop_id_map[row[0]] = row[1]
+            existing_stop_ids.add(row[0])
+
+        missing_trip_ids = list(trip_ids - existing_trip_ids)
+        missing_stop_ids = list(stop_ids - existing_stop_ids)
+
+        if missing_trip_ids or missing_stop_ids:
+            raise ValueError(f'Missing trip_id: {missing_trip_ids}. Missing stop_id: {missing_stop_ids}')
 
         sts = list()
         for row in chunk:
