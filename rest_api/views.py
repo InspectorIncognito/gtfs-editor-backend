@@ -339,8 +339,7 @@ class ProjectViewSet(MyModelViewSet):
 
         project_obj.creation_status = Project.CREATION_STATUS_LOADING_GTFS
         project_obj.save()
-        #upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
-        upload_gtfs_file_when_project_is_created(project_obj.pk, gtfs_content)
+        upload_gtfs_file_when_project_is_created.delay(project_obj.pk, gtfs_content)
         return Response(ProjectSerializer(project_obj).data, status.HTTP_200_OK)
 
     @action(detail=True, methods=['POST'])
