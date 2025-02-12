@@ -88,12 +88,20 @@ services:
     networks:
       - nginx_network
   cache:
-    <<: *common
+    profiles:
+      - default
+      - prod
+      - dev
+      - test
     image: redis:latest
     networks:
       - cache_network
   db:
-    <<: *common
+    profiles:
+      - default
+      - prod
+      - dev
+      - test
     image: postgres:16.1-alpine
     volumes:
       - postgres_gtfseditor_data_v16:/var/lib/postgresql/data/
@@ -102,6 +110,23 @@ services:
     networks:
       - cache_network
       - database_network
+  test:
+    <<: *django-settings
+    command: test
+    profiles:
+      - test
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    env_file:
+      - ./docker_env
+    depends_on:
+      - db
+      - cache
+    networks:
+      - database_network
+      - cache_network
+
 networks:
   nginx_network:
     driver: bridge

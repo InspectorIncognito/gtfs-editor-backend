@@ -1,4 +1,5 @@
 from gtfseditor import settings
+from datetime import datetime, timedelta
 
 DAYS = ['monday',
         'tuesday',
@@ -12,6 +13,12 @@ DAYS = ['monday',
 def log(*args, **kwargs):
     if settings.DEBUG:
         print(*args, **kwargs)
+
+
+def normalize_time(time_str):
+    hours, minutes, seconds = map(int, time_str.split(':'))
+    hours %= 24
+    return f'{hours:02}:{minutes:02}:{seconds:02}'
 
 
 def create_foreign_key_hashmap(chunk, model, project_pk, csv_key, model_key):

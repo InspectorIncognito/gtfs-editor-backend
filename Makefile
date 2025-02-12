@@ -1,25 +1,23 @@
 # Windows
 ifeq ($(OS),Window_NT)
-	TEST = docker compose -p gtfs-editor-test -f docker\docker-compose.yml --profile test
-	COMPOSE_DEV = docker compose -p gtfseditor-backend-dev -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile dev
-	COMPOSE_PROD = docker compose -p emov-backend-prod -f docker\docker-compose.yml --profile prod
-	MANAGE=python backend\manage.py
+	DOCKER_COMPOSE = docker compose -p gtfseditor-backend-dev
 # Linux
 else
-	TEST = docker compose -p gtfs-editor-test -f docker/docker-compose.yml --profile test
-	COMPOSE_DEV = docker compose -p gtfseditor-backend-dev -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --profile dev
-	COMPOSE_PROD = docker compose -p gtfseditor-backend-prod -f docker/docker-compose.yml --profile prod
-	COMPOSE_CERT = docker compose -p gtfseditor-backend-prod -f docker/docker-compose.yml -f docker/docker-compose.certbot.yml --profile certbot
-	MANAGE=python backend/manage.py
+	DOCKER_COMPOSE = docker compose -p gtfseditor-backend-dev
 endif
-PIP=pip install -r requirements-prod.txt
+
+COMPOSE_PROD = $(DOCKER_COMPOSE) -f docker\docker-compose.yml --profile prod
+COMPOSE_DEV = $(DOCKER_COMPOSE) -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile dev
+COMPOSE_TEST = $(DOCKER_COMPOSE) -f docker\docker-compose.yml -f docker\docker-compose.dev.yml --profile test
+MANAGE = python manage.py
+PIP = pip install -r requirements-prod.txt
 
 
 test:
-	$(TEST) build
-	$(TEST) up --abort-on-container-exit
+	$(COMPOSE_TEST) build
+	$(COMPOSE_TEST) up --abort-on-container-exit
 test_down:
-	$(TEST) down
+	$(COMPOSE_TEST) down
 install_local:
 	$(PIP) -r requirements-dev.txt
 config_env:
