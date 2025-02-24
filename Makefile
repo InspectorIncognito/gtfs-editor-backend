@@ -51,7 +51,7 @@ down:
 db:
 	$(COMPOSE_DEV) --profile dev up db
 prod_build:
-	$(COMPOSE_PROD) build
+	$(COMPOSE_PROD) build --no-cache
 prod_up:
 	@$(COMPOSE_PROD) up -d
 build_nginx:
