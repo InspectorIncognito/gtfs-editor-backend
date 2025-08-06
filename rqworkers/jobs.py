@@ -52,7 +52,7 @@ def upload_gtfs_file(project_pk, zip_file):
                     for uploader_filename in [
                         "agency.txt", "calendar.txt", "routes.txt", "shapes.txt", "trips.txt", "frequencies.txt",
                         "calendar_dates.txt", "levels.txt", "stops.txt", "stop_times.txt", "transfers.txt",
-                        "pathways.txt", "fare_attributes.txt", "fare_rules.txt"
+                        "pathways.txt", "fare_attributes.txt", "fare_rules.txt", 'feed_info.txt'
                     ]:
                         uploader = uploaders[uploader_filename]
                         try:
