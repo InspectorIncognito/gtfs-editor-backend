@@ -243,14 +243,14 @@ class ShapeCSVTest(CSVTestMixin, CSVTestCase):
         data = {'shape_id': 'shape_3'}
         # first we check it doesn't exist originally
         query = model.objects.filter_by_project(self.project.project_id).filter(**data)
-        self.assertEquals(query.count(), 0)
+        self.assertEqual(query.count(), 0)
 
         # then we upload the file that should create a new entry
         response = self.put(meta, 'rest_api/tests/csv/upload_create/{}.csv'.format(filename))
 
         # now the new entry should exist
         query = model.objects.filter_by_project(self.project.project_id).filter(**data)
-        self.assertEquals(query.count(), 1)
+        self.assertEqual(query.count(), 1)
 
     def test_upload_modify(self):
         meta = self.Meta()
@@ -266,7 +266,7 @@ class ShapeCSVTest(CSVTestMixin, CSVTestCase):
 
         # now the new entry should contain the expected values
         query = ShapePoint.objects.filter_by_project(self.project.project_id).filter(**modified_data)
-        self.assertEquals(query.count(), 1)
+        self.assertEqual(query.count(), 1)
 
     def test_upload_delete(self):
         meta = self.Meta()
@@ -276,11 +276,11 @@ class ShapeCSVTest(CSVTestMixin, CSVTestCase):
         for k in deleted_data:
             # first we check the entry exists originally
             query = Shape.objects.select_by_internal_id(self.project.project_id, k)
-            self.assertEquals(query.count(), 1)
+            self.assertEqual(query.count(), 1)
             sequence = deleted_data[k]
             query = ShapePoint.objects.filter_by_project(self.project.project_id).filter(shape_pt_sequence__in=sequence,
                                                                                          shape__shape_id=k)
-            self.assertEquals(query.count(), len(sequence))
+            self.assertEqual(query.count(), len(sequence))
 
         # then we upload the file that should create a new entry
         response = self.put(meta, 'rest_api/tests/csv/upload_delete/{}.csv'.format(filename))
@@ -289,11 +289,11 @@ class ShapeCSVTest(CSVTestMixin, CSVTestCase):
         for k in deleted_data:
             # first we check the entry exists originally
             query = Shape.objects.select_by_internal_id(self.project.project_id, k)
-            self.assertEquals(query.count(), 0)
+            self.assertEqual(query.count(), 0)
             sequence = deleted_data[k]
             query = ShapePoint.objects.filter_by_project(self.project.project_id).filter(shape_pt_sequence__in=sequence,
                                                                                          shape__shape_id=k)
-            self.assertEquals(query.count(), 0)
+            self.assertEqual(query.count(), 0)
 
 
 class StopTimesCSVTest(CSVTestMixin, CSVTestCase):
