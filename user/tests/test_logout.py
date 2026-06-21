@@ -54,4 +54,4 @@ class LogoutTest(TestCase):
         response = self.client.post(self.url, dict(), headers=self.custom_headers_not_login, format='json')
 
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEquals(response.data['detail'], 'Authentication credentials were not provided.')
+        self.assertEqual(response.data['detail'], 'Authentication credentials were not provided.')

@@ -35,9 +35,9 @@ class BaseTestCase(TestCase):
     def assertFileEquals(self, output_file, expected_file, file_name="unknown"):
         expected = expected_file.read().strip().splitlines()
         output = output_file.read().strip().splitlines()
-        self.assertEquals(len(output), len(expected), "Error: File lengths do not match for file {}.".format(file_name))
+        self.assertEqual(len(output), len(expected), "Error: File lengths do not match for file {}.".format(file_name))
         for i in range(len(output)):
-            self.assertEquals(output[i], expected[i], "Error: Lines should be equal but they aren't in file {}.\nAre "
+            self.assertEqual(output[i], expected[i], "Error: Lines should be equal but they aren't in file {}.\nAre "
                                                       "you sure the output is getting sorted as it should?.".format(
                 file_name))
 
@@ -800,9 +800,9 @@ class CSVTestMixin:
         with open('rest_api/tests/csv/download/{}.csv'.format(filename), 'rb') as expected_file:
             expected = expected_file.read().strip().splitlines()
         output = response.content.strip().splitlines()
-        self.assertEquals(len(output), len(expected))
+        self.assertEqual(len(output), len(expected))
         for i in range(len(output)):
-            self.assertEquals(output[i], expected[i])
+            self.assertEqual(output[i], expected[i])
 
     def test_upload_create(self):
         meta = self.Meta()
@@ -812,14 +812,14 @@ class CSVTestMixin:
 
         # first we check it doesn't exist originally
         query = model.objects.filter_by_project(self.project.project_id).filter(**created_data)
-        self.assertEquals(query.count(), 0)
+        self.assertEqual(query.count(), 0)
 
         # then we upload the file that should create a new entry
         response = self.put(meta, 'rest_api/tests/csv/upload_create/{}.csv'.format(filename))
 
         # now the new entry should exist
         query = model.objects.filter_by_project(self.project.project_id).filter(**created_data)
-        self.assertEquals(query.count(), 1)
+        self.assertEqual(query.count(), 1)
 
     def test_upload_modify(self):
         meta = self.Meta()
@@ -831,7 +831,7 @@ class CSVTestMixin:
         response = self.put(meta, 'rest_api/tests/csv/upload_modify/{}.csv'.format(filename))
         # now the new entry should contain the expected values
         query = model.objects.filter_by_project(self.project.project_id).filter(**modified_data)
-        self.assertEquals(query.count(), 1)
+        self.assertEqual(query.count(), 1)
 
     def test_upload_delete(self):
         meta = self.Meta()
@@ -841,14 +841,14 @@ class CSVTestMixin:
 
         # first we check the entry exists originally
         query = model.objects.filter_by_project(self.project.project_id).filter(**deleted_data)
-        self.assertEquals(query.count(), 1)
+        self.assertEqual(query.count(), 1)
 
         # then we upload the file that should create a new entry
         response = self.put(meta, 'rest_api/tests/csv/upload_delete/{}.csv'.format(filename))
 
         # now we check it doesn't exist anymore
         query = model.objects.filter_by_project(self.project.project_id).filter(**deleted_data)
-        self.assertEquals(query.count(), 0)
+        self.assertEqual(query.count(), 0)
 
     def put(self, meta, path):
         filename = meta.filename
