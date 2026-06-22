@@ -100,7 +100,7 @@ class Project(models.Model):
 
 class Calendar(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    service_id = models.CharField(max_length=50)
+    service_id = models.CharField(max_length=100)
     monday = models.BooleanField(default=False)
     tuesday = models.BooleanField(default=False)
     wednesday = models.BooleanField(default=False)
@@ -122,9 +122,9 @@ class Calendar(models.Model):
 
 class Level(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    level_id = models.CharField(max_length=50)
+    level_id = models.CharField(max_length=100)
     level_index = models.FloatField()
-    level_name = models.CharField(max_length=50)
+    level_name = models.CharField(max_length=100)
     objects = FilterManager()
 
     def __str__(self):
@@ -136,7 +136,7 @@ class Level(models.Model):
 
 class CalendarDate(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    service_id = models.CharField(max_length=50)
+    service_id = models.CharField(max_length=100)
     date = models.DateField()
     exception_type = models.IntegerField()
     objects = FilterManager()
@@ -150,15 +150,15 @@ class CalendarDate(models.Model):
 
 class FeedInfo(models.Model):
     project = models.OneToOneField(Project, on_delete=models.CASCADE)
-    feed_publisher_name = models.CharField(max_length=50)
+    feed_publisher_name = models.CharField(max_length=100)
     feed_publisher_url = models.URLField()
-    feed_lang = models.CharField(max_length=10)
+    feed_lang = models.CharField(max_length=100)
     feed_start_date = models.DateField()
     feed_end_date = models.DateField()
-    feed_version = models.CharField(max_length=50)
+    feed_version = models.CharField(max_length=100)
     feed_contact_email = models.EmailField(null=True)
     feed_contact_url = models.URLField(null=True)
-    feed_id = models.CharField(max_length=50)
+    feed_id = models.CharField(max_length=100)
     objects = FilterManager()
 
     def __str__(self):
@@ -167,14 +167,14 @@ class FeedInfo(models.Model):
 
 class Stop(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    stop_id = models.CharField(max_length=50)
-    stop_code = models.CharField(max_length=50, null=True, blank=True)
+    stop_id = models.CharField(max_length=100)
+    stop_code = models.CharField(max_length=100, null=True, blank=True)
     stop_name = models.CharField(max_length=200, blank=True, null=True)
     stop_lat = models.FloatField(null=True, blank=True, default=None)
     stop_lon = models.FloatField(null=True, blank=True, default=None)
     stop_url = models.URLField(null=True, blank=True)
     stop_desc = models.CharField(max_length=200, null=True, blank=True)
-    zone_id = models.CharField(max_length=50, null=True, blank=True)
+    zone_id = models.CharField(max_length=100, null=True, blank=True)
     location_type = models.IntegerField(null=True, blank=True)
     # Since it's a self-referential FK we can't use Stop, so we reference it by name instead
     parent_station = models.ForeignKey("Stop", null=True, blank=True, on_delete=models.SET_NULL)
@@ -192,7 +192,7 @@ class Stop(models.Model):
 
 
 class Pathway(models.Model):
-    pathway_id = models.CharField(max_length=50)
+    pathway_id = models.CharField(max_length=100)
     from_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, related_name="stop_from")
     to_stop = models.ForeignKey(Stop, on_delete=models.CASCADE, related_name="stop_to")
     pathway_mode = models.IntegerField()
@@ -213,7 +213,7 @@ class Pathway(models.Model):
 
 class Shape(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    shape_id = models.CharField(max_length=50)
+    shape_id = models.CharField(max_length=100)
     objects = InternalIDFilterManager('shape_id')
 
     def __str__(self):
@@ -252,12 +252,12 @@ class Transfer(models.Model):
 
 class Agency(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    agency_id = models.CharField(max_length=50)
-    agency_name = models.CharField(max_length=50)
+    agency_id = models.CharField(max_length=100)
+    agency_name = models.CharField(max_length=100)
     agency_url = models.URLField()
-    agency_timezone = models.CharField(max_length=20)
-    agency_lang = models.CharField(max_length=10, null=True, blank=True)
-    agency_phone = models.CharField(max_length=20, null=True, blank=True)
+    agency_timezone = models.CharField(max_length=100)
+    agency_lang = models.CharField(max_length=100, null=True, blank=True)
+    agency_phone = models.CharField(max_length=100, null=True, blank=True)
     agency_fare_url = models.URLField(max_length=255, null=True, blank=True)
     agency_email = models.EmailField(max_length=255, null=True, blank=True)
     objects = InternalIDFilterManager('agency_id')
@@ -271,8 +271,8 @@ class Agency(models.Model):
 
 class Route(models.Model):
     agency = models.ForeignKey(Agency, on_delete=models.CASCADE)
-    route_id = models.CharField(max_length=50)
-    route_short_name = models.CharField(max_length=50, null=True, blank=True)
+    route_id = models.CharField(max_length=100)
+    route_short_name = models.CharField(max_length=100, null=True, blank=True)
     route_long_name = models.CharField(max_length=200, null=True, blank=True)
     route_desc = models.CharField(max_length=200, null=True, blank=True)
     route_type = models.IntegerField()
@@ -290,9 +290,9 @@ class Route(models.Model):
 
 class FareAttribute(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    fare_id = models.CharField(max_length=50)
+    fare_id = models.CharField(max_length=100)
     price = models.FloatField()
-    currency_type = models.CharField(max_length=10)
+    currency_type = models.CharField(max_length=100)
     payment_method = models.IntegerField()
     transfers = models.IntegerField(null=True, blank=True)
     transfer_duration = models.IntegerField()
@@ -321,14 +321,14 @@ class FareRule(models.Model):
 
 class Trip(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    trip_id = models.CharField(max_length=50)
+    trip_id = models.CharField(max_length=100)
     route = models.ForeignKey(Route, on_delete=models.CASCADE)
     shape = models.ForeignKey(Shape, on_delete=models.CASCADE, null=True, blank=True)
-    service_id = models.CharField(max_length=50)
+    service_id = models.CharField(max_length=100)
     trip_headsign = models.CharField(max_length=100, null=True, blank=True)
     direction_id = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(1)])
-    trip_short_name = models.CharField(max_length=50, null=True, blank=True)
-    block_id = models.CharField(max_length=50, null=True, blank=True)
+    trip_short_name = models.CharField(max_length=100, null=True, blank=True)
+    block_id = models.CharField(max_length=100, null=True, blank=True)
     wheelchair_accessible = models.IntegerField(null=True, blank=True,
                                                 validators=[MinValueValidator(0), MaxValueValidator(2)])
     bikes_allowed = models.IntegerField(null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(2)])
@@ -348,7 +348,7 @@ class StopTime(models.Model):
     stop_sequence = models.IntegerField()
     arrival_time = models.DurationField(null=True, blank=True)
     departure_time = models.DurationField(null=True, blank=True)
-    stop_headsign = models.CharField(max_length=50, null=True, blank=True)
+    stop_headsign = models.CharField(max_length=100, null=True, blank=True)
     pickup_type = models.IntegerField(null=True, blank=True)
     drop_off_type = models.IntegerField(null=True, blank=True)
     continuous_pickup = models.IntegerField(null=True, blank=True)
