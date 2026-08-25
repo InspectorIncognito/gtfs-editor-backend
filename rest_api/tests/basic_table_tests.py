@@ -472,6 +472,11 @@ class StopTimesTableTest(BaseTableTest, BasicTestSuiteMixin):
         print(self.Meta.create_data)
         super().test_create()
 
+    def test_stoptimes_api_response_no_dist_to_next_m(self):
+        """dist_to_next_m must not be exposed in the API JSON response."""
+        response = self.list(self.project.project_id, self.client, dict())
+        for stoptime in response:
+            self.assertNotIn('dist_to_next_m', stoptime)
 
 class ShapeTableTest(BaseTableTest):
     table_name = 'project-shapes'

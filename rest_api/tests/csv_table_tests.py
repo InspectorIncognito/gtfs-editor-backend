@@ -1,5 +1,7 @@
 from datetime import date
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 from rest_api.models import Shape, Calendar, Level, CalendarDate, Stop, Pathway, Transfer, Agency, Route, \
     FareAttribute, Trip, StopTime, ShapePoint, Frequency, FeedInfo
 from rest_api.tests.test_helpers import CSVTestCase, CSVTestMixin
@@ -335,6 +337,35 @@ class StopTimesCSVTest(CSVTestMixin, CSVTestCase):
             'timepoint': 1
 
         }
+
+    def test_download_stoptimes_no_dist_to_next_m(self):
+        """dist_to_next_m must never appear in the CSV download header or output."""
+        url = reverse('project-stoptimes-download', kwargs={'project_pk': self.project.project_id})
+        response = self.client.get(url, {})
+        header = response.content.decode().splitlines()[0]
+        columns = [col.strip() for col in header.split(',')]
+        self.assertNotIn('dist_to_next_m', columns)
+
+    def test_upload_stoptimes_with_dist_to_next_m(self):
+        """Uploading a CSV that contains the dist_to_next_m column must not fail;
+        the column is silently absorbed and its value is NOT stored."""
+        csv_content = (
+            b"trip_id,stop_id,stop_sequence,arrival_time,departure_time,"
+            b"stop_headsign,pickup_type,drop_off_type,continuous_pickup,"
+            b"continuous_drop_off,shape_dist_traveled,timepoint,dist_to_next_m\n"
+            b"trip0,stop_0,99,,,,,,,,,,\n"
+        )
+        uploaded_file = SimpleUploadedFile('stoptimes.csv', csv_content,
+                                          content_type='application/octet-stream')
+        url = reverse('project-stoptimes-upload',
+                      kwargs={'project_pk': self.project.project_id})
+        response = self.client.put(
+            url, {'file': uploaded_file},
+            HTTP_CONTENT_DISPOSITION='attachment; filename=stoptimes.csv')
+        self.assertEqual(response.status_code, 200)
+        stoptime = StopTime.objects.get(trip__project=self.project,
+                                        stop_sequence=99)
+        self.assertIsNone(stoptime.dist_to_next_m)
 
 
 class FrequencyCSVTest(CSVTestMixin, CSVTestCase):
