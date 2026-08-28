@@ -126,6 +126,46 @@ class StopTableTest(BaseTableTest, BasicTestSuiteMixin):
             'stop_url': 'http://www.stop-1-patched.cl'
         }
 
+    def test_create_with_wheelchair_boarding(self):
+        data = dict(self.Meta.create_data)
+        data['wheelchair_boarding'] = 1
+        json_response = self.create(self.project.project_id, self.client, data)
+        self.assertEqual(json_response['wheelchair_boarding'], 1)
+        obj = Stop.objects.filter(project=self.project, stop_id=data['stop_id'])[0]
+        self.assertEqual(obj.wheelchair_boarding, 1)
+
+    def test_patch_wheelchair_boarding_roundtrip(self):
+        data = {'stop_id': 'stop_1'}
+        id = self.Meta().get_id(self.project, data)
+        # the frontend sends integers or null (GTFS enum), so every step
+        # must persist and be returned exactly as sent
+        for value in [0, 1, 2, None]:
+            json_response = self.patch(self.project.project_id, id, self.client,
+                                       {'stop_id': 'stop_1', 'wheelchair_boarding': value})
+            self.assertEqual(json_response['wheelchair_boarding'], value)
+            obj = Stop.objects.get(id=id)
+            self.assertEqual(obj.wheelchair_boarding, value)
+        self.assertIsNone(Stop.objects.get(id=id).wheelchair_boarding)
+
+    def test_patch_wheelchair_boarding_invalid(self):
+        data = {'stop_id': 'stop_1'}
+        id = self.Meta().get_id(self.project, data)
+        # out of GTFS enum range and non integer values must be rejected
+        for invalid_value in ['abc', 3, -1]:
+            json_response = self.patch(self.project.project_id, id, self.client,
+                                       {'stop_id': 'stop_1', 'wheelchair_boarding': invalid_value},
+                                       status.HTTP_400_BAD_REQUEST)
+            self.assertIn('wheelchair_boarding', json_response)
+
+    def test_retrieve_returns_integer_wheelchair_boarding(self):
+        data = {'stop_id': 'stop_1'}
+        id = self.Meta().get_id(self.project, data)
+        self.patch(self.project.project_id, id, self.client,
+                   {'stop_id': 'stop_1', 'wheelchair_boarding': 1})
+        json_response = self.retrieve(self.project.project_id, id, self.client, dict())
+        # regression test: it used to come back as the string "1", which broke the frontend select
+        self.assertIsInstance(json_response['wheelchair_boarding'], int)
+
 
 class FeedInfoTableTest(BaseTableTest, BasicTestSuiteMixin):
     table_name = "project-feedinfo"
@@ -432,6 +472,11 @@ class StopTimesTableTest(BaseTableTest, BasicTestSuiteMixin):
         print(self.Meta.create_data)
         super().test_create()
 
+    def test_stoptimes_api_response_no_dist_to_next_m(self):
+        """dist_to_next_m must not be exposed in the API JSON response."""
+        response = self.list(self.project.project_id, self.client, dict())
+        for stoptime in response:
+            self.assertNotIn('dist_to_next_m', stoptime)
 
 class ShapeTableTest(BaseTableTest):
     table_name = 'project-shapes'

@@ -204,7 +204,7 @@ class Stop(models.Model):
     # Since it's a self-referential FK we can't use Stop so we reference it by name instead
     parent_station = models.ForeignKey("Stop", null=True, blank=True, on_delete=models.SET_NULL)
     stop_timezone = models.CharField(max_length=200, null=True, blank=True)
-    wheelchair_boarding = models.CharField(max_length=200, null=True, blank=True)
+    wheelchair_boarding = models.IntegerField(null=True, blank=True, default=None, validators=[MinValueValidator(0), MaxValueValidator(2)])
     level = models.ForeignKey(Level, null=True, blank=True, on_delete=models.SET_NULL)
     platform_code = models.CharField(max_length=200, null=True, blank=True)
     objects = InternalIDFilterManager('stop_id')
@@ -383,6 +383,9 @@ class StopTime(models.Model):
     continuous_drop_off = models.IntegerField(null=True, blank=True)
     shape_dist_traveled = models.FloatField(null=True, blank=True)
     timepoint = models.IntegerField(null=True, blank=True)
+    # Defensive field: exists solely to absorb the "dist_to_next_m" column
+    # present in some uploaded stoptimes CSVs. 
+    dist_to_next_m = models.FloatField(null=True, blank=True, default=None)
 
     objects = FilterManager('trip__project')
 
